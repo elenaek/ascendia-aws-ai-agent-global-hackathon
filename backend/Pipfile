@@ -8,6 +8,8 @@ python-dotenv = "*"
 strands-agents = "*"
 strands-agents-tools = "*"
 bedrock-agentcore = "*"
+pymongo = "*"
+playwright = "*"
 
 [dev-packages]
 
