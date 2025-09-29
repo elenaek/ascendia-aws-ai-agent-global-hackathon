@@ -11,6 +11,7 @@ bedrock-agentcore = "*"
 pymongo = "*"
 playwright = "*"
 requests = "*"
+pydantic = "*"
 
 [dev-packages]
 
