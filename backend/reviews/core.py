@@ -1,7 +1,7 @@
 import boto3
 
-from db.mongo import get_collection
-from db.collections import Collection
+from shared.mongo import get_collection
+from shared.collections import Collection
 from bson import ObjectId
 
 def get_competitors(company_id: str):

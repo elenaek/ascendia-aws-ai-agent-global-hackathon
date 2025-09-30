@@ -1,9 +1,19 @@
 import requests
 import os
 from time import sleep
+from bson import ObjectId
+from shared.mongo import get_collection
+from shared.collections import Collection
 
 DATA_FOR_SEO_URL_START_TASK = "https://api.dataforseo.com/v3/business_data/trustpilot/reviews/task_post"
 DATA_FOR_SEO_URL_GET_TASK = "https://api.dataforseo.com/v3/business_data/trustpilot/reviews/task_get/{task_id}"
+
+# def put_task(task_id: str):
+#     collection = get_collection(Collection.WEBHOOKS).insert_one({
+#         "task_id": task_id,
+#         "url": f"https://dataforseo.com/v3/business_data/trustpilot/reviews/task_get/{task_id}"
+#     })
+#     return 
 
 def get_company_reviews(company_url: str, number_of_reviews: int = 20):
     url = DATA_FOR_SEO_URL_START_TASK

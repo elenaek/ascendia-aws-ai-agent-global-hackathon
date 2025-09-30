@@ -8,8 +8,8 @@ from strands import Agent, tool
 from strands.models import BedrockModel
 from strands_tools import think
 from strands_tools.tavily import tavily_search
-from db.mongo import get_collection
-from db.collections import Collection
+from shared.mongo import get_collection
+from shared.collections import Collection
 from reviews.core import get_competitors
 
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
