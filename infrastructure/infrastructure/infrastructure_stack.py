@@ -1,11 +1,13 @@
 from aws_cdk import (
     Duration,
     Stack,
+    CfnOutput,
     aws_lambda as _lambda,
     aws_logs as logs,
     aws_ssm as ssm,
     aws_s3 as s3,
     aws_dynamodb as dynamodb,
+    aws_cognito as cognito,
     RemovalPolicy,
     BundlingOptions,
 )
@@ -21,6 +23,56 @@ class InfrastructureStack(Stack):
 
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
+
+        # ============ Cognito User Pool ============
+
+        # Create User Pool
+        user_pool = cognito.UserPool(
+            self, "AscendiaUserPool",
+            user_pool_name=f"ascendia-users-{self.account}",
+            self_sign_up_enabled=True,
+            sign_in_aliases=cognito.SignInAliases(
+                email=True,
+                preferred_username=False,
+            ),
+            auto_verify=cognito.AutoVerifiedAttrs(email=True),
+            standard_attributes=cognito.StandardAttributes(
+                email=cognito.StandardAttribute(
+                    required=True,
+                    mutable=True,
+                )
+            ),
+            password_policy=cognito.PasswordPolicy(
+                min_length=8,
+                require_lowercase=True,
+                require_uppercase=True,
+                require_digits=True,
+                require_symbols=False,
+            ),
+            account_recovery=cognito.AccountRecovery.EMAIL_ONLY,
+            removal_policy=RemovalPolicy.DESTROY,
+        )
+
+        # Create User Pool Client
+        user_pool_client = user_pool.add_client(
+            "AscendiaWebClient",
+            user_pool_client_name=f"ascendia-web-client-{self.account}",
+            auth_flows=cognito.AuthFlow(
+                user_password=True,
+                user_srp=True,
+            ),
+            o_auth=cognito.OAuthSettings(
+                flows=cognito.OAuthFlows(
+                    implicit_code_grant=True,
+                ),
+                scopes=[
+                    cognito.OAuthScope.OPENID,
+                    cognito.OAuthScope.EMAIL,
+                    cognito.OAuthScope.PROFILE,
+                ],
+            ),
+            prevent_user_existence_errors=True,
+        )
 
         # Get DataForSEO API credentials from environment variable
         dataforseo_auth = os.environ.get('DATA_FOR_SEO_CREDS_B64', '')
@@ -44,7 +96,7 @@ class InfrastructureStack(Stack):
             bucket_name=f"aws-hackathon-raw-reviews-{self.account}",
             versioned=True,
             encryption=s3.BucketEncryption.S3_MANAGED,
-            removal_policy=RemovalPolicy.RETAIN,  # Keep data on stack deletion
+            removal_policy=RemovalPolicy.DESTROY,  # Keep data on stack deletion
             auto_delete_objects=False,
         )
 
@@ -59,7 +111,7 @@ class InfrastructureStack(Stack):
                 type=dynamodb.AttributeType.STRING
             ),
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
-            removal_policy=RemovalPolicy.RETAIN,
+            removal_policy=RemovalPolicy.DESTROY,
             point_in_time_recovery=True,
         )
 
@@ -72,7 +124,7 @@ class InfrastructureStack(Stack):
                 type=dynamodb.AttributeType.STRING
             ),
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
-            removal_policy=RemovalPolicy.RETAIN,
+            removal_policy=RemovalPolicy.DESTROY,
             point_in_time_recovery=True,
         )
 
@@ -99,7 +151,7 @@ class InfrastructureStack(Stack):
                 type=dynamodb.AttributeType.STRING
             ),
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
-            removal_policy=RemovalPolicy.RETAIN,
+            removal_policy=RemovalPolicy.DESTROY,
         )
 
         # GSI to query from competitor side
@@ -129,7 +181,7 @@ class InfrastructureStack(Stack):
                 type=dynamodb.AttributeType.STRING
             ),
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
-            removal_policy=RemovalPolicy.RETAIN,
+            removal_policy=RemovalPolicy.DESTROY,
             point_in_time_recovery=True,
         )
 
@@ -212,8 +264,31 @@ class InfrastructureStack(Stack):
             )
         )
 
-        # Output the Function URL and secret ARN
+        # ============ Outputs ============
+
+        # Output Cognito details
+        CfnOutput(
+            self, "UserPoolId",
+            value=user_pool.user_pool_id,
+            description="Cognito User Pool ID",
+            export_name=f"{self.stack_name}-UserPoolId"
+        )
+
+        CfnOutput(
+            self, "UserPoolClientId",
+            value=user_pool_client.user_pool_client_id,
+            description="Cognito User Pool Client ID",
+            export_name=f"{self.stack_name}-UserPoolClientId"
+        )
+
+        CfnOutput(
+            self, "WebhookUrl",
+            value=webhook_url.url,
+            description="Webhook Lambda Function URL"
+        )
+
+        # Store for programmatic access
+        self.user_pool_id = user_pool.user_pool_id
+        self.user_pool_client_id = user_pool_client.user_pool_client_id
         self.api_url = webhook_url.url
         self.secret_arn = dataforseo_auth_param.parameter_name
-        self.mongo_connection_string_arn = mongo_connection_string_param.parameter_name
-        self.mongo_db_name_arn = mongo_db_name_param.parameter_name

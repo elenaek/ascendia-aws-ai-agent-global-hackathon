@@ -1,0 +1,51 @@
+/* Override Amplify Authenticator styles */
+[data-amplify-authenticator] {
+  --amplify-components-authenticator-router-box-shadow: none;
+  --amplify-components-authenticator-router-border-width: 0;
+  --amplify-components-authenticator-form-padding: 0;
+}
+
+/* Make sure form container doesn't overflow */
+[data-amplify-authenticator] [data-amplify-router] {
+  max-width: 100%;
+  overflow: visible;
+}
+
+/* Style form fields to match our theme */
+[data-amplify-authenticator] input {
+  background-color: hsl(222.2, 84%, 4.9%) !important;
+  border-color: hsl(190, 100%, 50%, 0.3) !important;
+  color: hsl(210, 40%, 98%) !important;
+}
+
+[data-amplify-authenticator] input:focus {
+  border-color: hsl(190, 100%, 50%) !important;
+  box-shadow: 0 0 0 1px hsl(190, 100%, 50%) !important;
+}
+
+/* Style buttons */
+[data-amplify-authenticator] button[type="submit"] {
+  background-color: hsl(190, 100%, 50%) !important;
+  color: hsl(222.2, 47.4%, 11.2%) !important;
+}
+
+[data-amplify-authenticator] button[type="submit"]:hover {
+  background-color: hsl(190, 100%, 40%) !important;
+}
+
+/* Style links */
+[data-amplify-authenticator] button[data-amplify-router-link] {
+  color: hsl(190, 100%, 50%) !important;
+}
+
+/* Style labels */
+[data-amplify-authenticator] label {
+  color: hsl(210, 40%, 98%) !important;
+}
+
+/* Style error messages */
+[data-amplify-authenticator] [role="alert"] {
+  background-color: hsl(0, 62.8%, 30.6%, 0.1) !important;
+  border-color: hsl(0, 62.8%, 30.6%, 0.2) !important;
+  color: hsl(0, 62.8%, 60%) !important;
+}
