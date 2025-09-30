@@ -24,15 +24,9 @@ class InfrastructureStack(Stack):
 
         # Get DataForSEO API credentials from environment variable
         dataforseo_auth = os.environ.get('DATA_FOR_SEO_CREDS_B64', '')
-        mongo_connection_string = os.environ.get('MONGO_CONNECTION_STRING', '')
-        mongo_db_name = os.environ.get('MONGO_DB_NAME', '')
 
         if not dataforseo_auth:
             print("WARNING: DATA_FOR_SEO_CREDS_B64 not found in environment variables")
-        if not mongo_connection_string:
-            print("WARNING: MONGO_CONNECTION_STRING not found in environment variables")
-        if not mongo_db_name:
-            print("WARNING: MONGO_DB_NAME not found in environment variables")
 
         # Create SSM Parameter for DataForSEO B64 auth string
         dataforseo_auth_param = ssm.StringParameter(
@@ -40,22 +34,6 @@ class InfrastructureStack(Stack):
             description="DataForSEO API B64 Basic Auth String",
             parameter_name="/webhook/dataforseo/auth",
             string_value=dataforseo_auth,
-            tier=ssm.ParameterTier.STANDARD,
-        )
-
-        mongo_connection_string_param = ssm.StringParameter(
-            self, "MongoConnectionString",
-            description="Mongo Connection String",
-            parameter_name="/webhook/mongo/connection_string",
-            string_value=mongo_connection_string,
-            tier=ssm.ParameterTier.STANDARD,
-        )
-
-        mongo_db_name_param = ssm.StringParameter(
-            self, "MongoDbName",
-            description="Mongo DB Name",
-            parameter_name="/webhook/mongo/db_name",
-            string_value=mongo_db_name,
             tier=ssm.ParameterTier.STANDARD,
         )
 
@@ -197,16 +175,14 @@ class InfrastructureStack(Stack):
             handler="handler",
             environment={
                 "DATA_FOR_SEO_CREDS_B64": dataforseo_auth_param.parameter_name,
-                "MONGO_CONNECTION_STRING": mongo_connection_string_param.parameter_name,
-                "MONGO_DB_NAME": mongo_db_name_param.parameter_name,
                 "RAW_REVIEWS_BUCKET": raw_reviews_bucket.bucket_name,
                 # DynamoDB table names
                 "DYNAMODB_COMPANIES_TABLE": companies_table.table_name,
                 "DYNAMODB_COMPETITORS_TABLE": competitors_table.table_name,
                 "DYNAMODB_COMPANY_COMPETITORS_TABLE": company_competitors_table.table_name,
                 "DYNAMODB_REVIEWS_TABLE": reviews_table.table_name,
-                # Database selection (MONGODB or DYNAMODB)
-                "DATABASE_TYPE": "MONGODB",  # Change to DYNAMODB to switch
+                # Database selection - using DynamoDB
+                "DATABASE_TYPE": "DYNAMODB",
                 "PYTHONPATH": "/var/task:/var/task/shared",  # Add shared to Python path
             },
             timeout=Duration.seconds(30),
@@ -216,8 +192,6 @@ class InfrastructureStack(Stack):
 
         # Grant Lambda permission to read the SSM parameter
         dataforseo_auth_param.grant_read(webhook_lambda)
-        mongo_connection_string_param.grant_read(webhook_lambda)
-        mongo_db_name_param.grant_read(webhook_lambda)
 
         # Grant Lambda permission to put objects into the S3 bucket
         raw_reviews_bucket.grant_put(webhook_lambda)
