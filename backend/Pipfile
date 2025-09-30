@@ -12,6 +12,7 @@ pymongo = "*"
 playwright = "*"
 requests = "*"
 pydantic = "*"
+boto3 = "*"
 
 [dev-packages]
 

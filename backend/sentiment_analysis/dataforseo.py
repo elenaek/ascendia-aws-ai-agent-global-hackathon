@@ -32,3 +32,4 @@ def get_company_reviews(company_url: str, number_of_reviews: int = 20):
     return body["tasks"][0]["result"]
 
 
+
