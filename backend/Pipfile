@@ -7,12 +7,12 @@ name = "pypi"
 python-dotenv = "*"
 strands-agents = "*"
 strands-agents-tools = "*"
-bedrock-agentcore = "*"
 pymongo = "*"
 playwright = "*"
 requests = "*"
 pydantic = "*"
 boto3 = "*"
+bedrock-agentcore = "*"
 
 [dev-packages]
 

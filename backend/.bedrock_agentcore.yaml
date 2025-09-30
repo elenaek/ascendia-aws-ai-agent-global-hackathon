@@ -1,0 +1,31 @@
+default_agent: main
+agents:
+  main:
+    name: main
+    entrypoint: main.py
+    platform: linux/arm64
+    container_runtime: docker
+    aws:
+      execution_role: arn:aws:iam::738859113996:role/AmazonBedrockAgentCoreSDKRuntime-us-east-1-0d6e4079e3
+      execution_role_auto_create: false
+      account: '738859113996'
+      region: us-east-1
+      ecr_repository: 738859113996.dkr.ecr.us-east-1.amazonaws.com/bedrock-agentcore-main
+      ecr_auto_create: false
+      network_configuration:
+        network_mode: PUBLIC
+      protocol_configuration:
+        server_protocol: HTTP
+      observability:
+        enabled: true
+    bedrock_agentcore:
+      agent_id: main-6nzEcLC804
+      agent_arn: arn:aws:bedrock-agentcore:us-east-1:738859113996:runtime/main-6nzEcLC804
+      agent_session_id: d3f2ab2f-6783-47a5-a7c7-5359d162e6ec
+    codebuild:
+      project_name: bedrock-agentcore-main-builder
+      execution_role: arn:aws:iam::738859113996:role/AmazonBedrockAgentCoreSDKCodeBuild-us-east-1-0d6e4079e3
+      source_bucket: bedrock-agentcore-codebuild-sources-738859113996-us-east-1
+    authorizer_configuration: null
+    request_header_configuration: null
+    oauth_configuration: null
