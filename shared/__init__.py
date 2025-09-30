@@ -1,0 +1,1 @@
+# Shared types and models between backend and Lambda functions
