@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "306c9a7d70607412e819eb2af410d1f4dbb7d94996a10efb11f4b4daae3adcd6"
+            "sha256": "56efd5f7de77e9f91d82863a1a5aebe557675f8212bc52fe0b48e2d88ffd9d4e"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -65,6 +65,14 @@
             ],
             "markers": "python_version ~= '3.8'",
             "version": "==2.1.0"
+        },
+        "aws-cdk.aws-cognito-identitypool-alpha": {
+            "hashes": [
+                "sha256:51025006390e83cfa194c908265c631d2946a64eb2b7b5cbd33db7033c8fe9c5",
+                "sha256:6cf272af6fc7e5b778d62e08599f85867a4496a1dfa14b13160a01d1328fdd17"
+            ],
+            "markers": "python_version ~= '3.8'",
+            "version": "==2.170.0a0"
         },
         "aws-cdk.cloud-assembly-schema": {
             "hashes": [

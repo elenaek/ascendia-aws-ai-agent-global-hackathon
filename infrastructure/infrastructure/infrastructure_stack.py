@@ -8,9 +8,11 @@ from aws_cdk import (
     aws_s3 as s3,
     aws_dynamodb as dynamodb,
     aws_cognito as cognito,
+    aws_iam as iam,
     RemovalPolicy,
     BundlingOptions,
 )
+from aws_cdk import aws_cognito_identitypool_alpha as identity_pool
 from aws_cdk.aws_lambda_python_alpha import PythonFunction, BundlingOptions as PythonBundlingOptions
 from constructs import Construct
 from dotenv import load_dotenv
@@ -73,6 +75,10 @@ class InfrastructureStack(Stack):
             ),
             prevent_user_existence_errors=True,
         )
+
+        # ============ Cognito Identity Pool ============
+
+        # We'll create the Identity Pool after the tables and roles
 
         # Get DataForSEO API credentials from environment variable
         dataforseo_auth = os.environ.get('DATA_FOR_SEO_CREDS_B64', '')
@@ -209,6 +215,97 @@ class InfrastructureStack(Stack):
             projection_type=dynamodb.ProjectionType.ALL
         )
 
+        # Create Identity Pool first (it will create its own default roles)
+        identity_pool_instance = identity_pool.IdentityPool(
+            self, "AscendiaIdentityPool",
+            identity_pool_name=f"ascendia-identity-pool-{self.account}",
+            allow_unauthenticated_identities=False,
+            authentication_providers=identity_pool.IdentityPoolAuthenticationProviders(
+                user_pools=[identity_pool.UserPoolAuthenticationProvider(
+                    user_pool=user_pool,
+                    user_pool_client=user_pool_client
+                )]
+            ),
+        )
+
+        # ============ IAM Policies for Row-Level Security ============
+
+        # Get the authenticated role created by the Identity Pool
+        authenticated_role = identity_pool_instance.authenticated_role
+
+        # Add policy for row-level access to DynamoDB companies table
+        authenticated_role.add_to_policy(iam.PolicyStatement(
+            effect=iam.Effect.ALLOW,
+            actions=[
+                "dynamodb:GetItem",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:DeleteItem",
+            ],
+            resources=[companies_table.table_arn],
+            conditions={
+                "ForAllValues:StringEquals": {
+                    "dynamodb:LeadingKeys": ["${cognito-identity.amazonaws.com:sub}"]
+                }
+            }
+        ))
+
+        # Add policy for reading competitors (they can view all competitors)
+        authenticated_role.add_to_policy(iam.PolicyStatement(
+            effect=iam.Effect.ALLOW,
+            actions=[
+                "dynamodb:GetItem",
+                "dynamodb:Query",
+                "dynamodb:Scan",
+            ],
+            resources=[
+                competitors_table.table_arn,
+                f"{competitors_table.table_arn}/index/*"
+            ]
+        ))
+
+        # Add policy for company-competitors junction table (row-level)
+        authenticated_role.add_to_policy(iam.PolicyStatement(
+            effect=iam.Effect.ALLOW,
+            actions=[
+                "dynamodb:GetItem",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:Query",
+            ],
+            resources=[
+                company_competitors_table.table_arn,
+                f"{company_competitors_table.table_arn}/index/*"
+            ],
+            conditions={
+                "ForAllValues:StringEquals": {
+                    "dynamodb:LeadingKeys": ["${cognito-identity.amazonaws.com:sub}"]
+                }
+            }
+        ))
+
+        # Add policy for reviews table (row-level based on company_id)
+        authenticated_role.add_to_policy(iam.PolicyStatement(
+            effect=iam.Effect.ALLOW,
+            actions=[
+                "dynamodb:GetItem",
+                "dynamodb:Query",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:DeleteItem",
+            ],
+            resources=[
+                reviews_table.table_arn,
+                f"{reviews_table.table_arn}/index/company-reviews-index"
+            ],
+            conditions={
+                "ForAllValues:StringEquals": {
+                    "dynamodb:LeadingKeys": ["${cognito-identity.amazonaws.com:sub}"]
+                }
+            }
+        ))
+
         # Copy shared directory to lambda during bundling
         lambda_dir = Path("lambda")
         shared_src = Path("../shared")
@@ -279,6 +376,13 @@ class InfrastructureStack(Stack):
             value=user_pool_client.user_pool_client_id,
             description="Cognito User Pool Client ID",
             export_name=f"{self.stack_name}-UserPoolClientId"
+        )
+
+        CfnOutput(
+            self, "IdentityPoolId",
+            value=identity_pool_instance.identity_pool_id,
+            description="Cognito Identity Pool ID",
+            export_name=f"{self.stack_name}-IdentityPoolId"
         )
 
         CfnOutput(

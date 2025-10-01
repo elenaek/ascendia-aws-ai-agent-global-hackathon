@@ -41,15 +41,43 @@ export default function OnboardingPage() {
         console.log('Current user:', user)
         console.log('Form data:', formData)
 
-        // Set company info only (don't update user since they're already authenticated)
+        if (!user?.id) {
+          console.error('No user ID found')
+          return
+        }
+
+        // Save to DynamoDB via API
+        console.log('Saving company data to database...')
+        const { authenticatedFetch } = await import('@/lib/auth-utils')
+
+        const response = await authenticatedFetch('/api/company', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            companyName: formData.companyName,
+            companyWebsite: formData.companyWebsite,
+            companyDescription: formData.companyDescription,
+          }),
+        })
+
+        if (!response.ok) {
+          throw new Error('Failed to save company data')
+        }
+
+        const result = await response.json()
+        console.log('Company data saved:', result)
+
+        // Set company info in local state
         const companyData = {
-          id: crypto.randomUUID(),
+          id: result.data.company_id, // Use the identity ID from the response
           name: formData.companyName,
           website: formData.companyWebsite,
           description: formData.companyDescription,
         }
 
-        console.log('Setting company data:', companyData)
+        console.log('Setting company data in store:', companyData)
         setCompany(companyData)
 
         // Mark onboarding as complete

@@ -14,6 +14,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Configure Amplify
     const userPoolId = process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID
     const clientId = process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID
+    const identityPoolId = process.env.NEXT_PUBLIC_COGNITO_IDENTITY_POOL_ID
     const region = process.env.NEXT_PUBLIC_AWS_REGION || 'us-east-1'
 
     if (userPoolId && clientId) {
@@ -22,6 +23,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           Cognito: {
             userPoolId,
             userPoolClientId: clientId,
+            identityPoolId,
             signUpVerificationMethod: 'code',
             loginWith: {
               email: true,

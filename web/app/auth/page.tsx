@@ -7,6 +7,7 @@ import '@aws-amplify/ui-react/styles.css'
 import './auth.css'
 import { useAuthStore } from '@/stores/auth-store'
 import { useOnboardingStore } from '@/stores/onboarding-store'
+import { useAnalyticsStore } from '@/stores/analytics-store'
 
 const customTheme: Theme = {
   name: 'ascendia-theme',
@@ -50,7 +51,8 @@ function AuthContent() {
   const router = useRouter()
   const { authStatus, user: amplifyUser } = useAuthenticator((context) => [context.authStatus, context.user])
   const { setUser } = useAuthStore()
-  const { isOnboarded } = useOnboardingStore()
+  const { setOnboarded } = useOnboardingStore()
+  const { setCompany } = useAnalyticsStore()
 
   useEffect(() => {
     const updateAuthState = async () => {
@@ -64,29 +66,60 @@ function AuthContent() {
 
         // For email-based login, username might be the email
         const email = amplifyUser.signInDetails?.loginId || amplifyUser.username || ''
+        const userId = amplifyUser.userId || email
 
         // Update the Zustand store with the authenticated user
         setUser({
-          id: amplifyUser.userId || email,
+          id: userId,
           username: email, // Use email as username for email-based auth
           email: email,
         })
 
-        console.log('User set in store, checking onboarding status...')
+        console.log('User set in store, checking for existing company data...')
 
-        // Check if user has completed onboarding
-        if (isOnboarded) {
-          console.log('User already onboarded, redirecting to dashboard...')
-          router.push('/dashboard')
-        } else {
-          console.log('User not onboarded, redirecting to onboarding...')
+        try {
+          // Get the ID token from the session
+          const { authenticatedFetch } = await import('@/lib/auth-utils')
+
+          // Try to fetch company data from DynamoDB with authentication
+          const response = await authenticatedFetch('/api/company')
+
+          if (response.ok) {
+            const result = await response.json()
+            console.log('Found existing company data:', result)
+
+            // Set company data in store
+            setCompany({
+              id: result.data.company_id,
+              name: result.data.name,
+              website: result.data.website,
+              description: result.data.description || '',
+            })
+
+            // Mark as onboarded
+            setOnboarded(email)
+
+            console.log('Company data loaded, redirecting to dashboard...')
+            router.push('/dashboard')
+          } else if (response.status === 404) {
+            // No company data found, need onboarding
+            console.log('No company data found, redirecting to onboarding...')
+            router.push('/onboarding')
+          } else {
+            // Error fetching data, redirect to onboarding as fallback
+            console.error('Error checking company data, redirecting to onboarding')
+            router.push('/onboarding')
+          }
+        } catch (error) {
+          console.error('Error fetching company data:', error)
+          // On error, redirect to onboarding
           router.push('/onboarding')
         }
       }
     }
 
     updateAuthState()
-  }, [authStatus, amplifyUser, router, setUser, isOnboarded])
+  }, [authStatus, amplifyUser, router, setUser, setOnboarded, setCompany])
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
