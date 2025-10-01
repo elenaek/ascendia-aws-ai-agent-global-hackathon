@@ -4,10 +4,10 @@ import { Card } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAnalyticsStore } from '@/stores/analytics-store'
 import { Badge } from '@/components/ui/badge'
-import { ExternalLink, Building2 } from 'lucide-react'
+import { ExternalLink, Building2, Activity } from 'lucide-react'
 
 export function CompetitorsPanel() {
-  const { competitors, isLoadingCompetitors } = useAnalyticsStore()
+  const { competitors, isLoadingCompetitors, company } = useAnalyticsStore()
 
   const directCompetitors = competitors.filter((c) => c.category === 'Direct Competitors')
   const indirectCompetitors = competitors.filter((c) => c.category === 'Indirect Competitors')
@@ -17,7 +17,9 @@ export function CompetitorsPanel() {
     <div className="space-y-3">
       {competitors.length === 0 ? (
         <p className="text-muted-foreground text-sm text-center py-8">
-          No competitors found in this category
+          {company
+            ? `No competitors found for ${company.company_name} in this category`
+            : 'No competitors found in this category'}
         </p>
       ) : (
         competitors.map((competitor) => (
@@ -57,7 +59,10 @@ export function CompetitorsPanel() {
   return (
     <Card className="p-4 bg-panel border-primary/20 glow">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-primary">Competitors</h3>
+        <div className="flex items-center gap-2 mb-4">
+          <Activity className="w-5 h-5 text-primary" />
+          <h3 className="text-lg font-semibold text-primary">Competitors</h3>
+        </div>
         <Badge variant="outline" className="border-primary/30 text-primary">
           {competitors.length} Total
         </Badge>

@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 
 interface Competitor {
   id: string
@@ -45,25 +46,39 @@ interface AnalyticsState {
   clearAll: () => void
 }
 
-export const useAnalyticsStore = create<AnalyticsState>((set) => ({
-  company: null,
-  competitors: [],
-  insights: [],
-  swotAnalysis: null,
-  isLoadingCompetitors: false,
-  isLoadingInsights: false,
-  setCompany: (company) => set({ company }),
-  setCompetitors: (competitors) => set({ competitors }),
-  setInsights: (insights) => set({ insights }),
-  setSwotAnalysis: (swot) => set({ swotAnalysis: swot }),
-  setLoadingCompetitors: (loading) => set({ isLoadingCompetitors: loading }),
-  setLoadingInsights: (loading) => set({ isLoadingInsights: loading }),
-  clearAll: () => set({
-    company: null,
-    competitors: [],
-    insights: [],
-    swotAnalysis: null,
-    isLoadingCompetitors: false,
-    isLoadingInsights: false,
-  }),
-}))
+export const useAnalyticsStore = create<AnalyticsState>()(
+  persist(
+    (set) => ({
+      company: null,
+      competitors: [],
+      insights: [],
+      swotAnalysis: null,
+      isLoadingCompetitors: false,
+      isLoadingInsights: false,
+      setCompany: (company) => set({ company }),
+      setCompetitors: (competitors) => set({ competitors }),
+      setInsights: (insights) => set({ insights }),
+      setSwotAnalysis: (swot) => set({ swotAnalysis: swot }),
+      setLoadingCompetitors: (loading) => set({ isLoadingCompetitors: loading }),
+      setLoadingInsights: (loading) => set({ isLoadingInsights: loading }),
+      clearAll: () => set({
+        company: null,
+        competitors: [],
+        insights: [],
+        swotAnalysis: null,
+        isLoadingCompetitors: false,
+        isLoadingInsights: false,
+      }),
+    }),
+    {
+      name: 'analytics-storage',
+      partialize: (state) => ({
+        company: state.company,
+        // We can choose to persist competitors and insights too if needed
+        competitors: state.competitors,
+        insights: state.insights,
+        swotAnalysis: state.swotAnalysis,
+      }),
+    }
+  )
+)

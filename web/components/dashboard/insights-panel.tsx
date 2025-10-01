@@ -5,7 +5,7 @@ import { useAnalyticsStore } from '@/stores/analytics-store'
 import { Lightbulb, TrendingUp, AlertCircle } from 'lucide-react'
 
 export function InsightsPanel() {
-  const { insights, swotAnalysis, isLoadingInsights } = useAnalyticsStore()
+  const { insights, swotAnalysis, isLoadingInsights, company } = useAnalyticsStore()
 
   return (
     <div className="space-y-6">
@@ -22,7 +22,9 @@ export function InsightsPanel() {
           </div>
         ) : insights.length === 0 ? (
           <p className="text-muted-foreground text-sm text-center py-8">
-            No insights available yet. Start a conversation to generate insights.
+            {company
+              ? `No insights available for ${company.company_name} yet. Start a conversation to generate insights.`
+              : 'No insights available yet. Start a conversation to generate insights.'}
           </p>
         ) : (
           <div className="space-y-3">

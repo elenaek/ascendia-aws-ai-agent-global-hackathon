@@ -5,11 +5,13 @@ import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useChatStore } from '@/stores/chat-store'
+import { useAnalyticsStore } from '@/stores/analytics-store'
 import { Send, Bot, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function ChatInterface() {
   const { messages, isLoading, addMessage, setLoading } = useChatStore()
+  const { company } = useAnalyticsStore()
   const [input, setInput] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -54,7 +56,9 @@ export function ChatInterface() {
           AI Business Analyst
         </h2>
         <p className="text-sm text-muted-foreground">
-          Ask me anything about your competitors and market insights
+          {company
+            ? `Analyzing competitive landscape for ${company.company_name}`
+            : 'Ask me anything about your competitors and market insights'}
         </p>
       </div>
 
@@ -68,11 +72,14 @@ export function ChatInterface() {
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-foreground mb-2">
-                  Welcome to Ascendia AI
+                  {company
+                    ? `Welcome back, ${company.company_name}!`
+                    : 'Welcome to Ascendia AI'}
                 </h3>
-                <p className="text-muted-foreground max-w-md">
-                  I'm your AI business analyst. Ask me to analyze competitors,
-                  generate insights, or explore market opportunities.
+                <p className="text-muted-foreground max-w-md mx-auto">
+                  {company
+                    ? `I'm your AI business analyst, ready to help you with your company ${company.company_name}. I can help you understand the competitive landscape, analyze your ${company.stage_of_company} company's position, identify competitors for your product${company.types_of_products.length > 1 ? 's' : ''}, and provide strategic insights.`
+                    : "I'm your AI business analyst. Ask me to analyze competitors, generate insights, or explore market opportunities."}
                 </p>
               </div>
             </div>
@@ -141,7 +148,9 @@ export function ChatInterface() {
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask about competitors, insights, or market analysis..."
+            placeholder={company
+              ? `Ask about competitors for ${company.types_of_products[0]?.product_name || 'your products'}...`
+              : "Ask about competitors, insights, or market analysis..."}
             disabled={isLoading}
             className="flex-1 bg-background border-primary/30 focus:border-primary"
           />
