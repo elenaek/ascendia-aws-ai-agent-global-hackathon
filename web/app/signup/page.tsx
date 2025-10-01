@@ -59,7 +59,7 @@ export default function SignUpPage() {
       } else {
         setError(result.error || 'Registration failed')
       }
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred')
     } finally {
       setIsLoading(false)

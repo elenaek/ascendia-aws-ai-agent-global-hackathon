@@ -34,7 +34,7 @@ export default function LoginPage() {
       } else {
         setError(result.error || 'Login failed')
       }
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred')
     } finally {
       setIsLoading(false)
@@ -107,7 +107,7 @@ export default function LoginPage() {
             </Button>
 
             <div className="text-center text-sm text-muted-foreground">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <button
                 type="button"
                 onClick={() => router.push('/signup')}

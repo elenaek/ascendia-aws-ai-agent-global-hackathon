@@ -2,20 +2,15 @@
 
 import { useEffect } from 'react'
 import { Amplify } from 'aws-amplify'
-import { Hub } from 'aws-amplify/utils'
 import { useAuthStore } from '@/stores/auth-store'
-import { getCurrentUser, fetchAuthSession } from 'aws-amplify/auth'
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const setUser = useAuthStore((state) => state.setUser)
-  const setLoading = useAuthStore((state) => state.setLoading)
 
   useEffect(() => {
     // Configure Amplify
     const userPoolId = process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID
     const clientId = process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID
     const identityPoolId = process.env.NEXT_PUBLIC_COGNITO_IDENTITY_POOL_ID
-    const region = process.env.NEXT_PUBLIC_AWS_REGION || 'us-east-1'
 
     if (userPoolId && clientId) {
       Amplify.configure({

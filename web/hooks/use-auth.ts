@@ -32,7 +32,7 @@ export function useAuth() {
       } else {
         setUser(null)
       }
-    } catch (error) {
+    } catch {
       setUser(null)
     } finally {
       setLoading(false)
