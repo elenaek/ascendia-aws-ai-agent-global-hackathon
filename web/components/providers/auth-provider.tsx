@@ -18,7 +18,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           Cognito: {
             userPoolId,
             userPoolClientId: clientId,
-            identityPoolId,
+            identityPoolId: identityPoolId || '',
             signUpVerificationMethod: 'code',
             loginWith: {
               email: true,

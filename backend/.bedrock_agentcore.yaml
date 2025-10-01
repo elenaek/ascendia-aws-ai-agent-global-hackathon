@@ -1,16 +1,16 @@
-default_agent: main
+default_agent: business_analyst
 agents:
-  main:
-    name: main
+  business_analyst:
+    name: business_analyst
     entrypoint: main.py
     platform: linux/arm64
     container_runtime: docker
     aws:
-      execution_role: arn:aws:iam::738859113996:role/AmazonBedrockAgentCoreSDKRuntime-us-east-1-0d6e4079e3
+      execution_role: arn:aws:iam::738859113996:role/AmazonBedrockAgentCoreSDKRuntime-us-east-1-a25730fb49
       execution_role_auto_create: false
       account: '738859113996'
       region: us-east-1
-      ecr_repository: 738859113996.dkr.ecr.us-east-1.amazonaws.com/bedrock-agentcore-main
+      ecr_repository: 738859113996.dkr.ecr.us-east-1.amazonaws.com/bedrock-agentcore-business_analyst
       ecr_auto_create: false
       network_configuration:
         network_mode: PUBLIC
@@ -19,13 +19,17 @@ agents:
       observability:
         enabled: true
     bedrock_agentcore:
-      agent_id: main-6nzEcLC804
-      agent_arn: arn:aws:bedrock-agentcore:us-east-1:738859113996:runtime/main-6nzEcLC804
-      agent_session_id: d3f2ab2f-6783-47a5-a7c7-5359d162e6ec
+      agent_id: business_analyst-qZQaYvFl4b
+      agent_arn: arn:aws:bedrock-agentcore:us-east-1:738859113996:runtime/business_analyst-qZQaYvFl4b
+      agent_session_id: b06b116a-0975-4767-936d-e4be0631707f
     codebuild:
-      project_name: bedrock-agentcore-main-builder
-      execution_role: arn:aws:iam::738859113996:role/AmazonBedrockAgentCoreSDKCodeBuild-us-east-1-0d6e4079e3
+      project_name: bedrock-agentcore-business_analyst-builder
+      execution_role: arn:aws:iam::738859113996:role/AmazonBedrockAgentCoreSDKCodeBuild-us-east-1-a25730fb49
       source_bucket: bedrock-agentcore-codebuild-sources-738859113996-us-east-1
-    authorizer_configuration: null
+    authorizer_configuration:
+      customJWTAuthorizer:
+        discoveryUrl: https://cognito-idp.us-east-1.amazonaws.com/us-east-1_boVMbYh4u/.well-known/openid-configuration
+        allowedClients:
+        - 3pet9qclbhlksfv1e334rkc9p5
     request_header_configuration: null
     oauth_configuration: null
