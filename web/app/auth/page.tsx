@@ -6,7 +6,6 @@ import { Authenticator, useAuthenticator, Theme, ThemeProvider } from '@aws-ampl
 import '@aws-amplify/ui-react/styles.css'
 import './auth.css'
 import { useAuthStore } from '@/stores/auth-store'
-import { useOnboardingStore } from '@/stores/onboarding-store'
 import { useAnalyticsStore } from '@/stores/analytics-store'
 
 const customTheme: Theme = {
@@ -51,7 +50,6 @@ function AuthContent() {
   const router = useRouter()
   const { authStatus, user: amplifyUser } = useAuthenticator((context) => [context.authStatus, context.user])
   const { setUser } = useAuthStore()
-  const { setOnboarded } = useOnboardingStore()
   const { setCompany } = useAnalyticsStore()
 
   useEffect(() => {
@@ -88,18 +86,18 @@ function AuthContent() {
             const result = await response.json()
             console.log('Found existing company data:', result)
 
-            // Set company data in store
+            // Set company data in store (this acts as cache)
             setCompany({
               id: result.data.company_id,
-              name: result.data.name,
-              website: result.data.website,
-              description: result.data.description || '',
+              company_name: result.data.company_name,
+              company_url: result.data.company_url,
+              company_description: result.data.company_description,
+              unique_value_proposition: result.data.unique_value_proposition,
+              stage_of_company: result.data.stage_of_company,
+              types_of_products: result.data.types_of_products || [],
             })
 
-            // Mark as onboarded
-            setOnboarded(email)
-
-            console.log('Company data loaded, redirecting to dashboard...')
+            console.log('Company data loaded and cached, redirecting to dashboard...')
             router.push('/dashboard')
           } else if (response.status === 404) {
             // No company data found, need onboarding
@@ -119,7 +117,7 @@ function AuthContent() {
     }
 
     updateAuthState()
-  }, [authStatus, amplifyUser, router, setUser, setOnboarded, setCompany])
+  }, [authStatus, amplifyUser, router, setUser, setCompany])
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">

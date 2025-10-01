@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { useAnalyticsStore } from './analytics-store'
 
 interface User {
   id: string
@@ -37,6 +38,8 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: false,
           isLoading: false,
         })
+        // Clear analytics store (company data cache)
+        useAnalyticsStore.getState().clearAll()
         // Clear session storage
         if (typeof window !== 'undefined') {
           sessionStorage.removeItem('auth-storage')

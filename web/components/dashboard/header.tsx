@@ -32,7 +32,7 @@ export function Header() {
             {company && (
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Building2 className="w-4 h-4" />
-                <span>{company.name}</span>
+                <span>{company.company_name}</span>
               </div>
             )}
           </div>

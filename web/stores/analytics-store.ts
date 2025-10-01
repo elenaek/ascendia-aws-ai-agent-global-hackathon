@@ -8,11 +8,20 @@ interface Competitor {
   description?: string
 }
 
+interface Product {
+  product_name: string
+  product_url: string
+  product_description: string
+}
+
 interface CompanyInfo {
   id: string
-  name: string
-  website: string
-  description?: string
+  company_name: string
+  company_url: string
+  company_description: string
+  unique_value_proposition: string
+  stage_of_company: string
+  types_of_products: Product[]
 }
 
 interface AnalyticsState {
@@ -33,6 +42,7 @@ interface AnalyticsState {
   setSwotAnalysis: (swot: AnalyticsState['swotAnalysis']) => void
   setLoadingCompetitors: (loading: boolean) => void
   setLoadingInsights: (loading: boolean) => void
+  clearAll: () => void
 }
 
 export const useAnalyticsStore = create<AnalyticsState>((set) => ({
@@ -48,4 +58,12 @@ export const useAnalyticsStore = create<AnalyticsState>((set) => ({
   setSwotAnalysis: (swot) => set({ swotAnalysis: swot }),
   setLoadingCompetitors: (loading) => set({ isLoadingCompetitors: loading }),
   setLoadingInsights: (loading) => set({ isLoadingInsights: loading }),
+  clearAll: () => set({
+    company: null,
+    competitors: [],
+    insights: [],
+    swotAnalysis: null,
+    isLoadingCompetitors: false,
+    isLoadingInsights: false,
+  }),
 }))

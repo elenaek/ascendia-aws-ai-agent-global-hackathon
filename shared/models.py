@@ -4,6 +4,10 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 from bson import ObjectId
 
+class Product(BaseModel):
+    product_name: str = Field(description="The name of the product")
+    product_url: str = Field(description="The URL of the product")
+    product_description: str = Field(description="The description of the product")
 
 class Company(BaseModel):
     """Company data model"""
@@ -12,7 +16,7 @@ class Company(BaseModel):
     company_description: str = Field(description="The description of the company")
     unique_value_proposition: str = Field(description="The unique value proposition of the company")
     stage_of_company: str = Field(description="The stage of the company")
-    types_of_products: list[str] = Field(description="The types of products the company offers")
+    types_of_products: list[Product] = Field(description="The types of products the company offers")
 
 class Competitor(BaseModel):
     """Competitor data model - represents a unique competitor company/product"""

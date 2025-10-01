@@ -18,9 +18,19 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { companyName, companyWebsite, companyDescription } = body
+    const {
+      company_name,
+      company_url,
+      company_description,
+      unique_value_proposition,
+      stage_of_company,
+      types_of_products
+    } = body
 
-    if (!companyName || !companyWebsite) {
+    // Validate required fields
+    if (!company_name || !company_url || !company_description ||
+        !unique_value_proposition || !stage_of_company ||
+        !types_of_products || types_of_products.length === 0) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -35,9 +45,12 @@ export async function POST(request: NextRequest) {
 
     const companyData = {
       company_id: identityId, // Use Cognito identity ID for row-level security
-      name: companyName,
-      website: companyWebsite,
-      description: companyDescription || '',
+      company_name,
+      company_url,
+      company_description,
+      unique_value_proposition,
+      stage_of_company,
+      types_of_products,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }

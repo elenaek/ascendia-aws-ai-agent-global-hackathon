@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/stores/auth-store'
+import { useAnalyticsStore } from '@/stores/analytics-store'
 import { ChatInterface } from '@/components/dashboard/chat-interface'
 import { CompetitorsPanel } from '@/components/dashboard/competitors-panel'
 import { InsightsPanel } from '@/components/dashboard/insights-panel'
@@ -12,14 +13,21 @@ import { Vortex } from '@/components/ui/vortex'
 export default function DashboardPage() {
   const router = useRouter()
   const { isAuthenticated, isLoading } = useAuthStore()
+  const { company } = useAnalyticsStore()
 
   useEffect(() => {
-    // console.log('Dashboard - Auth state:', { isAuthenticated, isLoading, user })
-
+    // If not authenticated, redirect to auth
     if (!isLoading && !isAuthenticated) {
       router.push('/auth')
+      return
     }
-  }, [isAuthenticated, isLoading])
+
+    // If authenticated but no company data cached, redirect to auth to check DDB
+    if (!isLoading && isAuthenticated && !company) {
+      console.log('No company data cached, redirecting to auth to check DDB')
+      router.push('/auth')
+    }
+  }, [isAuthenticated, isLoading, company, router])
 
 
   if (!isLoading && !isAuthenticated) {
