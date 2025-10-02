@@ -3,6 +3,7 @@ import boto3
 import jwt
 import json
 import os
+from functools import lru_cache
 
 load_dotenv()
 
@@ -16,9 +17,48 @@ from bedrock_agentcore.runtime import BedrockAgentCoreApp
 COGNITO_USER_POOL_ID="us-east-1_boVMbYh4u"
 COGNITO_IDENTITY_POOL_ID="us-east-1:f4f3f1af-8c82-4ad5-93af-39a9e984277d"
 AWS_REGION="us-east-1"
+AWS_ACCOUNT_ID = os.environ.get('AWS_ACCOUNT_ID', '738859113996')
 
 app = BedrockAgentCoreApp()
 model = BedrockModel(model_id="us.amazon.nova-pro-v1:0")
+
+@lru_cache(maxsize=1)
+def get_api_credentials():
+    """
+    Retrieve API credentials from AWS Secrets Manager and set environment variables.
+    Cached to avoid repeated AWS API calls.
+    """
+    try:
+        # Check if running in Lambda/production
+        if os.environ.get('AWS_EXECUTION_ENV'):
+            # Running in production - use SSM Parameter Store
+            client = boto3.client('ssm', region_name=AWS_REGION)
+            parameter_name = f"/ascendia/agentcore/tavily-api-key-{AWS_ACCOUNT_ID}"
+
+            response = client.get_parameter(Name=parameter_name, WithDecryption=True)
+            tavily_api_key = response['Parameter']['Value']
+
+            secrets = {'tavily_api_key': tavily_api_key}
+
+            # Set the environment variable for strands_tools.tavily to use
+            if 'tavily_api_key' in secrets:
+                os.environ['TAVILY_API_KEY'] = secrets['tavily_api_key']
+
+            return secrets
+        else:
+            # Local development - environment variables already set
+            return {
+                'tavily_api_key': os.environ.get('TAVILY_API_KEY', '')
+            }
+    except Exception as e:
+        print(f"Error retrieving secrets: {e}")
+        # Fall back to environment variables
+        return {
+            'tavily_api_key': os.environ.get('TAVILY_API_KEY', '')
+        }
+
+# Initialize API credentials on startup
+get_api_credentials()
 
 # TEST_COMPANY = {
 #     "_id": "68db18fe5d04ff1311963dea",
@@ -73,7 +113,7 @@ Remember to:
 
 # Prompt Templates
 agent_system_prompt = """You are an expert market research analyst working for a company to help them analyze the market they operate in and analyze their competitors in order to strategize on the direction they should take.
-You use the tools provided to you to perform your duties.
+You use the tools provided to you to perform your duties. Use markdown formatting to make your responses more readable.
 
 # Your Company Information
 {company_information}
@@ -122,8 +162,8 @@ def get_identity_id(idToken: str) -> str:
     return response['IdentityId']
 
 @app.entrypoint
-def invoke(payload):
-    """Process user input and return a response"""
+async def invoke(payload):
+    """Process user input and return a streaming response"""
     company_info = payload.get("company_information")
     app.logger.info(f"Company Info: {company_info}")
     agent_instance = Agent(
@@ -133,13 +173,14 @@ def invoke(payload):
     )
 
     user_message = payload.get("prompt", "Hello")
-    response = agent_instance(prompt=user_message)
-    response_text = ""
-    for content_block in response.message['content']:
-        if 'text' in content_block:
-            response_text += content_block['text']
 
-    return {"result": response_text}
+    # Use stream_async for streaming responses
+    stream = agent_instance.stream_async(user_message)
+
+    # Stream events back to the client
+    async for event in stream:
+        # Each event contains a chunk of the response
+        yield event
 
 if __name__ == "__main__":
     app.run()
