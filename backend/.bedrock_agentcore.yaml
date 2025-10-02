@@ -21,7 +21,7 @@ agents:
     bedrock_agentcore:
       agent_id: business_analyst-qZQaYvFl4b
       agent_arn: arn:aws:bedrock-agentcore:us-east-1:738859113996:runtime/business_analyst-qZQaYvFl4b
-      agent_session_id: b06b116a-0975-4767-936d-e4be0631707f
+      agent_session_id: null
     codebuild:
       project_name: bedrock-agentcore-business_analyst-builder
       execution_role: arn:aws:iam::738859113996:role/AmazonBedrockAgentCoreSDKCodeBuild-us-east-1-a25730fb49
@@ -31,5 +31,7 @@ agents:
         discoveryUrl: https://cognito-idp.us-east-1.amazonaws.com/us-east-1_boVMbYh4u/.well-known/openid-configuration
         allowedClients:
         - 3pet9qclbhlksfv1e334rkc9p5
-    request_header_configuration: null
+    request_header_configuration:
+      requestHeaderAllowlist:
+      - Authorization
     oauth_configuration: null

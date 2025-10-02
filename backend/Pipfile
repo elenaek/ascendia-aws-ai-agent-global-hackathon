@@ -12,6 +12,7 @@ requests = "*"
 pydantic = "*"
 boto3 = "*"
 bedrock-agentcore = "*"
+pyjwt = "*"
 
 [dev-packages]
 
