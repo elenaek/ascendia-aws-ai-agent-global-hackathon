@@ -9,6 +9,7 @@ from aws_cdk import (
     aws_dynamodb as dynamodb,
     aws_cognito as cognito,
     aws_iam as iam,
+    aws_secretsmanager as secretsmanager,
     RemovalPolicy,
     BundlingOptions,
 )
@@ -90,9 +91,26 @@ class InfrastructureStack(Stack):
         dataforseo_auth_param = ssm.StringParameter(
             self, "DataForSEOAuth",
             description="DataForSEO API B64 Basic Auth String",
-            parameter_name="/webhook/dataforseo/auth",
+            parameter_name=f"/ascendia/webhook/dataforseo/auth-{self.account}",
             string_value=dataforseo_auth,
             tier=ssm.ParameterTier.STANDARD,
+        )
+
+        # ============ Secrets Manager for AgentCore API Tokens ============
+
+        # Get Tavily API key from environment variable
+        tavily_api_key = os.environ.get('TAVILY_API_KEY', '')
+
+        if not tavily_api_key:
+            print("WARNING: TAVILY_API_KEY not found in environment variables")
+
+        # Create SSM Parameter for Tavily API key
+        agentcore_tavily_api_secret = ssm.StringParameter(
+            self, "AgentCoreTavilyApiKey",
+            parameter_name=f"/ascendia/agentcore/tavily-api-key-{self.account}",
+            description="Tavily API key for AgentCore agent",
+            string_value=tavily_api_key,
+            tier=ssm.ParameterTier.STANDARD
         )
 
 
@@ -361,6 +379,44 @@ class InfrastructureStack(Stack):
             )
         )
 
+        # ============ Grant AgentCore Execution Role Access to Secret ============
+
+        # Create IAM role for AgentCore (if not using existing role)
+        # Note: AgentCore auto-creates a role, but we need to grant it permissions
+        # The role ARN is typically: arn:aws:iam::ACCOUNT:role/AmazonBedrockAgentCoreSDKRuntime-REGION-HASH
+
+        # Since we can't directly modify the auto-created role in CDK, we'll output
+        # the secret ARN and manually add permissions or use a custom resource
+
+        # Alternative: Create a policy that can be attached to the AgentCore execution role
+        agentcore_secrets_policy = iam.ManagedPolicy(
+            self, "AgentCoreSecretsAccessPolicy",
+            managed_policy_name=f"AgentCoreSecretsAccess-{self.stack_name}",
+            description="Allows AgentCore to access API tokens in SSM Parameter Store",
+            statements=[
+                iam.PolicyStatement(
+                    effect=iam.Effect.ALLOW,
+                    actions=[
+                        "ssm:GetParameter",
+                        "ssm:GetParameters",
+                        "ssm:DescribeParameters"
+                    ],
+                    resources=[f"arn:aws:ssm:{self.region}:{self.account}:parameter{agentcore_tavily_api_secret.parameter_name}"]
+                ),
+                # Grant KMS decrypt for SecureString parameters
+                iam.PolicyStatement(
+                    effect=iam.Effect.ALLOW,
+                    actions=["kms:Decrypt"],
+                    resources=["*"],  # Or specify the KMS key ARN if using custom key
+                    conditions={
+                        "StringEquals": {
+                            "kms:ViaService": f"ssm.{self.region}.amazonaws.com"
+                        }
+                    }
+                )
+            ]
+        )
+
         # ============ Outputs ============
 
         # Output Cognito details
@@ -389,6 +445,20 @@ class InfrastructureStack(Stack):
             self, "WebhookUrl",
             value=webhook_url.url,
             description="Webhook Lambda Function URL"
+        )
+
+        CfnOutput(
+            self, "AgentCoreTavilySecretArn",
+            value=agentcore_tavily_api_secret.parameter_name,
+            description="ARN of the Secrets Manager secret for AgentCore API tokens",
+            export_name=f"{self.stack_name}-AgentCoreTavilySecretArn"
+        )
+
+        CfnOutput(
+            self, "AgentCoreSecretsPolicyArn",
+            value=agentcore_secrets_policy.managed_policy_arn,
+            description="ARN of the IAM policy to attach to AgentCore execution role",
+            export_name=f"{self.stack_name}-AgentCoreSecretsPolicyArn"
         )
 
         # Store for programmatic access

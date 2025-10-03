@@ -9,10 +9,12 @@ load_dotenv()
 
 from strands import Agent, tool
 from strands.models import BedrockModel
-from strands_tools import think
+from strands_tools import think, handoff_to_user
 from strands_tools.tavily import tavily_search
 
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
+from bedrock_agentcore.services.identity import IdentityClient
+from bedrock_agentcore.identity.auth import requires_api_key
 
 COGNITO_USER_POOL_ID="us-east-1_boVMbYh4u"
 COGNITO_IDENTITY_POOL_ID="us-east-1:f4f3f1af-8c82-4ad5-93af-39a9e984277d"
@@ -22,43 +24,43 @@ AWS_ACCOUNT_ID = os.environ.get('AWS_ACCOUNT_ID', '738859113996')
 app = BedrockAgentCoreApp()
 model = BedrockModel(model_id="us.amazon.nova-pro-v1:0")
 
-@lru_cache(maxsize=1)
-def get_api_credentials():
-    """
-    Retrieve API credentials from AWS Secrets Manager and set environment variables.
-    Cached to avoid repeated AWS API calls.
-    """
-    try:
-        # Check if running in Lambda/production
-        if os.environ.get('AWS_EXECUTION_ENV'):
-            # Running in production - use SSM Parameter Store
-            client = boto3.client('ssm', region_name=AWS_REGION)
-            parameter_name = f"/ascendia/agentcore/tavily-api-key-{AWS_ACCOUNT_ID}"
 
-            response = client.get_parameter(Name=parameter_name, WithDecryption=True)
-            tavily_api_key = response['Parameter']['Value']
 
-            secrets = {'tavily_api_key': tavily_api_key}
+# @lru_cache(maxsize=1)
+# def get_api_credentials():
+#     """
+#     Retrieve API credentials from AWS Secrets Manager and set environment variables.
+#     Cached to avoid repeated AWS API calls.
+#     """
+#     try:
+#         if os.environ.get('MODE', 'production') != 'local':
+#             client = boto3.client('ssm', region_name=AWS_REGION)
+#             parameter_name = f"/ascendia/agentcore/tavily-api-key-{AWS_ACCOUNT_ID}"
 
-            # Set the environment variable for strands_tools.tavily to use
-            if 'tavily_api_key' in secrets:
-                os.environ['TAVILY_API_KEY'] = secrets['tavily_api_key']
+#             response = client.get_parameter(Name=parameter_name, WithDecryption=True)
+#             tavily_api_key = response['Parameter']['Value']
 
-            return secrets
-        else:
-            # Local development - environment variables already set
-            return {
-                'tavily_api_key': os.environ.get('TAVILY_API_KEY', '')
-            }
-    except Exception as e:
-        print(f"Error retrieving secrets: {e}")
-        # Fall back to environment variables
-        return {
-            'tavily_api_key': os.environ.get('TAVILY_API_KEY', '')
-        }
+#             secrets = {'tavily_api_key': tavily_api_key}
+
+#             # Set the environment variable for strands_tools.tavily to use
+#             if 'tavily_api_key' in secrets:
+#                 os.environ['TAVILY_API_KEY'] = secrets['tavily_api_key']
+
+#             return secrets
+#         else:
+#             # Local development - environment variables already set
+#             return {
+#                 'tavily_api_key': os.environ.get('TAVILY_API_KEY', '')
+#             }
+#     except Exception as e:
+#         print(f"Error retrieving secrets: {e}")
+#         # Fall back to environment variables
+#         return {
+#             'tavily_api_key': os.environ.get('TAVILY_API_KEY', '')
+#         }
 
 # Initialize API credentials on startup
-get_api_credentials()
+# get_api_credentials()
 
 # TEST_COMPANY = {
 #     "_id": "68db18fe5d04ff1311963dea",
@@ -113,7 +115,7 @@ Remember to:
 
 # Prompt Templates
 agent_system_prompt = """You are an expert market research analyst working for a company to help them analyze the market they operate in and analyze their competitors in order to strategize on the direction they should take.
-You use the tools provided to you to perform your duties. Use markdown formatting to make your responses more readable.
+You use the tools provided to you to perform your duties. Use markdown formatting to make your responses more readable. User the handoff_to_user tool when you need to ask the user for input.
 
 # Your Company Information
 {company_information}
@@ -161,15 +163,20 @@ def get_identity_id(idToken: str) -> str:
     )
     return response['IdentityId']
 
+@requires_api_key(provider_name="tavily_api_key")
+def set_tavily_api_key(*, api_key: str):
+    os.environ['TAVILY_API_KEY'] = api_key
+
 @app.entrypoint
 async def invoke(payload):
     """Process user input and return a streaming response"""
     company_info = payload.get("company_information")
     app.logger.info(f"Company Info: {company_info}")
+    set_tavily_api_key(api_key=payload.get("tavily_api_key"))
     agent_instance = Agent(
         model=model,
         system_prompt=agent_system_prompt.format(company_information=company_info),
-        tools=[tavily_search, ask_user, think]
+        tools=[tavily_search, think, handoff_to_user]
     )
 
     user_message = payload.get("prompt", "Hello")

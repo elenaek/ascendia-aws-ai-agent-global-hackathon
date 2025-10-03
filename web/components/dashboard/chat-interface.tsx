@@ -6,11 +6,23 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useChatStore } from '@/stores/chat-store'
 import { useAnalyticsStore } from '@/stores/analytics-store'
-import { Send, Bot, User } from 'lucide-react'
+import { Send, Bot, User, Brain } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { sendMessageToAgentStreaming, type CompanyInfo } from '@/lib/agentcore-client'
 
 export function ChatInterface() {
-  const { messages, isLoading, addMessage, setLoading } = useChatStore()
+  const {
+    messages,
+    isLoading,
+    isThinking,
+    thinkingContent,
+    addMessage,
+    appendToMessage,
+    setLoading,
+    setThinking,
+    appendThinkingContent,
+    setStreamingId
+  } = useChatStore()
   const { company } = useAnalyticsStore()
   const [input, setInput] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -36,15 +48,65 @@ export function ChatInterface() {
       content: userMessage,
     })
 
-    // Simulate AI response (in production, this would call AWS Bedrock AgentCore)
+    // Add empty assistant message that will be filled by streaming
+    const assistantMessageId = addMessage({
+      role: 'assistant',
+      content: '',
+    })
+
+    // Call AWS Bedrock AgentCore with streaming
     setLoading(true)
-    setTimeout(() => {
-      addMessage({
-        role: 'assistant',
-        content: 'This is a placeholder response. In production, this would be powered by AWS Bedrock AgentCore.',
+    setStreamingId(assistantMessageId)
+
+    try {
+      // Convert analytics store company format to AgentCore format
+      const companyInfo: CompanyInfo | null = company ? {
+        _id: company.id,
+        company_name: company.company_name,
+        company_url: company.company_url,
+        company_description: company.company_description,
+        unique_value_proposition: company.unique_value_proposition,
+        stage_of_company: company.stage_of_company,
+        types_of_products: company.types_of_products.map(p => ({
+          product_name: p.product_name,
+          product_description: p.product_description
+        })),
+        // Add default values for optional fields if needed
+        pricing_model: 'not specified',
+        number_of_employees: 0,
+        revenue: 0,
+        who_are_our_customers: 'not specified'
+      } : null
+
+      await sendMessageToAgentStreaming(userMessage, companyInfo, {
+        onChunk: (text) => {
+          appendToMessage(assistantMessageId, text)
+          // Auto-scroll as content streams in
+          scrollToBottom()
+        },
+        onThinking: (isThinking) => {
+          setThinking(isThinking)
+        },
+        onThinkingContent: (text) => {
+          appendThinkingContent(text)
+        },
+        onError: (error) => {
+          console.error('Streaming error:', error)
+          appendToMessage(assistantMessageId, '\n\nSorry, I encountered an error while processing your request.')
+        },
+        onComplete: () => {
+          setLoading(false)
+          setThinking(false)
+          setStreamingId(null)
+        }
       })
+    } catch (error) {
+      console.error('Error sending message:', error)
+      appendToMessage(assistantMessageId, 'Sorry, I encountered an error while processing your request. Please try again.')
       setLoading(false)
-    }, 1000)
+      setThinking(false)
+      setStreamingId(null)
+    }
   }
 
   return (
@@ -122,17 +184,25 @@ export function ChatInterface() {
               </div>
             ))}
 
-            {isLoading && (
+            {isThinking && (
               <div className="flex gap-3 items-start">
-                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
-                  <Bot className="w-4 h-4 text-primary animate-pulse" />
+                <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                  <Brain className="w-4 h-4 text-amber-500 animate-pulse" />
                 </div>
-                <div className="bg-muted rounded-lg p-3">
-                  <div className="flex gap-1">
-                    <div className="w-2 h-2 rounded-full bg-foreground/50 animate-bounce" />
-                    <div className="w-2 h-2 rounded-full bg-foreground/50 animate-bounce delay-100" />
-                    <div className="w-2 h-2 rounded-full bg-foreground/50 animate-bounce delay-200" />
+                <div className="bg-amber-500/10 rounded-lg p-3 max-w-[80%]">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs text-amber-600 font-semibold">AI is thinking...</span>
+                    <div className="flex gap-1">
+                      <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse delay-100" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse delay-200" />
+                    </div>
                   </div>
+                  {thinkingContent && (
+                    <div className="text-xs text-amber-700/80 italic whitespace-pre-wrap break-words">
+                      {thinkingContent}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
