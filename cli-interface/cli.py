@@ -115,13 +115,31 @@ class CLIStreamDisplay:
         elif event.type == EventType.TOOL_USE_START:
             self._start_section("tool")
             tool_name = event.data.get("name", "unknown")
+            tool_id = event.data.get("id", "unknown")
             print(f"\n{Fore.YELLOW}🔧 Using tool: {tool_name}{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}   Tool ID: {tool_id}{Style.RESET_ALL}")
+            # Store current tool for accumulating input
+            self.current_tool_id = tool_id
+            self.current_tool_input = ""
         elif event.type == EventType.TOOL_USE_DELTA:
-            # Accumulate tool input
-            pass
+            # Accumulate tool input using current_tool_id
+            delta_input = event.data.get("delta", {}).get("input", "")
+            if hasattr(self, 'current_tool_input'):
+                self.current_tool_input += delta_input
         elif event.type == EventType.TOOL_USE_STOP:
-            tool_id = event.data.get("id")
-            print(f"{Fore.YELLOW}   Tool completed (ID: {tool_id}){Style.RESET_ALL}")
+            # Display accumulated tool input if available
+            if hasattr(self, 'current_tool_input') and self.current_tool_input:
+                try:
+                    parsed_input = json.loads(self.current_tool_input)
+                    print(f"{Fore.YELLOW}   Input: {json.dumps(parsed_input, indent=2)}{Style.RESET_ALL}")
+                except json.JSONDecodeError:
+                    print(f"{Fore.YELLOW}   Input: {self.current_tool_input}{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}   ✓ Tool completed{Style.RESET_ALL}")
+            # Clear current tool state
+            if hasattr(self, 'current_tool_id'):
+                delattr(self, 'current_tool_id')
+            if hasattr(self, 'current_tool_input'):
+                delattr(self, 'current_tool_input')
             self._end_section()
 
         # Error events
