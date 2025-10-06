@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useChatStore } from '@/stores/chat-store'
 import { useAnalyticsStore } from '@/stores/analytics-store'
-import { Send, Bot, User, Brain, Loader2 } from 'lucide-react'
+import { Send, Bot, User, Brain, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { sendMessageToAgentStreaming, type CompanyInfo } from '@/lib/agentcore-client'
 import { ThinkingDisplay } from './thinking-display'
@@ -35,7 +35,20 @@ export function ChatInterface() {
   } = useChatStore()
   const { company } = useAnalyticsStore()
   const [input, setInput] = useState('')
+  const [expandedThinking, setExpandedThinking] = useState<Set<string>>(new Set())
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  const toggleThinking = (messageId: string) => {
+    setExpandedThinking(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(messageId)) {
+        newSet.delete(messageId)
+      } else {
+        newSet.add(messageId)
+      }
+      return newSet
+    })
+  }
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -207,15 +220,32 @@ export function ChatInterface() {
                   {/* Show thinking block if exists and toggle is enabled */}
                   {message.role === 'assistant' && message.thinking && showCompletedThinking && (
                     <div className="bg-cyan-500/10 rounded-lg border border-cyan-500/20 overflow-hidden">
-                      <div className="flex items-center gap-2 p-2 border-b border-cyan-500/20">
-                        <Brain className="w-3.5 h-3.5 text-cyan-600" />
-                        <span className="text-xs text-cyan-600 font-semibold">💭 Thought Process</span>
-                      </div>
-                      <div className="p-3 bg-cyan-500/5">
-                        <div className="text-xs text-cyan-900 dark:text-cyan-100 italic whitespace-pre-wrap break-words font-mono">
-                          {message.thinking}
+                      <div
+                        className="flex items-center justify-between p-2 border-b border-cyan-500/20 cursor-pointer hover:bg-cyan-500/5 transition-colors"
+                        onClick={() => toggleThinking(message.id)}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Brain className="w-3.5 h-3.5 text-cyan-600" />
+                          <span className="text-xs text-cyan-600 font-semibold">💭 Thought Process</span>
                         </div>
+                        <button
+                          className="text-cyan-600 hover:text-cyan-700 transition-colors"
+                          aria-label={expandedThinking.has(message.id) ? "Collapse thinking" : "Expand thinking"}
+                        >
+                          {expandedThinking.has(message.id) ? (
+                            <ChevronUp className="w-4 h-4" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4" />
+                          )}
+                        </button>
                       </div>
+                      {expandedThinking.has(message.id) && (
+                        <div className="p-3 bg-cyan-500/5">
+                          <div className="text-xs text-gray-400 italic whitespace-pre-wrap break-words font-mono">
+                            {message.thinking}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 
