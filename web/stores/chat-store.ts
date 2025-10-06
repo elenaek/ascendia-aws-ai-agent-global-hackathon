@@ -7,12 +7,20 @@ interface Message {
   timestamp: Date
 }
 
+interface ToolUse {
+  id: string
+  name: string
+  input: Record<string, any> | string
+  status: 'running' | 'completed'
+}
+
 interface ChatState {
   messages: Message[]
   isLoading: boolean
   isThinking: boolean
   thinkingContent: string
   currentStreamingId: string | null
+  toolUses: ToolUse[]
   addMessage: (message: Omit<Message, 'id' | 'timestamp'>) => string
   updateMessage: (id: string, content: string) => void
   appendToMessage: (id: string, text: string) => void
@@ -21,6 +29,9 @@ interface ChatState {
   setThinkingContent: (content: string) => void
   appendThinkingContent: (text: string) => void
   setStreamingId: (id: string | null) => void
+  addToolUse: (toolUse: Omit<ToolUse, 'status'>) => void
+  updateToolUse: (id: string, updates: Partial<ToolUse>) => void
+  clearToolUses: () => void
   clearMessages: () => void
 }
 
@@ -30,6 +41,7 @@ export const useChatStore = create<ChatState>((set) => ({
   isThinking: false,
   thinkingContent: '',
   currentStreamingId: null,
+  toolUses: [],
   addMessage: (message) => {
     const id = crypto.randomUUID()
     set((state) => ({
@@ -61,5 +73,22 @@ export const useChatStore = create<ChatState>((set) => ({
   setThinkingContent: (content) => set({ thinkingContent: content }),
   appendThinkingContent: (text) => set((state) => ({ thinkingContent: state.thinkingContent + text })),
   setStreamingId: (id) => set({ currentStreamingId: id }),
-  clearMessages: () => set({ messages: [], currentStreamingId: null, thinkingContent: '' }),
+  addToolUse: (toolUse) =>
+    set((state) => ({
+      toolUses: [
+        ...state.toolUses,
+        {
+          ...toolUse,
+          status: 'running' as const,
+        },
+      ],
+    })),
+  updateToolUse: (id, updates) =>
+    set((state) => ({
+      toolUses: state.toolUses.map((tool) =>
+        tool.id === id ? { ...tool, ...updates } : tool
+      ),
+    })),
+  clearToolUses: () => set({ toolUses: [] }),
+  clearMessages: () => set({ messages: [], currentStreamingId: null, thinkingContent: '', toolUses: [] }),
 }))

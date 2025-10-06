@@ -1,4 +1,7 @@
 import { getAccessToken } from './auth-utils'
+import { BedrockAgentCoreStreamClient } from './bedrock-stream/client'
+import { StreamDisplayHandler } from './bedrock-stream/display-handler'
+import { EventType, getEventText } from './bedrock-stream/types'
 
 // Configuration
 const REGION_NAME = process.env.NEXT_PUBLIC_AWS_REGION || 'us-east-1';
@@ -21,6 +24,8 @@ export interface StreamCallbacks {
   onChunk?: (text: string) => void
   onThinking?: (isThinking: boolean) => void
   onThinkingContent?: (text: string) => void
+  onToolUseStart?: (toolData: { id: string; name: string }) => void
+  onToolUseComplete?: (toolData: { id: string; name: string; input: any }) => void
   onError?: (error: Error) => void
   onComplete?: () => void
 }
@@ -163,221 +168,96 @@ export async function sendMessageToAgentStreaming(
     } : null
   }
 
-  // Set up headers
-  const headers = {
-    'Authorization': `Bearer ${accessToken}`,
-    'Content-Type': 'application/json',
-    'X-Amzn-Bedrock-AgentCore-Runtime-Session-Id': sessionId,
-    'Accept': 'text/event-stream'
-  }
+  // Create streaming client
+  const client = new BedrockAgentCoreStreamClient({
+    endpointUrl: url,
+    authToken: accessToken,
+    sessionId: sessionId,
+  })
+
+  // Create display handler for thinking tag detection
+  const displayHandler = new StreamDisplayHandler(true)
+
+  // Track tool use state
+  const currentToolUses = new Map<string, { id: string; name: string; input: string }>()
 
   try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(requestBody)
-    })
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error('AgentCore error response:', errorText)
-      throw new Error(`AgentCore request failed: ${response.status}`)
-    }
-
-    // Check if response is actually streaming
-    const contentType = response.headers.get('content-type')
-
-    // If not streaming, fall back to regular JSON response
-    if (!contentType?.includes('event-stream') && !contentType?.includes('text/event-stream')) {
-      const data = await response.json()
-
-      // Handle the response based on its structure
-      let resultText = ''
-      if (typeof data === 'string') {
-        resultText = data
-      } else if (data.result) {
-        resultText = data.result
-      } else if (data.body) {
-        resultText = data.body
-      } else {
-        // If we get the full object, try to extract the text
-        resultText = JSON.stringify(data)
-      }
-
-      // Send the full text at once
-      callbacks.onChunk?.(resultText)
-
-      callbacks.onComplete?.()
-      return
-    }
-
-    // Process the streaming response
-    const reader = response.body?.getReader()
-    const decoder = new TextDecoder()
-
-    if (!reader) {
-      throw new Error('No response body')
-    }
-
-    let buffer = ''
-    let isInThinking = false
-    let thinkingBuffer = ''
-    let eventBuffer = ''  // Buffer for incomplete JSON events
-
-    while (true) {
-      const { done, value } = await reader.read()
-
-      if (done) {
-        // Process any remaining buffered content
-        if (buffer.trim()) {
-          console.log('Processing remaining buffer:', buffer)
+    // Stream events from AgentCore
+    for await (const event of client.invokeAgentStream({
+      prompt,
+      additionalParams: requestBody.company_information ? { company_information: requestBody.company_information } : undefined
+    })) {
+      // Handle content blocks with thinking tag detection
+      if (event.type === EventType.CONTENT_BLOCK_START) {
+        displayHandler.reset()
+      } else if (event.type === EventType.CONTENT_BLOCK_DELTA) {
+        const text = getEventText(event)
+        if (text) {
+          displayHandler.handleContentDelta(text, {
+            onNormalContent: (content) => {
+              callbacks.onChunk?.(content)
+            },
+            onThinkingStart: () => {
+              callbacks.onThinking?.(true)
+            },
+            onThinkingContent: (content) => {
+              callbacks.onThinkingContent?.(content)
+            },
+            onThinkingEnd: () => {
+              callbacks.onThinking?.(false)
+            }
+          })
         }
+      }
+      // Handle tool use events
+      else if (event.type === EventType.TOOL_USE_START) {
+        const toolId = event.data.id
+        const toolName = event.data.name
+        currentToolUses.set(toolId, { id: toolId, name: toolName, input: '' })
+        callbacks.onToolUseStart?.({ id: toolId, name: toolName })
+      } else if (event.type === EventType.TOOL_USE_DELTA) {
+        // Accumulate tool input - find the current tool
+        if (currentToolUses.size > 0) {
+          const lastTool = Array.from(currentToolUses.values()).pop()
+          if (lastTool) {
+            const deltaInput = event.data.delta?.input || ''
+            lastTool.input += deltaInput
+          }
+        }
+      } else if (event.type === EventType.TOOL_USE_STOP) {
+        // Finalize tool use
+        if (currentToolUses.size > 0) {
+          const lastTool = Array.from(currentToolUses.values()).pop()
+          if (lastTool) {
+            try {
+              const parsedInput = lastTool.input ? JSON.parse(lastTool.input) : {}
+              callbacks.onToolUseComplete?.({ id: lastTool.id, name: lastTool.name, input: parsedInput })
+            } catch (e) {
+              callbacks.onToolUseComplete?.({ id: lastTool.id, name: lastTool.name, input: lastTool.input })
+            }
+            currentToolUses.delete(lastTool.id)
+          }
+        }
+      }
+      // Handle errors
+      else if (event.type === EventType.ERROR) {
+        callbacks.onError?.(new Error(event.data.error || 'Unknown error'))
+        return
+      }
+      // Handle message stop
+      else if (event.type === EventType.MESSAGE_STOP) {
         callbacks.onComplete?.()
-        break
-      }
-
-      const chunk = decoder.decode(value, { stream: true })
-      buffer += chunk
-
-      // Process SSE events - handle both complete and partial lines
-      const lines = buffer.split('\n')
-      buffer = lines.pop() || ''  // Keep incomplete line in buffer
-
-      for (const line of lines) {
-        if (line.trim() === '') {
-          // Empty line - might signal end of an SSE event
-          continue
-        }
-
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6).trim()
-
-          if (data === '[DONE]') {
-            callbacks.onComplete?.()
-            return
-          }
-
-          // Parse Python string representations for thinking events
-          if (data.startsWith('"') && data.includes("'data':")) {
-            // Check if this is a thinking event
-            if (data.includes("'data': 'thinking'") && data.includes("'delta': {'text':")) {
-              // Extract the thinking text using regex
-              const match = data.match(/'delta':\s*\{'text':\s*'([^']*)'/);
-              if (match && match[1]) {
-                callbacks.onThinkingContent?.(match[1])
-              }
-            }
-            continue
-          }
-
-          try {
-            const parsed = JSON.parse(data)
-
-            // Skip lifecycle events
-            if (parsed.init_event_loop || parsed.start || parsed.start_event_loop || parsed.end_event_loop) {
-              continue
-            }
-
-            // Handle events with nested event structure (this is what we're getting)
-            if (parsed.event?.contentBlockDelta?.delta?.text) {
-              const text = parsed.event.contentBlockDelta.delta.text
-              const result = processStreamChunk(text, isInThinking, thinkingBuffer, callbacks)
-              isInThinking = result.isInThinking
-              thinkingBuffer = result.thinkingBuffer
-              continue
-            }
-
-            // Handle text generation events with 'data' field (Strands format)
-            if ('data' in parsed && typeof parsed.data === 'string' && parsed.data.trim()) {
-              const text = parsed.data
-              const result = processStreamChunk(text, isInThinking, thinkingBuffer, callbacks)
-              isInThinking = result.isInThinking
-              thinkingBuffer = result.thinkingBuffer
-              continue
-            }
-
-            // Handle message stop event
-            if (parsed.event?.messageStop) {
-              callbacks.onComplete?.()
-              return
-            }
-
-            // Handle other event types silently
-            if (parsed.event?.messageStart || parsed.event?.contentBlockStop) {
-              continue
-            }
-
-            // Skip other event types without logging
-          } catch (e) {
-            // Silently skip unparseable data (likely Python string representations)
-            // These are debug outputs from the backend that we can safely ignore
-          }
-        }
+        return
       }
     }
+
+    // If we get here without a MESSAGE_STOP, still call onComplete
+    callbacks.onComplete?.()
   } catch (error) {
     console.error('Error calling AgentCore:', error)
     callbacks.onError?.(error as Error)
     throw error
   }
-}
-
-/**
- * Process a streaming chunk and handle thinking tags
- */
-function processStreamChunk(
-  text: string,
-  isInThinking: boolean,
-  thinkingBuffer: string,
-  callbacks: StreamCallbacks
-): { isInThinking: boolean; thinkingBuffer: string } {
-  let currentText = text
-  let inThinking = isInThinking
-  let buffer = thinkingBuffer
-
-  // Check for thinking tag start
-  const thinkingStartIndex = currentText.indexOf('<thinking>')
-  const thinkingEndIndex = currentText.indexOf('</thinking>')
-
-  if (thinkingStartIndex !== -1 && !inThinking) {
-    // Output text before thinking tag
-    const beforeThinking = currentText.substring(0, thinkingStartIndex)
-    if (beforeThinking) {
-      callbacks.onChunk?.(beforeThinking)
-    }
-
-    inThinking = true
-    callbacks.onThinking?.(true)
-    buffer = currentText.substring(thinkingStartIndex + 10) // Skip '<thinking>'
-
-    // Check if thinking ends in the same chunk
-    if (thinkingEndIndex > thinkingStartIndex) {
-      inThinking = false
-      callbacks.onThinking?.(false)
-      const afterThinking = currentText.substring(thinkingEndIndex + 11) // Skip '</thinking>'
-      if (afterThinking) {
-        callbacks.onChunk?.(afterThinking)
-      }
-      buffer = ''
-    }
-  } else if (thinkingEndIndex !== -1 && inThinking) {
-    // Thinking ends
-    inThinking = false
-    callbacks.onThinking?.(false)
-    const afterThinking = currentText.substring(thinkingEndIndex + 11) // Skip '</thinking>'
-    if (afterThinking) {
-      callbacks.onChunk?.(afterThinking)
-    }
-    buffer = ''
-  } else if (inThinking) {
-    // Still in thinking mode, buffer the content
-    buffer += currentText
-  } else {
-    // Normal text, output it
-    callbacks.onChunk?.(currentText)
-  }
-
-  return { isInThinking: inThinking, thinkingBuffer: buffer }
 }
 
 /**

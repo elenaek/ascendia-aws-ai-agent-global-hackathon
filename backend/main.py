@@ -9,7 +9,7 @@ load_dotenv()
 
 from strands import Agent, tool
 from strands.models import BedrockModel
-from strands_tools import think, handoff_to_user
+from strands_tools import think
 from strands_tools.tavily import tavily_search
 
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
@@ -176,7 +176,7 @@ async def invoke(payload):
     agent_instance = Agent(
         model=model,
         system_prompt=agent_system_prompt.format(company_information=company_info),
-        tools=[tavily_search, think, handoff_to_user]
+        tools=[tavily_search, think, ask_user]
     )
 
     user_message = payload.get("prompt", "Hello")

@@ -6,9 +6,12 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useChatStore } from '@/stores/chat-store'
 import { useAnalyticsStore } from '@/stores/analytics-store'
-import { Send, Bot, User, Brain } from 'lucide-react'
+import { Send, Bot, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { sendMessageToAgentStreaming, type CompanyInfo } from '@/lib/agentcore-client'
+import { ThinkingDisplay } from './thinking-display'
+import { ToolUseDisplay } from './tool-use-display'
+import { MessageContent } from './message-content'
 
 export function ChatInterface() {
   const {
@@ -16,12 +19,16 @@ export function ChatInterface() {
     isLoading,
     isThinking,
     thinkingContent,
+    toolUses,
     addMessage,
     appendToMessage,
     setLoading,
     setThinking,
     appendThinkingContent,
-    setStreamingId
+    setStreamingId,
+    addToolUse,
+    updateToolUse,
+    clearToolUses
   } = useChatStore()
   const { company } = useAnalyticsStore()
   const [input, setInput] = useState('')
@@ -57,6 +64,7 @@ export function ChatInterface() {
     // Call AWS Bedrock AgentCore with streaming
     setLoading(true)
     setStreamingId(assistantMessageId)
+    clearToolUses() // Clear previous tool uses
 
     try {
       // Convert analytics store company format to AgentCore format
@@ -89,6 +97,12 @@ export function ChatInterface() {
         },
         onThinkingContent: (text) => {
           appendThinkingContent(text)
+        },
+        onToolUseStart: (toolData) => {
+          addToolUse({ id: toolData.id, name: toolData.name, input: {} })
+        },
+        onToolUseComplete: (toolData) => {
+          updateToolUse(toolData.id, { status: 'completed', input: toolData.input })
         },
         onError: (error) => {
           console.error('Streaming error:', error)
@@ -170,7 +184,10 @@ export function ChatInterface() {
                       : 'bg-muted text-foreground'
                   )}
                 >
-                  <p className="text-sm">{message.content}</p>
+                  <MessageContent
+                    content={message.content}
+                    role={message.role}
+                  />
                   <p className="text-xs opacity-70 mt-1">
                     {new Date(message.timestamp).toLocaleTimeString()}
                   </p>
@@ -184,28 +201,20 @@ export function ChatInterface() {
               </div>
             ))}
 
-            {isThinking && (
-              <div className="flex gap-3 items-start">
-                <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
-                  <Brain className="w-4 h-4 text-amber-500 animate-pulse" />
-                </div>
-                <div className="bg-amber-500/10 rounded-lg p-3 max-w-[80%]">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xs text-amber-600 font-semibold">AI is thinking...</span>
-                    <div className="flex gap-1">
-                      <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                      <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse delay-100" />
-                      <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse delay-200" />
-                    </div>
-                  </div>
-                  {thinkingContent && (
-                    <div className="text-xs text-amber-700/80 italic whitespace-pre-wrap break-words">
-                      {thinkingContent}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+            <ThinkingDisplay
+              isThinking={isThinking}
+              thinkingContent={thinkingContent}
+            />
+
+            {toolUses.map((tool) => (
+              <ToolUseDisplay
+                key={tool.id}
+                id={tool.id}
+                name={tool.name}
+                input={tool.input}
+                status={tool.status}
+              />
+            ))}
 
             <div ref={messagesEndRef} />
           </>
