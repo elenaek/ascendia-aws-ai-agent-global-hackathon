@@ -185,7 +185,50 @@ async def invoke(payload):
     stream = agent_instance.stream_async(user_message)
 
     # Stream events back to the client
+    # Track thinking state
+    in_thinking = False
+
     async for event in stream:
+        # Parse <thinking> tags and convert to proper event types
+        if "data" in event and isinstance(event.get("data"), str):
+            text = event["data"]
+
+            # Check for thinking tags
+            if "<thinking>" in text:
+                in_thinking = True
+                # Emit THINKING_START event
+                yield {
+                    "event": {
+                        "contentBlockStart": {
+                            "start": {"reasoningContent": {}},
+                            "contentBlockIndex": 0
+                        }
+                    }
+                }
+                continue  # Skip the tag itself
+            elif "</thinking>" in text:
+                in_thinking = False
+                # Emit THINKING_STOP event
+                yield {
+                    "event": {
+                        "contentBlockStop": {
+                            "contentBlockIndex": 0
+                        }
+                    }
+                }
+                continue  # Skip the tag itself
+            elif in_thinking:
+                # Emit THINKING_DELTA event with the thinking content
+                yield {
+                    "event": {
+                        "contentBlockDelta": {
+                            "delta": {"reasoningContent": {"text": text}},
+                            "contentBlockIndex": 0
+                        }
+                    }
+                }
+                continue
+
         # Each event contains a chunk of the response
         yield event
 

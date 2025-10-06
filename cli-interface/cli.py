@@ -17,6 +17,24 @@ import random
 from typing import Optional
 from colorama import init, Fore, Style, Back
 from dotenv import load_dotenv
+import boto3
+import atexit
+
+
+def cleanup(refresh_token: str | None):
+    if(refresh_token):
+        print("Revoking refresh token...")
+        try:
+            idp_client = boto3.client('cognito-idp', region_name=os.getenv("AWS_REGION"))
+            idp_client.revoke_token(
+                ClientId=os.getenv("COGNITO_CLIENT_ID"),
+                Token=refresh_token
+            )
+            print("Refresh token revoked successfully!")
+        except idp_client.exceptions.TokenNotFoundException:
+            print("Token not found or already revoked.")
+        except Exception as e:
+            print(f"Error revoking token: {e}")
 
 # Add parent directory to path to import our library
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -209,6 +227,21 @@ def main():
         default=os.getenv("AWS_BEARER_TOKEN_BEDROCK")
     )
     parser.add_argument(
+        "--client-id",
+        help="Client ID to use",
+        default=os.getenv("COGNITO_CLIENT_ID")
+    )
+    parser.add_argument(
+        "--username",
+        help="Username to use",
+        default=os.getenv("COGNITO_USERNAME")
+    )
+    parser.add_argument(
+        "--password",
+        help="Password to use",
+        default=os.getenv("COGNITO_PW")
+    )
+    parser.add_argument(
         "--auth-token",
         help="Auth token to use",
         default=os.getenv("AGENTCORE_TOKEN")
@@ -272,7 +305,7 @@ def main():
     )
 
     args = parser.parse_args()
-    print(args)
+    # print(args)
 
     # Validate arguments
     if not args.use_model and not args.agent_id:
@@ -285,10 +318,22 @@ def main():
 
     # Initialize the client
     try:
+        idp_client = boto3.client('cognito-idp', region_name=args.region)
+        res = idp_client.initiate_auth(
+            ClientId=args.client_id,
+            AuthFlow='USER_PASSWORD_AUTH',
+            AuthParameters={
+                'USERNAME': args.username,
+                'PASSWORD': args.password
+            }
+        )
+        access_token = res['AuthenticationResult']['AccessToken']
+        refresh_token = res['AuthenticationResult']['RefreshToken']
+        atexit.register(cleanup, refresh_token=refresh_token)
         client = BedrockAgentCoreStreamClient(
             agent_id=args.agent_id or "dummy",  # Provide dummy ID if using model directly
             endpoint_url=url,
-            auth_token=args.auth_token,
+            auth_token=access_token or args.auth_token,
             session_id=args.session_id
         )
 

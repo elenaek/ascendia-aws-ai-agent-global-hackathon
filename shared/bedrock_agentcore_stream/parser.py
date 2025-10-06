@@ -3,7 +3,6 @@ Parser for Bedrock AgentCore streaming events
 """
 
 import json
-import re
 from typing import Optional, Generator, Union
 from time import time
 from .types import StreamEvent, EventType
@@ -14,7 +13,7 @@ class StreamEventParser:
 
     def __init__(self):
         self.buffer = ""
-        self.thinking_pattern = re.compile(r'<thinking>(.*?)</thinking>', re.DOTALL)
+        self.in_reasoning_block = False
 
     def parse_json_line(self, line: str) -> Optional[StreamEvent]:
         """Parse a single JSON line into a StreamEvent object"""
@@ -48,26 +47,90 @@ class StreamEventParser:
                     timestamp=time()
                 )
             elif "contentBlockDelta" in event_data:
-                return StreamEvent(
-                    type=EventType.CONTENT_BLOCK_DELTA,
-                    data=event_data["contentBlockDelta"],
-                    raw_event=line,
-                    timestamp=time()
-                )
+                delta_data = event_data["contentBlockDelta"]
+                delta_inner = delta_data.get("delta", {})
+
+                # Check for reasoning content (thinking)
+                if "reasoningContent" in delta_inner:
+                    reasoning_data = delta_inner["reasoningContent"]
+                    return StreamEvent(
+                        type=EventType.THINKING_DELTA,
+                        data={"delta": {"text": reasoning_data.get("text", "")}},
+                        raw_event=line,
+                        timestamp=time()
+                    )
+                # Check if this is a tool use delta
+                elif "toolUse" in delta_inner:
+                    tool_use_data = delta_inner["toolUse"]
+                    return StreamEvent(
+                        type=EventType.TOOL_USE_DELTA,
+                        data={
+                            "delta": {"input": tool_use_data.get("input", "")}
+                        },
+                        raw_event=line,
+                        timestamp=time()
+                    )
+                # Regular text content
+                else:
+                    return StreamEvent(
+                        type=EventType.CONTENT_BLOCK_DELTA,
+                        data=delta_data,
+                        raw_event=line,
+                        timestamp=time()
+                    )
             elif "contentBlockStart" in event_data:
-                return StreamEvent(
-                    type=EventType.CONTENT_BLOCK_START,
-                    data=event_data["contentBlockStart"],
-                    raw_event=line,
-                    timestamp=time()
-                )
+                block_data = event_data["contentBlockStart"]
+                start_data = block_data.get("start", {})
+
+                # Check for reasoning content block (thinking)
+                if "reasoningContent" in start_data:
+                    self.in_reasoning_block = True
+                    return StreamEvent(
+                        type=EventType.THINKING_START,
+                        data={},
+                        raw_event=line,
+                        timestamp=time()
+                    )
+                # Check if this is a tool use block
+                elif "toolUse" in start_data:
+                    tool_use = start_data["toolUse"]
+                    return StreamEvent(
+                        type=EventType.TOOL_USE_START,
+                        data={
+                            "id": tool_use.get("toolUseId"),
+                            "name": tool_use.get("name")
+                        },
+                        raw_event=line,
+                        timestamp=time()
+                    )
+                # Regular text content block
+                else:
+                    return StreamEvent(
+                        type=EventType.CONTENT_BLOCK_START,
+                        data=block_data,
+                        raw_event=line,
+                        timestamp=time()
+                    )
             elif "contentBlockStop" in event_data:
-                return StreamEvent(
-                    type=EventType.CONTENT_BLOCK_STOP,
-                    data=event_data["contentBlockStop"],
-                    raw_event=line,
-                    timestamp=time()
-                )
+                stop_data = event_data["contentBlockStop"]
+
+                # Check if we're ending a reasoning block
+                if self.in_reasoning_block:
+                    self.in_reasoning_block = False
+                    return StreamEvent(
+                        type=EventType.THINKING_STOP,
+                        data={},
+                        raw_event=line,
+                        timestamp=time()
+                    )
+                # Regular content block stop
+                else:
+                    return StreamEvent(
+                        type=EventType.CONTENT_BLOCK_STOP,
+                        data=stop_data,
+                        raw_event=line,
+                        timestamp=time()
+                    )
             elif "messageStop" in event_data:
                 return StreamEvent(
                     type=EventType.MESSAGE_STOP,
@@ -174,19 +237,6 @@ class StreamEventParser:
                     if event:
                         yield event
 
-    def extract_thinking(self, text: str) -> tuple[Optional[str], Optional[str]]:
-        """
-        Extract thinking content from text if present
-
-        Returns:
-            Tuple of (thinking_text, remaining_text)
-        """
-        match = self.thinking_pattern.search(text)
-        if match:
-            thinking = match.group(1).strip()
-            remaining = self.thinking_pattern.sub('', text).strip()
-            return thinking, remaining
-        return None, text
 
 
 class MessageAssembler:
@@ -195,12 +245,15 @@ class MessageAssembler:
     def __init__(self):
         self.current_message = None
         self.current_content = None
+        self.current_block_type = None  # Track if current block is 'text' or 'tool_use'
         self.thinking_buffer = []
         self.content_buffer = []
         self.tool_buffer = {}
 
     def process_event(self, event: StreamEvent):
         """Process a stream event and update internal state"""
+
+        
 
         if event.type == EventType.MESSAGE_START:
             # Initialize new message
@@ -226,8 +279,9 @@ class MessageAssembler:
 
         elif event.type == EventType.CONTENT_BLOCK_START:
             # Initialize new content block
+            self.current_block_type = "text"
             self.current_content = {
-                "type": event.data.get("type", "text"),
+                "type": "text",
                 "text": ""
             }
 
@@ -239,13 +293,30 @@ class MessageAssembler:
                     self.current_content["text"] += text
 
         elif event.type == EventType.CONTENT_BLOCK_STOP:
-            # Finalize content block
-            if self.current_message and self.current_content:
+            # Finalize content block - check what type it was
+            if self.current_block_type == "tool_use" and hasattr(self, 'current_tool_id'):
+                # This was a tool use block, finalize it
+                tool_id = self.current_tool_id
+                if tool_id in self.tool_buffer and self.current_message:
+                    tool_data = self.tool_buffer[tool_id]
+                    try:
+                        if tool_data["input"]:
+                            tool_data["input"] = json.loads(tool_data["input"])
+                    except json.JSONDecodeError:
+                        pass  # Keep as string if not valid JSON
+                    self.current_message["content"].append(tool_data)
+                    del self.tool_buffer[tool_id]
+                delattr(self, 'current_tool_id')
+            elif self.current_message and self.current_content:
+                # Regular text content block
                 self.current_message["content"].append(self.current_content)
-                self.current_content = None
+
+            self.current_content = None
+            self.current_block_type = None
 
         elif event.type == EventType.TOOL_USE_START:
             # Initialize tool use
+            self.current_block_type = "tool_use"
             tool_id = event.data.get("id")
             self.tool_buffer[tool_id] = {
                 "type": "tool_use",
@@ -253,25 +324,30 @@ class MessageAssembler:
                 "name": event.data.get("name"),
                 "input": ""
             }
+            # Store reference to current tool
+            self.current_tool_id = tool_id
 
         elif event.type == EventType.TOOL_USE_DELTA:
-            # Accumulate tool input
-            tool_id = event.data.get("id")
-            if tool_id in self.tool_buffer:
+            # Accumulate tool input - use current_tool_id since deltas don't include id
+            if hasattr(self, 'current_tool_id') and self.current_tool_id in self.tool_buffer:
                 delta_input = event.data.get("delta", {}).get("input", "")
-                self.tool_buffer[tool_id]["input"] += delta_input
+                self.tool_buffer[self.current_tool_id]["input"] += delta_input
 
         elif event.type == EventType.TOOL_USE_STOP:
-            # Finalize tool use
-            tool_id = event.data.get("id")
-            if tool_id in self.tool_buffer and self.current_message:
-                tool_data = self.tool_buffer[tool_id]
-                try:
-                    tool_data["input"] = json.loads(tool_data["input"])
-                except json.JSONDecodeError:
-                    pass  # Keep as string if not valid JSON
-                self.current_message["content"].append(tool_data)
-                del self.tool_buffer[tool_id]
+            # Finalize tool use - use current_tool_id since stop events don't have id
+            if hasattr(self, 'current_tool_id'):
+                tool_id = self.current_tool_id
+                if tool_id in self.tool_buffer and self.current_message:
+                    tool_data = self.tool_buffer[tool_id]
+                    try:
+                        if tool_data["input"]:
+                            tool_data["input"] = json.loads(tool_data["input"])
+                    except json.JSONDecodeError:
+                        pass  # Keep as string if not valid JSON
+                    self.current_message["content"].append(tool_data)
+                    del self.tool_buffer[tool_id]
+                # Clear the current_tool_id
+                delattr(self, 'current_tool_id')
 
         elif event.type == EventType.MESSAGE_STOP:
             # Finalize message
