@@ -30,7 +30,7 @@ export class StreamEventParser {
     }
 
     // Debug: log all parsed events
-    console.log('Parsed event:', JSON.stringify(data, null, 2))
+    // console.log('Parsed event:', JSON.stringify(data, null, 2))
 
     // Skip if data is a string (debug output that was JSON-encoded)
     if (typeof data === 'string') {

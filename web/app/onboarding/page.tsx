@@ -88,9 +88,9 @@ export default function OnboardingPage() {
 
     try {
         setIsSubmitting(true)
-        console.log('Starting onboarding completion...')
-        console.log('Current user:', user)
-        console.log('Form data:', formData)
+        // console.log('Starting onboarding completion...')
+        // console.log('Current user:', user)
+        // console.log('Form data:', formData)
 
         if (!user?.id) {
           console.error('No user ID found')
@@ -99,7 +99,7 @@ export default function OnboardingPage() {
         }
 
         // Save to DynamoDB via API
-        console.log('Saving company data to database...')
+        // console.log('Saving company data to database...')
         const { authenticatedFetch } = await import('@/lib/auth-utils')
 
         const response = await authenticatedFetch('/api/company', {
@@ -115,7 +115,7 @@ export default function OnboardingPage() {
         }
 
         const result = await response.json()
-        console.log('Company data saved:', result)
+        // console.log('Company data saved:', result)
 
         // Set company info in local state
         const companyData = {
@@ -123,10 +123,10 @@ export default function OnboardingPage() {
           ...formData
         }
 
-        console.log('Setting company data in cache:', companyData)
+        // console.log('Setting company data in cache:', companyData)
         setCompany(companyData)
 
-        console.log('Onboarding complete, redirecting to dashboard...')
+        // console.log('Onboarding complete, redirecting to dashboard...')
         // Navigate to dashboard
         router.push('/dashboard')
     } catch (error) {

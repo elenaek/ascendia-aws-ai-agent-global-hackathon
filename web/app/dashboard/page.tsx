@@ -24,7 +24,7 @@ export default function DashboardPage() {
 
     // If authenticated but no company data cached, redirect to auth to check DDB
     if (!isLoading && isAuthenticated && !company) {
-      console.log('No company data cached, redirecting to auth to check DDB')
+      // console.log('No company data cached, redirecting to auth to check DDB')
       router.push('/auth')
     }
   }, [isAuthenticated, isLoading, company, router])

@@ -43,7 +43,7 @@ export function ChatInterface() {
 
   useEffect(() => {
     scrollToBottom()
-  }, [messages])
+  }, [messages, isThinking, thinkingContent, toolUses])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -195,7 +195,10 @@ export function ChatInterface() {
                 )}
               >
                 {message.role === 'assistant' && (
-                  <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                  <div className={cn(
+                    "w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0",
+                    !message.content && isLoading && "animate-pulse"
+                  )}>
                     <Bot className="w-4 h-4 text-primary" />
                   </div>
                 )}
@@ -235,13 +238,26 @@ export function ChatInterface() {
                         : 'bg-muted text-foreground'
                     )}
                   >
-                    <MessageContent
-                      content={message.content}
-                      role={message.role}
-                    />
-                    <p className="text-xs opacity-70 mt-1">
-                      {new Date(message.timestamp).toLocaleTimeString()}
-                    </p>
+                    {message.role === 'assistant' && !message.content.trim() && isLoading ? (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span className="text-sm">
+                          {(message.toolUses && message.toolUses.length > 0) || toolUses.length > 0
+                            ? 'Processing results...'
+                            : 'Thinking...'}
+                        </span>
+                      </div>
+                    ) : (
+                      <>
+                        <MessageContent
+                          content={message.content}
+                          role={message.role}
+                        />
+                        <p className="text-xs opacity-70 mt-1">
+                          {new Date(message.timestamp).toLocaleTimeString()}
+                        </p>
+                      </>
+                    )}
                   </div>
                 </div>
 

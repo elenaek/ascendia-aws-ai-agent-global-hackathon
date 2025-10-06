@@ -55,12 +55,12 @@ function AuthContent() {
   useEffect(() => {
     const updateAuthState = async () => {
       if (authStatus === 'authenticated' && amplifyUser) {
-        console.log('User authenticated, updating store:', amplifyUser)
-        console.log('Auth details:', {
-          userId: amplifyUser.userId,
-          username: amplifyUser.username,
-          signInDetails: amplifyUser.signInDetails,
-        })
+        // console.log('User authenticated, updating store:', amplifyUser)
+        // console.log('Auth details:', {
+        //   userId: amplifyUser.userId,
+        //   username: amplifyUser.username,
+        //   signInDetails: amplifyUser.signInDetails,
+        // })
 
         // For email-based login, username might be the email
         const email = amplifyUser.signInDetails?.loginId || amplifyUser.username || ''
@@ -73,7 +73,7 @@ function AuthContent() {
           email: email,
         })
 
-        console.log('User set in store, checking for existing company data...')
+        // console.log('User set in store, checking for existing company data...')
 
         try {
           // Get the ID token from the session
@@ -84,7 +84,7 @@ function AuthContent() {
 
           if (response.ok) {
             const result = await response.json()
-            console.log('Found existing company data:', result)
+            // console.log('Found existing company data:', result)
 
             // Set company data in store (this acts as cache)
             setCompany({
@@ -97,11 +97,11 @@ function AuthContent() {
               types_of_products: result.data.types_of_products || [],
             })
 
-            console.log('Company data loaded and cached, redirecting to dashboard...')
+            // console.log('Company data loaded and cached, redirecting to dashboard...')
             router.push('/dashboard')
           } else if (response.status === 404) {
             // No company data found, need onboarding
-            console.log('No company data found, redirecting to onboarding...')
+            // console.log('No company data found, redirecting to onboarding...')
             router.push('/onboarding')
           } else {
             // Error fetching data, redirect to onboarding as fallback

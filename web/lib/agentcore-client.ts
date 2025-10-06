@@ -190,10 +190,10 @@ export async function sendMessageToAgentStreaming(
     })) {
       // Handle content blocks with thinking tag detection
       if (event.type === EventType.CONTENT_BLOCK_START) {
-        console.log('CONTENT_BLOCK_START')
+        // console.log('CONTENT_BLOCK_START')
         // Complete any pending tools when AI starts responding
         if (pendingToolCompletions.length > 0) {
-          console.log('Completing pending tools:', pendingToolCompletions.length)
+          // console.log('Completing pending tools:', pendingToolCompletions.length)
           for (const tool of pendingToolCompletions) {
             callbacks.onToolUseComplete?.(tool)
           }
@@ -201,10 +201,10 @@ export async function sendMessageToAgentStreaming(
         }
         displayHandler.reset()
       } else if (event.type === EventType.CONTENT_BLOCK_DELTA) {
-        console.log('CONTENT_BLOCK_DELTA', event.data)
+        // console.log('CONTENT_BLOCK_DELTA', event.data)
         // Complete any pending tools when AI starts responding
         if (pendingToolCompletions.length > 0) {
-          console.log('Completing pending tools:', pendingToolCompletions.length)
+          // console.log('Completing pending tools:', pendingToolCompletions.length)
           for (const tool of pendingToolCompletions) {
             callbacks.onToolUseComplete?.(tool)
           }
@@ -230,13 +230,13 @@ export async function sendMessageToAgentStreaming(
       }
       // Handle tool use events
       else if (event.type === EventType.TOOL_USE_START) {
-        console.log('TOOL_USE_START', event.data)
+        // console.log('TOOL_USE_START', event.data)
         const toolId = event.data.id
         const toolName = event.data.name
         currentToolUses.set(toolId, { id: toolId, name: toolName, input: '' })
         callbacks.onToolUseStart?.({ id: toolId, name: toolName })
       } else if (event.type === EventType.TOOL_USE_DELTA) {
-        console.log('TOOL_USE_DELTA')
+        // console.log('TOOL_USE_DELTA')
         // Accumulate tool input - find the current tool
         if (currentToolUses.size > 0) {
           const lastTool = Array.from(currentToolUses.values()).pop()
@@ -246,7 +246,7 @@ export async function sendMessageToAgentStreaming(
           }
         }
       } else if (event.type === EventType.TOOL_USE_STOP) {
-        console.log('TOOL_USE_STOP')
+        // console.log('TOOL_USE_STOP')
         // Prepare tool completion but don't mark as complete yet - wait for AI response
         if (currentToolUses.size > 0) {
           const lastTool = Array.from(currentToolUses.values()).pop()
@@ -263,13 +263,13 @@ export async function sendMessageToAgentStreaming(
       }
       // Handle errors
       else if (event.type === EventType.ERROR) {
-        console.log('ERROR', event.data)
+        // console.log('ERROR', event.data)
         callbacks.onError?.(new Error(event.data.error || 'Unknown error'))
         return
       }
       // Handle message stop
       else if (event.type === EventType.MESSAGE_STOP) {
-        console.log('MESSAGE_STOP', event.data)
+        // console.log('MESSAGE_STOP', event.data)
         // Only complete if this is the final stop (end_turn), not intermediate stops (tool_use)
         if (event.data.stopReason === 'end_turn') {
           callbacks.onComplete?.()
@@ -279,7 +279,7 @@ export async function sendMessageToAgentStreaming(
       }
       // Log unhandled events
       else {
-        console.log('Unhandled event type:', event.type, event.data)
+        // console.log('Unhandled event type:', event.type, event.data)
       }
     }
 
