@@ -25,7 +25,7 @@ export interface StreamCallbacks {
   onThinking?: (isThinking: boolean) => void
   onThinkingContent?: (text: string) => void
   onToolUseStart?: (toolData: { id: string; name: string }) => void
-  onToolUseComplete?: (toolData: { id: string; name: string; input: any }) => void
+  onToolUseComplete?: (toolData: { id: string; name: string; input: unknown }) => void
   onError?: (error: Error) => void
   onComplete?: () => void
 }
@@ -180,7 +180,7 @@ export async function sendMessageToAgentStreaming(
 
   // Track tool use state
   const currentToolUses = new Map<string, { id: string; name: string; input: string }>()
-  const pendingToolCompletions: Array<{ id: string; name: string; input: any }> = []
+  const pendingToolCompletions: Array<{ id: string; name: string; input: unknown }> = []
 
   try {
     // Stream events from AgentCore
@@ -231,8 +231,8 @@ export async function sendMessageToAgentStreaming(
       // Handle tool use events
       else if (event.type === EventType.TOOL_USE_START) {
         // console.log('TOOL_USE_START', event.data)
-        const toolId = event.data.id
-        const toolName = event.data.name
+        const toolId = event.data.id as string
+        const toolName = event.data.name as string
         currentToolUses.set(toolId, { id: toolId, name: toolName, input: '' })
         callbacks.onToolUseStart?.({ id: toolId, name: toolName })
       } else if (event.type === EventType.TOOL_USE_DELTA) {
@@ -241,7 +241,8 @@ export async function sendMessageToAgentStreaming(
         if (currentToolUses.size > 0) {
           const lastTool = Array.from(currentToolUses.values()).pop()
           if (lastTool) {
-            const deltaInput = event.data.delta?.input || ''
+            const delta = event.data.delta as { input?: string } | undefined
+            const deltaInput = delta?.input || ''
             lastTool.input += deltaInput
           }
         }
@@ -254,7 +255,7 @@ export async function sendMessageToAgentStreaming(
             try {
               const parsedInput = lastTool.input ? JSON.parse(lastTool.input) : {}
               pendingToolCompletions.push({ id: lastTool.id, name: lastTool.name, input: parsedInput })
-            } catch (e) {
+            } catch {
               pendingToolCompletions.push({ id: lastTool.id, name: lastTool.name, input: lastTool.input })
             }
             currentToolUses.delete(lastTool.id)
@@ -264,14 +265,16 @@ export async function sendMessageToAgentStreaming(
       // Handle errors
       else if (event.type === EventType.ERROR) {
         // console.log('ERROR', event.data)
-        callbacks.onError?.(new Error(event.data.error || 'Unknown error'))
+        const errorMsg = (event.data.error as string) || 'Unknown error'
+        callbacks.onError?.(new Error(errorMsg))
         return
       }
       // Handle message stop
       else if (event.type === EventType.MESSAGE_STOP) {
         // console.log('MESSAGE_STOP', event.data)
         // Only complete if this is the final stop (end_turn), not intermediate stops (tool_use)
-        if (event.data.stopReason === 'end_turn') {
+        const stopReason = event.data.stopReason as string | undefined
+        if (stopReason === 'end_turn') {
           callbacks.onComplete?.()
           return
         }

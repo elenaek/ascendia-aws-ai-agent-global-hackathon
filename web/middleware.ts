@@ -18,7 +18,7 @@ export function middleware(request: NextRequest) {
   const cfConnectingIP = request.headers.get('cf-connecting-ip') // Cloudflare
 
   // Extract IP address (prefer x-forwarded-for, then x-real-ip, then cf-connecting-ip)
-  let clientIP = forwardedFor?.split(',')[0].trim() || realIP || cfConnectingIP || request.ip
+  let clientIP = forwardedFor?.split(',')[0].trim() || realIP || cfConnectingIP
 
   // Fallback for local development
   if (!clientIP || clientIP === '::1' || clientIP === '127.0.0.1') {

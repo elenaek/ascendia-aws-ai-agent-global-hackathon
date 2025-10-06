@@ -21,10 +21,10 @@ export class StreamEventParser {
       return null
     }
 
-    let data: any
+    let data: unknown
     try {
       data = JSON.parse(line)
-    } catch (e) {
+    } catch {
       // If it's not valid JSON (e.g., debug lines), skip it
       return null
     }
@@ -37,40 +37,48 @@ export class StreamEventParser {
       return null
     }
 
+    // Type guard - ensure data is an object
+    if (typeof data !== 'object' || data === null) {
+      return null
+    }
+
+    // Cast to a more permissive type for property access
+    const dataObj = data as Record<string, unknown>
+
     // Handle different types of JSON objects
-    if ('event' in data) {
+    if ('event' in dataObj) {
       // This is a streaming event
-      const eventData = data.event
+      const eventData = dataObj.event as Record<string, unknown>
 
       // Determine event type based on the key in the event object
       if ('messageStart' in eventData) {
         return {
           type: EventType.MESSAGE_START,
-          data: eventData.messageStart,
+          data: (eventData.messageStart as Record<string, unknown>) || {},
           rawEvent: line,
           timestamp: Date.now()
         }
       } else if ('contentBlockDelta' in eventData) {
-        const deltaData = eventData.contentBlockDelta
-        const deltaInner = deltaData.delta || {}
+        const deltaData = eventData.contentBlockDelta as Record<string, unknown>
+        const deltaInner = (deltaData.delta as Record<string, unknown>) || {}
 
         // Check for reasoning content (thinking)
         if ('reasoningContent' in deltaInner) {
-          const reasoningData = deltaInner.reasoningContent
+          const reasoningData = deltaInner.reasoningContent as Record<string, unknown>
           return {
             type: EventType.THINKING_DELTA,
-            data: { delta: { text: reasoningData.text || "" } },
+            data: { delta: { text: (reasoningData.text as string) || "" } },
             rawEvent: line,
             timestamp: Date.now()
           }
         }
         // Check if this is a tool use delta
         else if ('toolUse' in deltaInner) {
-          const toolUseData = deltaInner.toolUse
+          const toolUseData = deltaInner.toolUse as Record<string, unknown>
           return {
             type: EventType.TOOL_USE_DELTA,
             data: {
-              delta: { input: toolUseData.input || "" }
+              delta: { input: (toolUseData.input as string) || "" }
             },
             rawEvent: line,
             timestamp: Date.now()
@@ -86,8 +94,8 @@ export class StreamEventParser {
           }
         }
       } else if ('contentBlockStart' in eventData) {
-        const blockData = eventData.contentBlockStart
-        const startData = blockData.start || {}
+        const blockData = eventData.contentBlockStart as Record<string, unknown>
+        const startData = (blockData.start as Record<string, unknown>) || {}
 
         // Check for reasoning content block (thinking)
         if ('reasoningContent' in startData) {
@@ -101,13 +109,13 @@ export class StreamEventParser {
         }
         // Check if this is a tool use block
         else if ('toolUse' in startData) {
-          const toolUse = startData.toolUse
+          const toolUse = startData.toolUse as Record<string, unknown>
           this.inToolUseBlock = true
           return {
             type: EventType.TOOL_USE_START,
             data: {
-              id: toolUse.toolUseId,
-              name: toolUse.name
+              id: toolUse.toolUseId as string,
+              name: toolUse.name as string
             },
             rawEvent: line,
             timestamp: Date.now()
@@ -123,7 +131,7 @@ export class StreamEventParser {
           }
         }
       } else if ('contentBlockStop' in eventData) {
-        const stopData = eventData.contentBlockStop
+        const stopData = (eventData.contentBlockStop as Record<string, unknown>) || {}
 
         // Check if we're ending a reasoning block
         if (this.inReasoningBlock) {
@@ -157,7 +165,7 @@ export class StreamEventParser {
       } else if ('messageStop' in eventData) {
         return {
           type: EventType.MESSAGE_STOP,
-          data: eventData.messageStop,
+          data: (eventData.messageStop as Record<string, unknown>) || {},
           rawEvent: line,
           timestamp: Date.now()
         }
@@ -165,7 +173,7 @@ export class StreamEventParser {
         // Metadata event with usage and metrics
         return {
           type: EventType.UNKNOWN,
-          data: eventData.metadata,
+          data: (eventData.metadata as Record<string, unknown>) || {},
           rawEvent: line,
           timestamp: Date.now()
         }
@@ -178,36 +186,36 @@ export class StreamEventParser {
           timestamp: Date.now()
         }
       }
-    } else if ('message' in data) {
+    } else if ('message' in dataObj) {
       // Final message object (summary, not another stop event)
       // Treat as unknown to avoid duplicate MESSAGE_STOP displays
       return {
         type: EventType.UNKNOWN,
-        data: data.message,
+        data: (dataObj.message as Record<string, unknown>) || {},
         rawEvent: line,
         timestamp: Date.now()
       }
-    } else if ('result' in data) {
+    } else if ('result' in dataObj) {
       // Final result object (AgentCore specific)
       return {
         type: EventType.UNKNOWN,
-        data: data,
+        data: dataObj,
         rawEvent: line,
         timestamp: Date.now()
       }
-    } else if ('init_event_loop' in data || 'start' in data || 'start_event_loop' in data) {
+    } else if ('init_event_loop' in dataObj || 'start' in dataObj || 'start_event_loop' in dataObj) {
       // Initialization events
       return {
         type: EventType.UNKNOWN,
-        data: data,
+        data: dataObj,
         rawEvent: line,
         timestamp: Date.now()
       }
-    } else if ('data' in data) {
+    } else if ('data' in dataObj) {
       // Debug/trace data from the agent
       return {
         type: EventType.UNKNOWN,
-        data: data,
+        data: dataObj,
         rawEvent: line,
         timestamp: Date.now()
       }
@@ -286,17 +294,18 @@ export class MessageAssembler {
     if (event.type === EventType.MESSAGE_START) {
       // Initialize new message
       this.currentMessage = {
-        role: event.data.role || "assistant",
+        role: (event.data.role as string) || "assistant",
         content: [],
         thinking: undefined,
-        model: event.data.model,
+        model: event.data.model as string | undefined,
         usage: undefined
       }
       this.thinkingBuffer = []
       this.contentBuffer = []
     } else if (event.type === EventType.THINKING_DELTA) {
       // Accumulate thinking text
-      const text = event.data.delta?.text || ""
+      const delta = event.data.delta as { text?: string } | undefined
+      const text = delta?.text || ""
       this.thinkingBuffer.push(text)
     } else if (event.type === EventType.THINKING_STOP) {
       // Finalize thinking
@@ -313,7 +322,8 @@ export class MessageAssembler {
     } else if (event.type === EventType.CONTENT_BLOCK_DELTA) {
       // Accumulate content text
       if (this.currentContent) {
-        const text = event.data.delta?.text || ""
+        const delta = event.data.delta as { text?: string } | undefined
+        const text = delta?.text || ""
         if (this.currentContent.type === "text") {
           this.currentContent.text = (this.currentContent.text || "") + text
         }
@@ -327,9 +337,9 @@ export class MessageAssembler {
           const toolData = this.toolBuffer[toolId]
           try {
             if (toolData.toolInput && typeof toolData.toolInput === 'string') {
-              toolData.toolInput = JSON.parse(toolData.toolInput as any)
+              toolData.toolInput = JSON.parse(toolData.toolInput)
             }
-          } catch (e) {
+          } catch {
             // Keep as string if not valid JSON
           }
           this.currentMessage.content?.push(toolData as ContentBlock)
@@ -346,19 +356,20 @@ export class MessageAssembler {
     } else if (event.type === EventType.TOOL_USE_START) {
       // Initialize tool use
       this.currentBlockType = "tool_use"
-      const toolId = event.data.id
+      const toolId = event.data.id as string
       this.toolBuffer[toolId] = {
         type: "tool_use",
         toolUseId: toolId,
-        toolName: event.data.name,
-        toolInput: {} as any
+        toolName: event.data.name as string,
+        toolInput: {}
       }
       // Store reference to current tool
       this.currentToolId = toolId
     } else if (event.type === EventType.TOOL_USE_DELTA) {
       // Accumulate tool input - use currentToolId since deltas don't include id
       if (this.currentToolId && this.currentToolId in this.toolBuffer) {
-        const deltaInput = event.data.delta?.input || ""
+        const delta = event.data.delta as { input?: string } | undefined
+        const deltaInput = delta?.input || ""
         const currentInput = this.toolBuffer[this.currentToolId].toolInput
         this.toolBuffer[this.currentToolId].toolInput =
           (typeof currentInput === 'string' ? currentInput : '') + deltaInput
@@ -371,9 +382,9 @@ export class MessageAssembler {
           const toolData = this.toolBuffer[toolId]
           try {
             if (toolData.toolInput && typeof toolData.toolInput === 'string') {
-              toolData.toolInput = JSON.parse(toolData.toolInput as any)
+              toolData.toolInput = JSON.parse(toolData.toolInput)
             }
-          } catch (e) {
+          } catch {
             // Keep as string if not valid JSON
           }
           this.currentMessage.content?.push(toolData as ContentBlock)
@@ -385,8 +396,8 @@ export class MessageAssembler {
     } else if (event.type === EventType.MESSAGE_STOP) {
       // Finalize message
       if (this.currentMessage) {
-        this.currentMessage.usage = event.data.usage
-        this.currentMessage.stopReason = event.data.stop_reason
+        this.currentMessage.usage = event.data.usage as { inputTokens?: number; outputTokens?: number; totalTokens?: number } | undefined
+        this.currentMessage.stopReason = event.data.stop_reason as string | undefined
         return this.currentMessage as Message
       }
     }

@@ -19,14 +19,14 @@ export interface ClientOptions {
 export interface InvokeOptions {
   prompt: string
   sessionId?: string
-  additionalParams?: Record<string, any>
+  additionalParams?: Record<string, unknown>
 }
 
 export interface StreamCallbacks {
   onEvent?: (event: StreamEvent) => void
   onContent?: (text: string) => void
   onThinking?: (text: string) => void
-  onToolUse?: (toolData: any) => void
+  onToolUse?: (toolData: unknown) => void
   onError?: (error: Error) => void
   onComplete?: () => void
 }
@@ -73,7 +73,7 @@ export class BedrockAgentCoreStreamClient {
   async *invokeAgentStream(options: InvokeOptions): AsyncGenerator<StreamEvent, void, unknown> {
     try {
       // Prepare request payload
-      const payload: Record<string, any> = {
+      const payload: Record<string, unknown> = {
         prompt: options.prompt,
         stream: true
       }
@@ -189,19 +189,22 @@ export class BedrockAgentCoreStreamClient {
 
         // Call specific callbacks based on event type
         if (event.type === EventType.CONTENT_BLOCK_DELTA && callbacks.onContent) {
-          const text = event.data.delta?.text
+          const delta = event.data.delta as { text?: string } | undefined
+          const text = delta?.text
           if (text) {
             callbacks.onContent(text)
           }
         } else if (event.type === EventType.THINKING_DELTA && callbacks.onThinking) {
-          const text = event.data.delta?.text
+          const delta = event.data.delta as { text?: string } | undefined
+          const text = delta?.text
           if (text) {
             callbacks.onThinking(text)
           }
         } else if (event.type === EventType.TOOL_USE_STOP && callbacks.onToolUse) {
           callbacks.onToolUse(event.data)
         } else if (event.type === EventType.ERROR && callbacks.onError) {
-          callbacks.onError(new Error(event.data.error || 'Unknown error'))
+          const errorMsg = (event.data.error as string) || 'Unknown error'
+          callbacks.onError(new Error(errorMsg))
         }
 
         // Assemble the complete message

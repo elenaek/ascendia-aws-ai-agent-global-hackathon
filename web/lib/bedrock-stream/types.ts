@@ -30,7 +30,7 @@ export enum EventType {
  */
 export interface StreamEvent {
   type: EventType
-  data: Record<string, any>
+  data: Record<string, unknown>
   rawEvent?: string
   timestamp?: number
 }
@@ -78,13 +78,16 @@ export class StreamEventHelpers {
    */
   static getText(event: StreamEvent): string | null {
     if (event.type === EventType.CONTENT_BLOCK_DELTA) {
-      return event.data.delta?.text ?? ""
+      const delta = event.data.delta as { text?: string } | undefined
+      return delta?.text ?? ""
     } else if (event.type === EventType.THINKING_DELTA) {
-      return event.data.delta?.text ?? ""
+      const delta = event.data.delta as { text?: string } | undefined
+      return delta?.text ?? ""
     } else if (event.type === EventType.MESSAGE_DELTA) {
-      return event.data.delta?.text ?? ""
+      const delta = event.data.delta as { text?: string } | undefined
+      return delta?.text ?? ""
     } else if (StreamEventHelpers.isContent(event) && "content" in event.data) {
-      const content = event.data.content
+      const content = event.data.content as { text?: string } | undefined
       if (typeof content === "object" && content !== null) {
         return content.text ?? ""
       }
@@ -100,7 +103,7 @@ export interface ContentBlock {
   type: string // "text", "tool_use", etc.
   text?: string
   toolName?: string
-  toolInput?: Record<string, any>
+  toolInput?: Record<string, unknown> | string
   toolUseId?: string
 }
 

@@ -6,6 +6,14 @@ import { useAnalyticsStore } from '@/stores/analytics-store'
 import { Badge } from '@/components/ui/badge'
 import { ExternalLink, Building2, Activity } from 'lucide-react'
 
+interface Competitor {
+  id: string
+  name: string
+  category: 'Direct Competitors' | 'Indirect Competitors' | 'Potential Competitors'
+  website?: string
+  description?: string
+}
+
 export function CompetitorsPanel() {
   const { competitors, isLoadingCompetitors, company } = useAnalyticsStore()
 
@@ -13,7 +21,7 @@ export function CompetitorsPanel() {
   const indirectCompetitors = competitors.filter((c) => c.category === 'Indirect Competitors')
   const potentialCompetitors = competitors.filter((c) => c.category === 'Potential Competitors')
 
-  const CompetitorsList = ({ competitors }: { competitors: typeof competitors }) => (
+  const CompetitorsList = ({ competitors }: { competitors: Competitor[] }) => (
     <div className="space-y-3">
       {competitors.length === 0 ? (
         <p className="text-muted-foreground text-sm text-center py-8">

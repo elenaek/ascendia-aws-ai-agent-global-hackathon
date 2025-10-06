@@ -8,7 +8,6 @@ import { ChatInterface } from '@/components/dashboard/chat-interface'
 import { CompetitorsPanel } from '@/components/dashboard/competitors-panel'
 import { InsightsPanel } from '@/components/dashboard/insights-panel'
 import { Header } from '@/components/dashboard/header'
-import { Vortex } from '@/components/ui/vortex'
 
 export default function DashboardPage() {
   const router = useRouter()

@@ -105,7 +105,7 @@ export function ChatInterface() {
           addToolUse({ id: toolData.id, name: toolData.name, input: {} })
         },
         onToolUseComplete: (toolData) => {
-          updateToolUse(toolData.id, { status: 'completed', input: toolData.input })
+          updateToolUse(toolData.id, { status: 'completed', input: toolData.input as Record<string, unknown> | string })
         },
         onError: (error) => {
           console.error('Streaming error:', error)
@@ -249,6 +249,7 @@ export function ChatInterface() {
                       </div>
                     ) : (
                       <>
+                      
                         <MessageContent
                           content={message.content}
                           role={message.role}

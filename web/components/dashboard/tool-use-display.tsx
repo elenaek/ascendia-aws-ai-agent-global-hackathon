@@ -7,12 +7,12 @@ import { cn } from '@/lib/utils'
 interface ToolUseDisplayProps {
   id: string
   name: string
-  input: Record<string, any> | string
+  input: Record<string, unknown> | string
   status: 'running' | 'completed'
   className?: string
 }
 
-export function ToolUseDisplay({ id, name, input, status, className }: ToolUseDisplayProps) {
+export function ToolUseDisplay({ name, input, status, className }: ToolUseDisplayProps) {
   const [isExpanded, setIsExpanded] = useState(false)
 
   const isRunning = status === 'running'

@@ -12,7 +12,7 @@ interface Message {
 interface ToolUse {
   id: string
   name: string
-  input: Record<string, any> | string
+  input: Record<string, unknown> | string
   status: 'running' | 'completed'
 }
 
