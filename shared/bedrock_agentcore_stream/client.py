@@ -52,10 +52,10 @@ class BedrockAgentCoreStreamClient:
         if api_key:
             self.headers['X-API-Key'] = api_key
         if auth_token:
-            print(f"Adding auth token: {auth_token}")
+            # print(f"Adding auth token: {auth_token}")
             self.headers['Authorization'] = f'Bearer {auth_token}'
         if session_id:
-            print(f"Adding session id: {session_id}")
+            # print(f"Adding session id: {session_id}")
             self.headers['X-Amzn-Bedrock-AgentCore-Runtime-Session-Id'] = session_id
 
         # Set content type for SSE

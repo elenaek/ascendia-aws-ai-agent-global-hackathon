@@ -53,10 +53,13 @@ class CLIStreamDisplay:
 
     def __init__(self, verbose: bool = False, show_thinking: bool = True):
         self.verbose = verbose
-        self.show_thinking = show_thinking
+        self.show_thinking_enabled = show_thinking
         self.current_section = None
-        self.content_buffer = []
-        self.thinking_buffer = []
+
+        # Content accumulation for thinking detection
+        self.content_buffer = ""
+        self.display_position = 0  # Position up to which we've displayed content
+        self.in_thinking = False
 
     def display_event(self, event):
         """Display a single stream event"""
@@ -99,21 +102,13 @@ class CLIStreamDisplay:
         elif event.type == EventType.MESSAGE_STOP:
             self._finalize_message(event)
 
-        # Thinking events
-        elif event.type == EventType.THINKING_START and self.show_thinking:
-            self._start_section("thinking")
-            print(f"\n{Fore.CYAN}🤔 Thinking...{Style.RESET_ALL}")
-        elif event.type == EventType.THINKING_DELTA and self.show_thinking:
-            text = event.get_text()
-            if text:
-                print(f"{Fore.CYAN}{text}{Style.RESET_ALL}", end="", flush=True)
-        elif event.type == EventType.THINKING_STOP and self.show_thinking:
-            print(f"\n{Fore.CYAN}{'─' * 50}{Style.RESET_ALL}\n")
-            self._end_section()
-
         # Content events
         elif event.type == EventType.CONTENT_BLOCK_START:
             self._start_section("content")
+            # Reset buffers for new content block
+            self.content_buffer = ""
+            self.display_position = 0
+            self.in_thinking = False
             content_type = event.data.get("type", "text")
             if content_type == "text":
                 print(f"\n{Fore.GREEN}💬 Response:{Style.RESET_ALL}\n")
@@ -121,10 +116,14 @@ class CLIStreamDisplay:
             # Auto-start content section if not already started
             if self.current_section != "content":
                 self._start_section("content")
+                # Reset buffers for new content block
+                self.content_buffer = ""
+                self.display_position = 0
+                self.in_thinking = False
                 print(f"\n{Fore.GREEN}💬 Response:{Style.RESET_ALL}\n")
             text = event.get_text()
             if text:
-                print(f"{text}", end="", flush=True)
+                self._handle_content_with_thinking(text)
         elif event.type == EventType.CONTENT_BLOCK_STOP:
             print()  # New line after content block
             self._end_section()
@@ -163,6 +162,142 @@ class CLIStreamDisplay:
         # Error events
         elif event.type == EventType.ERROR:
             self._display_error(event)
+
+    def _is_partial_tag(self, buffer_end: str) -> bool:
+        """Check if buffer ends with a partial tag"""
+        potential_tags = ["<thinking>", "</thinking>"]
+        for tag in potential_tags:
+            for i in range(1, len(tag)):
+                if buffer_end.endswith(tag[:i]):
+                    return True
+        return False
+
+    def _handle_content_with_thinking(self, text: str):
+        """Handle content delta, detecting and displaying thinking tags"""
+        if not text:
+            return
+
+        # Add new text to buffer
+        self.content_buffer += text
+
+        # Find thinking tags in the entire buffer
+        thinking_start_idx = self.content_buffer.find("<thinking>")
+        thinking_end_idx = self.content_buffer.find("</thinking>")
+
+        # Determine how much we can safely display
+        if not self.in_thinking:
+            # Not in thinking mode
+            if thinking_start_idx != -1:
+                # Found opening tag - display everything before it
+                before_thinking = self.content_buffer[self.display_position:thinking_start_idx]
+                if before_thinking:
+                    print(f"{before_thinking}", end="", flush=True)
+
+                # Start thinking mode
+                self.in_thinking = True
+                if self.show_thinking_enabled:
+                    print(f"\n{Fore.CYAN}🤔 Thinking...{Style.RESET_ALL}\n", end="", flush=True)
+
+                self.display_position = thinking_start_idx + len("<thinking>")
+
+                # Check if we have the closing tag too
+                if thinking_end_idx != -1 and thinking_end_idx > thinking_start_idx:
+                    # Complete thinking block
+                    thinking_content = self.content_buffer[self.display_position:thinking_end_idx]
+                    if self.show_thinking_enabled and thinking_content:
+                        print(f"{Fore.CYAN}{thinking_content}{Style.RESET_ALL}", end="", flush=True)
+                    if self.show_thinking_enabled:
+                        print(f"\n{Fore.CYAN}{'─' * 50}{Style.RESET_ALL}\n", end="", flush=True)
+
+                    self.in_thinking = False
+                    self.display_position = thinking_end_idx + len("</thinking>")
+
+                    # Recursively process remaining content
+                    remaining = self.content_buffer[self.display_position:]
+                    if remaining and not self._is_partial_tag(remaining):
+                        print(f"{remaining}", end="", flush=True)
+                        self.display_position = len(self.content_buffer)
+                else:
+                    # Only opening tag, show partial thinking content but check for partial closing tag
+                    content_after_open = self.content_buffer[self.display_position:]
+
+                    # Check if buffer ends with partial closing tag
+                    if self._is_partial_tag(content_after_open):
+                        # Hold back the partial tag
+                        safe_end = len(self.content_buffer)
+                        for i in range(1, len("</thinking>")):
+                            if self.content_buffer.endswith("</thinking>"[:i]):
+                                safe_end = len(self.content_buffer) - i
+                                break
+                        safe_content = self.content_buffer[self.display_position:safe_end]
+                        if self.show_thinking_enabled and safe_content:
+                            print(f"{Fore.CYAN}{safe_content}{Style.RESET_ALL}", end="", flush=True)
+                        self.display_position = safe_end
+                    else:
+                        # No partial tag, display all
+                        if self.show_thinking_enabled and content_after_open:
+                            print(f"{Fore.CYAN}{content_after_open}{Style.RESET_ALL}", end="", flush=True)
+                        self.display_position = len(self.content_buffer)
+            else:
+                # No opening tag found yet
+                # Check if buffer ends with partial opening tag
+                undisplayed = self.content_buffer[self.display_position:]
+
+                if self._is_partial_tag(undisplayed):
+                    # Hold back potential partial tag
+                    safe_end = len(self.content_buffer)
+                    for i in range(1, len("<thinking>")):
+                        if self.content_buffer.endswith("<thinking>"[:i]):
+                            safe_end = len(self.content_buffer) - i
+                            break
+                    safe_content = self.content_buffer[self.display_position:safe_end]
+                    if safe_content:
+                        print(f"{safe_content}", end="", flush=True)
+                    self.display_position = safe_end
+                else:
+                    # Safe to display everything
+                    if undisplayed:
+                        print(f"{undisplayed}", end="", flush=True)
+                    self.display_position = len(self.content_buffer)
+        else:
+            # In thinking mode - looking for closing tag
+            if thinking_end_idx != -1:
+                # Found closing tag
+                thinking_content = self.content_buffer[self.display_position:thinking_end_idx]
+                if self.show_thinking_enabled and thinking_content:
+                    print(f"{Fore.CYAN}{thinking_content}{Style.RESET_ALL}", end="", flush=True)
+                if self.show_thinking_enabled:
+                    print(f"\n{Fore.CYAN}{'─' * 50}{Style.RESET_ALL}\n", end="", flush=True)
+
+                self.in_thinking = False
+                self.display_position = thinking_end_idx + len("</thinking>")
+
+                # Process any remaining content
+                remaining = self.content_buffer[self.display_position:]
+                if remaining and not self._is_partial_tag(remaining):
+                    print(f"{remaining}", end="", flush=True)
+                    self.display_position = len(self.content_buffer)
+            else:
+                # Still in thinking, no closing tag yet
+                content_after_display = self.content_buffer[self.display_position:]
+
+                # Check for partial closing tag
+                if self._is_partial_tag(content_after_display):
+                    # Hold back the partial tag
+                    safe_end = len(self.content_buffer)
+                    for i in range(1, len("</thinking>")):
+                        if self.content_buffer.endswith("</thinking>"[:i]):
+                            safe_end = len(self.content_buffer) - i
+                            break
+                    safe_content = self.content_buffer[self.display_position:safe_end]
+                    if self.show_thinking_enabled and safe_content:
+                        print(f"{Fore.CYAN}{safe_content}{Style.RESET_ALL}", end="", flush=True)
+                    self.display_position = safe_end
+                else:
+                    # No partial tag, display all thinking content
+                    if self.show_thinking_enabled and content_after_display:
+                        print(f"{Fore.CYAN}{content_after_display}{Style.RESET_ALL}", end="", flush=True)
+                    self.display_position = len(self.content_buffer)
 
     def _start_new_message(self, event):
         """Handle the start of a new message"""
@@ -382,7 +517,6 @@ def main():
                     stream = client.invoke_agent_stream(
                         prompt=prompt,
                     )
-
                 # Display streaming response
                 for event in stream:
                     display.display_event(event)
