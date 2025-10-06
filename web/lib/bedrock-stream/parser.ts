@@ -11,6 +11,7 @@ import { StreamEvent, EventType, ContentBlock, Message } from './types'
 export class StreamEventParser {
   private buffer: string = ""
   private inReasoningBlock: boolean = false
+  private inToolUseBlock: boolean = false
 
   /**
    * Parse a single JSON line into a StreamEvent object
@@ -27,6 +28,9 @@ export class StreamEventParser {
       // If it's not valid JSON (e.g., debug lines), skip it
       return null
     }
+
+    // Debug: log all parsed events
+    console.log('Parsed event:', JSON.stringify(data, null, 2))
 
     // Skip if data is a string (debug output that was JSON-encoded)
     if (typeof data === 'string') {
@@ -98,6 +102,7 @@ export class StreamEventParser {
         // Check if this is a tool use block
         else if ('toolUse' in startData) {
           const toolUse = startData.toolUse
+          this.inToolUseBlock = true
           return {
             type: EventType.TOOL_USE_START,
             data: {
@@ -125,6 +130,16 @@ export class StreamEventParser {
           this.inReasoningBlock = false
           return {
             type: EventType.THINKING_STOP,
+            data: {},
+            rawEvent: line,
+            timestamp: Date.now()
+          }
+        }
+        // Check if we're ending a tool use block
+        else if (this.inToolUseBlock) {
+          this.inToolUseBlock = false
+          return {
+            type: EventType.TOOL_USE_STOP,
             data: {},
             rawEvent: line,
             timestamp: Date.now()

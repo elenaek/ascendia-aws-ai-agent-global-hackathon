@@ -28,6 +28,7 @@ export function ChatInterface() {
     appendThinkingContent,
     setStreamingId,
     toggleShowCompletedThinking,
+    saveToolUsesToMessage,
     addToolUse,
     updateToolUse,
     clearToolUses
@@ -111,6 +112,8 @@ export function ChatInterface() {
           appendToMessage(assistantMessageId, '\n\nSorry, I encountered an error while processing your request.')
         },
         onComplete: () => {
+          // Save tool uses to the message before clearing
+          saveToolUsesToMessage(assistantMessageId)
           setLoading(false)
           setThinking(false)
           setStreamingId(null)
@@ -213,6 +216,17 @@ export function ChatInterface() {
                     </div>
                   )}
 
+                  {/* Show tool uses for this message */}
+                  {message.role === 'assistant' && message.toolUses && message.toolUses.map((tool) => (
+                    <ToolUseDisplay
+                      key={tool.id}
+                      id={tool.id}
+                      name={tool.name}
+                      input={tool.input}
+                      status={tool.status}
+                    />
+                  ))}
+
                   <div
                     className={cn(
                       'rounded-lg p-3',
@@ -239,12 +253,14 @@ export function ChatInterface() {
               </div>
             ))}
 
+            {/* Show thinking and tool uses for currently streaming message */}
             <ThinkingDisplay
               isThinking={isThinking}
               thinkingContent={thinkingContent}
             />
 
-            {toolUses.map((tool) => (
+            {/* Only show global tool uses during streaming (not saved to message yet) */}
+            {isLoading && toolUses.map((tool) => (
               <ToolUseDisplay
                 key={tool.id}
                 id={tool.id}

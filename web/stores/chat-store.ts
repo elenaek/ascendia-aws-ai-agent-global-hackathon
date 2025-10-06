@@ -6,6 +6,7 @@ interface Message {
   content: string
   timestamp: Date
   thinking?: string
+  toolUses?: ToolUse[]
 }
 
 interface ToolUse {
@@ -32,6 +33,7 @@ interface ChatState {
   appendThinkingContent: (text: string) => void
   setStreamingId: (id: string | null) => void
   saveThinkingToMessage: (id: string, thinking: string) => void
+  saveToolUsesToMessage: (id: string) => void
   toggleShowCompletedThinking: () => void
   addToolUse: (toolUse: Omit<ToolUse, 'status'>) => void
   updateToolUse: (id: string, updates: Partial<ToolUse>) => void
@@ -99,6 +101,12 @@ export const useChatStore = create<ChatState>((set) => ({
       ),
     })),
   toggleShowCompletedThinking: () => set((state) => ({ showCompletedThinking: !state.showCompletedThinking })),
+  saveToolUsesToMessage: (id: string) =>
+    set((state) => ({
+      messages: state.messages.map((msg) =>
+        msg.id === id ? { ...msg, toolUses: [...state.toolUses] } : msg
+      ),
+    })),
   addToolUse: (toolUse) =>
     set((state) => ({
       toolUses: [
