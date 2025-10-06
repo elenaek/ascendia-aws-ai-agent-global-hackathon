@@ -41,11 +41,11 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <Vortex
+      {/* <Vortex
         backgroundColor="black"
         rangeY={800}
         particleCount={100}
-      >
+      > */}
         <main className="container mx-auto p-6 space-y-6">
           {/* Main Grid Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -61,7 +61,7 @@ export default function DashboardPage() {
             </div>
           </div>
         </main>
-      </Vortex>
+      {/* </Vortex> */}
     </div>
   )
 }

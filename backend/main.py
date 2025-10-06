@@ -123,23 +123,6 @@ You use the tools provided to you to perform your duties. Use markdown formattin
 
 
 # Tools
-@tool
-def ask_user(prompt: str = "Please provide input") -> str:
-    """
-    Get input from the user. Use this tool when you need to collect additional
-    information from the user to complete a task or answer a question.
-    Args:
-        prompt: The question or instruction to show to the user.
-    Returns:
-        str: The user's input response.
-    """
-    user_response = input(f"{prompt}: ")
-    return user_response
-
-# Agent will be created per-request with company-specific information
-# agent = Agent(model=model, system_prompt=agent_system_prompt.format(company_information=TEST_COMPANY), tools=[tavily_search, ask_user, think])
-
-
 def get_company_info(identity_id: str) -> dict:
     """
     Fetch company information from DynamoDB using the Cognito identity ID.
@@ -176,7 +159,7 @@ async def invoke(payload):
     agent_instance = Agent(
         model=model,
         system_prompt=agent_system_prompt.format(company_information=company_info),
-        tools=[tavily_search, think, ask_user]
+        tools=[tavily_search, think]
     )
 
     user_message = payload.get("prompt", "Hello")

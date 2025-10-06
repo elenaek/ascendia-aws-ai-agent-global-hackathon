@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useChatStore } from '@/stores/chat-store'
 import { useAnalyticsStore } from '@/stores/analytics-store'
-import { Send, Bot, User } from 'lucide-react'
+import { Send, Bot, User, Brain, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { sendMessageToAgentStreaming, type CompanyInfo } from '@/lib/agentcore-client'
 import { ThinkingDisplay } from './thinking-display'
@@ -20,12 +20,14 @@ export function ChatInterface() {
     isThinking,
     thinkingContent,
     toolUses,
+    showCompletedThinking,
     addMessage,
     appendToMessage,
     setLoading,
     setThinking,
     appendThinkingContent,
     setStreamingId,
+    toggleShowCompletedThinking,
     addToolUse,
     updateToolUse,
     clearToolUses
@@ -92,8 +94,8 @@ export function ChatInterface() {
           // Auto-scroll as content streams in
           scrollToBottom()
         },
-        onThinking: (isThinking) => {
-          setThinking(isThinking)
+        onThinking: (isThinkingNow) => {
+          setThinking(isThinkingNow)
         },
         onThinkingContent: (text) => {
           appendThinkingContent(text)
@@ -127,15 +129,34 @@ export function ChatInterface() {
     <Card className="h-[calc(100vh-12rem)] bg-panel border-primary/20 glow flex flex-col">
       {/* Chat Header */}
       <div className="p-4 border-b border-primary/20">
-        <h2 className="text-xl font-semibold text-primary flex items-center gap-2">
-          <Bot className="w-5 h-5" />
-          AI Business Analyst
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          {company
-            ? `Analyzing competitive landscape for ${company.company_name}`
-            : 'Ask me anything about your competitors and market insights'}
-        </p>
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1">
+            <h2 className="text-xl font-semibold text-primary flex items-center gap-2">
+              <Bot className="w-5 h-5" />
+              AI Business Analyst
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {company
+                ? `Analyzing competitive landscape for ${company.company_name}`
+                : 'Ask me anything about your competitors and market insights'}
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleShowCompletedThinking}
+            className={cn(
+              "flex items-center gap-2 transition-colors",
+              showCompletedThinking
+                ? "bg-cyan-500/20 border-cyan-500/40 text-cyan-600 hover:bg-cyan-500/30"
+                : "border-primary/30 text-muted-foreground hover:text-foreground"
+            )}
+            title={showCompletedThinking ? "Hide completed thinking" : "Show completed thinking"}
+          >
+            <Brain className="w-4 h-4" />
+            <span className="text-xs">Thinking</span>
+          </Button>
+        </div>
       </div>
 
       {/* Messages */}
@@ -176,21 +197,38 @@ export function ChatInterface() {
                   </div>
                 )}
 
-                <div
-                  className={cn(
-                    'rounded-lg p-3 max-w-[80%]',
-                    message.role === 'user'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-foreground'
+                <div className="flex flex-col gap-2 max-w-[80%]">
+                  {/* Show thinking block if exists and toggle is enabled */}
+                  {message.role === 'assistant' && message.thinking && showCompletedThinking && (
+                    <div className="bg-cyan-500/10 rounded-lg border border-cyan-500/20 overflow-hidden">
+                      <div className="flex items-center gap-2 p-2 border-b border-cyan-500/20">
+                        <Brain className="w-3.5 h-3.5 text-cyan-600" />
+                        <span className="text-xs text-cyan-600 font-semibold">💭 Thought Process</span>
+                      </div>
+                      <div className="p-3 bg-cyan-500/5">
+                        <div className="text-xs text-cyan-900 dark:text-cyan-100 italic whitespace-pre-wrap break-words font-mono">
+                          {message.thinking}
+                        </div>
+                      </div>
+                    </div>
                   )}
-                >
-                  <MessageContent
-                    content={message.content}
-                    role={message.role}
-                  />
-                  <p className="text-xs opacity-70 mt-1">
-                    {new Date(message.timestamp).toLocaleTimeString()}
-                  </p>
+
+                  <div
+                    className={cn(
+                      'rounded-lg p-3',
+                      message.role === 'user'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-foreground'
+                    )}
+                  >
+                    <MessageContent
+                      content={message.content}
+                      role={message.role}
+                    />
+                    <p className="text-xs opacity-70 mt-1">
+                      {new Date(message.timestamp).toLocaleTimeString()}
+                    </p>
+                  </div>
                 </div>
 
                 {message.role === 'user' && (
@@ -238,7 +276,11 @@ export function ChatInterface() {
             disabled={isLoading || !input.trim()}
             className="bg-primary hover:bg-primary/90 text-primary-foreground"
           >
-            <Send className="w-4 h-4" />
+            {isLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Send className="w-4 h-4" />
+            )}
           </Button>
         </form>
       </div>

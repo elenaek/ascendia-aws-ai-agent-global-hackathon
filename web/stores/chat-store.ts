@@ -5,6 +5,7 @@ interface Message {
   role: 'user' | 'assistant'
   content: string
   timestamp: Date
+  thinking?: string
 }
 
 interface ToolUse {
@@ -21,6 +22,7 @@ interface ChatState {
   thinkingContent: string
   currentStreamingId: string | null
   toolUses: ToolUse[]
+  showCompletedThinking: boolean
   addMessage: (message: Omit<Message, 'id' | 'timestamp'>) => string
   updateMessage: (id: string, content: string) => void
   appendToMessage: (id: string, text: string) => void
@@ -29,6 +31,8 @@ interface ChatState {
   setThinkingContent: (content: string) => void
   appendThinkingContent: (text: string) => void
   setStreamingId: (id: string | null) => void
+  saveThinkingToMessage: (id: string, thinking: string) => void
+  toggleShowCompletedThinking: () => void
   addToolUse: (toolUse: Omit<ToolUse, 'status'>) => void
   updateToolUse: (id: string, updates: Partial<ToolUse>) => void
   clearToolUses: () => void
@@ -42,6 +46,7 @@ export const useChatStore = create<ChatState>((set) => ({
   thinkingContent: '',
   currentStreamingId: null,
   toolUses: [],
+  showCompletedThinking: false,
   addMessage: (message) => {
     const id = crypto.randomUUID()
     set((state) => ({
@@ -69,10 +74,31 @@ export const useChatStore = create<ChatState>((set) => ({
       ),
     })),
   setLoading: (loading) => set({ isLoading: loading }),
-  setThinking: (thinking) => set({ isThinking: thinking, thinkingContent: thinking ? '' : '' }),
+  setThinking: (thinking) =>
+    set((state) => {
+      // When thinking ends, save it to the current streaming message if toggle is enabled
+      if (!thinking && state.isThinking && state.showCompletedThinking && state.thinkingContent && state.currentStreamingId) {
+        return {
+          isThinking: false,
+          thinkingContent: '',
+          messages: state.messages.map((msg) =>
+            msg.id === state.currentStreamingId ? { ...msg, thinking: state.thinkingContent } : msg
+          ),
+        }
+      }
+      // Otherwise just update thinking state
+      return { isThinking: thinking, thinkingContent: thinking ? state.thinkingContent : '' }
+    }),
   setThinkingContent: (content) => set({ thinkingContent: content }),
   appendThinkingContent: (text) => set((state) => ({ thinkingContent: state.thinkingContent + text })),
   setStreamingId: (id) => set({ currentStreamingId: id }),
+  saveThinkingToMessage: (id, thinking) =>
+    set((state) => ({
+      messages: state.messages.map((msg) =>
+        msg.id === id ? { ...msg, thinking } : msg
+      ),
+    })),
+  toggleShowCompletedThinking: () => set((state) => ({ showCompletedThinking: !state.showCompletedThinking })),
   addToolUse: (toolUse) =>
     set((state) => ({
       toolUses: [
