@@ -135,7 +135,7 @@ function AuthContent() {
           </p>
         </div>
 
-        <div className="bg-panel border border-primary/20 rounded-lg p-8 glow">
+        <div className="bg-background border border-primary/20 rounded-lg p-8 glow">
           <ThemeProvider theme={customTheme}>
             <Authenticator
               loginMechanisms={['email']}
