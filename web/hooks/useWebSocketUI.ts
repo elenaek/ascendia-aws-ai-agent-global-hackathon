@@ -96,8 +96,8 @@ export function useWebSocketUI({ enabled }: UseWebSocketUIOptions) {
           if (payload.competitors && Array.isArray(payload.competitors)) {
             showCompetitorCarousel(payload.competitors)
           } else {
-            // Single competitor - use existing card behavior
-            addCard('competitor_context', payload as CompetitorContextPayload)
+            // Single competitor - also use carousel
+            showCompetitorCarousel([payload as CompetitorContextPayload])
           }
           break
         }

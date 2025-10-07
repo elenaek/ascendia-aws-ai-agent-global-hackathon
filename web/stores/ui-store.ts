@@ -168,13 +168,36 @@ export const useUIStore = create<UIState>((set, get) => ({
     }),
 
   showCompetitorCarousel: (competitors) =>
-    set({
-      competitorCarousel: {
-        visible: true,
-        minimized: false,
-        competitors,
-        currentIndex: 0,
-      },
+    set((state) => {
+      // If carousel is already visible, append new competitors (avoiding duplicates by company_name)
+      if (state.competitorCarousel.visible) {
+        const existingCompetitors = state.competitorCarousel.competitors
+        const existingNames = new Set(
+          existingCompetitors.map((c) => c.company_name.toLowerCase())
+        )
+
+        // Only add competitors that don't already exist
+        const newCompetitors = competitors.filter(
+          (c) => !existingNames.has(c.company_name.toLowerCase())
+        )
+
+        return {
+          competitorCarousel: {
+            ...state.competitorCarousel,
+            competitors: [...existingCompetitors, ...newCompetitors],
+          },
+        }
+      }
+
+      // If carousel is not visible, show it with the new competitors
+      return {
+        competitorCarousel: {
+          visible: true,
+          minimized: false,
+          competitors,
+          currentIndex: 0,
+        },
+      }
     }),
 
   hideCompetitorCarousel: () =>

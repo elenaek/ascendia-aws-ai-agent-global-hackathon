@@ -6,7 +6,15 @@ import { useAnalyticsStore } from '@/stores/analytics-store'
 import { useUIStore } from '@/stores/ui-store'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ExternalLink, Building2, Activity, Trash2 } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { ExternalLink, Building2, Activity, Trash2, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { useState } from 'react'
@@ -23,21 +31,25 @@ export function CompetitorsPanel() {
   const { competitors, isLoadingCompetitors, company, removeCompetitor } = useAnalyticsStore()
   const { highlightedElements } = useUIStore()
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [competitorToDelete, setCompetitorToDelete] = useState<Competitor | null>(null)
 
   const directCompetitors = competitors.filter((c) => c.category === 'Direct Competitors')
   const indirectCompetitors = competitors.filter((c) => c.category === 'Indirect Competitors')
   const potentialCompetitors = competitors.filter((c) => c.category === 'Potential Competitors')
 
-  const handleRemoveCompetitor = async (competitor: Competitor) => {
-    if (!window.confirm(`Are you sure you want to remove ${competitor.name} from your competitors list?`)) {
-      return
-    }
+  const handleDeleteClick = (competitor: Competitor) => {
+    setCompetitorToDelete(competitor)
+  }
 
-    setDeletingId(competitor.id)
+  const handleConfirmDelete = async () => {
+    if (!competitorToDelete) return
+
+    setDeletingId(competitorToDelete.id)
     try {
-      const success = await removeCompetitor(competitor.id)
+      const success = await removeCompetitor(competitorToDelete.id)
       if (success) {
-        toast.success(`${competitor.name} removed from your competitors`)
+        toast.success(`${competitorToDelete.name} removed from your competitors`)
+        setCompetitorToDelete(null)
       } else {
         toast.error('Failed to remove competitor')
       }
@@ -46,6 +58,10 @@ export function CompetitorsPanel() {
     } finally {
       setDeletingId(null)
     }
+  }
+
+  const handleCancelDelete = () => {
+    setCompetitorToDelete(null)
   }
 
   const CompetitorsList = ({ competitors }: { competitors: Competitor[] }) => (
@@ -88,7 +104,7 @@ export function CompetitorsPanel() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => handleRemoveCompetitor(competitor)}
+                  onClick={() => handleDeleteClick(competitor)}
                   disabled={deletingId === competitor.id}
                   className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                 >
@@ -103,54 +119,88 @@ export function CompetitorsPanel() {
   )
 
   return (
-    <Card
-      id="competitors-panel"
-      className={cn(
-        "p-4 bg-panel border-primary/20 glow",
-        highlightedElements.has('competitors-panel') && 'element-highlighted'
-      )}
-    >
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2 mb-4">
-          <Activity className="w-5 h-5 text-primary" />
-          <h3 className="text-lg font-semibold text-primary">Competitors</h3>
+    <>
+      <Card
+        id="competitors-panel"
+        className={cn(
+          "p-4 bg-panel border-primary/20 glow",
+          highlightedElements.has('competitors-panel') && 'element-highlighted'
+        )}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2 mb-4">
+            <Activity className="w-5 h-5 text-primary" />
+            <h3 className="text-lg font-semibold text-primary">Competitors</h3>
+          </div>
+          <Badge variant="outline" className="border-primary/30 text-primary">
+            {competitors.length} Total
+          </Badge>
         </div>
-        <Badge variant="outline" className="border-primary/30 text-primary">
-          {competitors.length} Total
-        </Badge>
-      </div>
 
-      {isLoadingCompetitors ? (
-        <div className="text-center py-8 text-primary animate-pulse">
-          Loading competitors...
-        </div>
-      ) : (
-        <Tabs defaultValue="direct" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 bg-background">
-            <TabsTrigger value="direct" className="text-xs">
-              Direct ({directCompetitors.length})
-            </TabsTrigger>
-            <TabsTrigger value="indirect" className="text-xs">
-              Indirect ({indirectCompetitors.length})
-            </TabsTrigger>
-            <TabsTrigger value="potential" className="text-xs">
-              Potential ({potentialCompetitors.length})
-            </TabsTrigger>
-          </TabsList>
+        {isLoadingCompetitors ? (
+          <div className="text-center py-8 text-primary animate-pulse">
+            Loading competitors...
+          </div>
+        ) : (
+          <Tabs defaultValue="direct" className="w-full">
+            <TabsList className="grid w-full grid-cols-3 bg-background">
+              <TabsTrigger value="direct" className="text-xs">
+                Direct ({directCompetitors.length})
+              </TabsTrigger>
+              <TabsTrigger value="indirect" className="text-xs">
+                Indirect ({indirectCompetitors.length})
+              </TabsTrigger>
+              <TabsTrigger value="potential" className="text-xs">
+                Potential ({potentialCompetitors.length})
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="direct" className="mt-4">
-            <CompetitorsList competitors={directCompetitors} />
-          </TabsContent>
+            <TabsContent value="direct" className="mt-4">
+              <CompetitorsList competitors={directCompetitors} />
+            </TabsContent>
 
-          <TabsContent value="indirect" className="mt-4">
-            <CompetitorsList competitors={indirectCompetitors} />
-          </TabsContent>
+            <TabsContent value="indirect" className="mt-4">
+              <CompetitorsList competitors={indirectCompetitors} />
+            </TabsContent>
 
-          <TabsContent value="potential" className="mt-4">
-            <CompetitorsList competitors={potentialCompetitors} />
-          </TabsContent>
-        </Tabs>
-      )}
-    </Card>
+            <TabsContent value="potential" className="mt-4">
+              <CompetitorsList competitors={potentialCompetitors} />
+            </TabsContent>
+          </Tabs>
+        )}
+      </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!competitorToDelete} onOpenChange={(open) => !open && handleCancelDelete()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-destructive" />
+              Remove Competitor
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to remove <span className="font-semibold text-foreground">{competitorToDelete?.name}</span> from your competitors list?
+              This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={handleCancelDelete}
+              disabled={!!deletingId}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={!!deletingId}
+            >
+              {deletingId ? 'Removing...' : 'Remove'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
