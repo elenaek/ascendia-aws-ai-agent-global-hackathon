@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { useChatStore } from '@/stores/chat-store'
 import { useAnalyticsStore } from '@/stores/analytics-store'
 import { useUIStore } from '@/stores/ui-store'
-import { Send, Bot, User, Brain, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
+import { Send, Bot, User, Brain, Loader2, ChevronDown, ChevronUp, Wrench } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { sendMessageToAgentStreaming, type CompanyInfo } from '@/lib/agentcore-client'
 import { ThinkingDisplay } from './thinking-display'
@@ -22,6 +22,7 @@ export function ChatInterface() {
     thinkingContent,
     toolUses,
     showCompletedThinking,
+    showCompletedToolUses,
     addMessage,
     appendToMessage,
     setLoading,
@@ -29,6 +30,7 @@ export function ChatInterface() {
     appendThinkingContent,
     setStreamingId,
     toggleShowCompletedThinking,
+    toggleShowCompletedToolUses,
     saveToolUsesToMessage,
     addToolUse,
     updateToolUse,
@@ -165,21 +167,38 @@ export function ChatInterface() {
                 : 'Ask me anything about your competitors and market insights'}
             </p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={toggleShowCompletedThinking}
-            className={cn(
-              "flex items-center gap-2 transition-colors",
-              showCompletedThinking
-                ? "bg-cyan-500/20 border-cyan-500/40 text-cyan-600 hover:bg-cyan-500/30"
-                : "border-primary/30 text-muted-foreground hover:text-foreground"
-            )}
-            title={showCompletedThinking ? "Hide completed thinking" : "Show completed thinking"}
-          >
-            <Brain className="w-4 h-4" />
-            <span className="text-xs">Thinking</span>
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={toggleShowCompletedThinking}
+              className={cn(
+                "flex items-center gap-2 transition-colors",
+                showCompletedThinking
+                  ? "bg-cyan-500/20 border-cyan-500/40 text-cyan-600 hover:bg-cyan-500/30"
+                  : "border-primary/30 text-muted-foreground hover:text-foreground"
+              )}
+              title={showCompletedThinking ? "Hide completed thinking" : "Show completed thinking"}
+            >
+              <Brain className="w-4 h-4" />
+              <span className="text-xs">Thinking</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={toggleShowCompletedToolUses}
+              className={cn(
+                "flex items-center gap-2 transition-colors",
+                showCompletedToolUses
+                  ? "bg-purple-500/20 border-purple-500/40 text-purple-600 hover:bg-purple-500/30"
+                  : "border-primary/30 text-muted-foreground hover:text-foreground"
+              )}
+              title={showCompletedToolUses ? "Hide completed tool calls" : "Show completed tool calls"}
+            >
+              <Wrench className="w-4 h-4" />
+              <span className="text-xs">Tools</span>
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -257,8 +276,8 @@ export function ChatInterface() {
                     </div>
                   )}
 
-                  {/* Show tool uses for this message */}
-                  {message.role === 'assistant' && message.toolUses && message.toolUses.map((tool) => (
+                  {/* Show tool uses for this message (only if toggle is enabled) */}
+                  {message.role === 'assistant' && message.toolUses && showCompletedToolUses && message.toolUses.map((tool) => (
                     <ToolUseDisplay
                       key={tool.id}
                       id={tool.id}

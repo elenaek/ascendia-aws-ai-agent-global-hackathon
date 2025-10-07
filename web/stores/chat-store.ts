@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 
 interface Message {
   id: string
@@ -24,6 +25,7 @@ interface ChatState {
   currentStreamingId: string | null
   toolUses: ToolUse[]
   showCompletedThinking: boolean
+  showCompletedToolUses: boolean
   addMessage: (message: Omit<Message, 'id' | 'timestamp'>) => string
   updateMessage: (id: string, content: string) => void
   appendToMessage: (id: string, text: string) => void
@@ -35,20 +37,24 @@ interface ChatState {
   saveThinkingToMessage: (id: string, thinking: string) => void
   saveToolUsesToMessage: (id: string) => void
   toggleShowCompletedThinking: () => void
+  toggleShowCompletedToolUses: () => void
   addToolUse: (toolUse: Omit<ToolUse, 'status'>) => void
   updateToolUse: (id: string, updates: Partial<ToolUse>) => void
   clearToolUses: () => void
   clearMessages: () => void
 }
 
-export const useChatStore = create<ChatState>((set) => ({
-  messages: [],
-  isLoading: false,
-  isThinking: false,
-  thinkingContent: '',
-  currentStreamingId: null,
-  toolUses: [],
-  showCompletedThinking: false,
+export const useChatStore = create<ChatState>()(
+  persist(
+    (set) => ({
+      messages: [],
+      isLoading: false,
+      isThinking: false,
+      thinkingContent: '',
+      currentStreamingId: null,
+      toolUses: [],
+      showCompletedThinking: true,
+      showCompletedToolUses: true,
   addMessage: (message) => {
     const id = crypto.randomUUID()
     set((state) => ({
@@ -101,12 +107,19 @@ export const useChatStore = create<ChatState>((set) => ({
       ),
     })),
   toggleShowCompletedThinking: () => set((state) => ({ showCompletedThinking: !state.showCompletedThinking })),
+  toggleShowCompletedToolUses: () => set((state) => ({ showCompletedToolUses: !state.showCompletedToolUses })),
   saveToolUsesToMessage: (id: string) =>
-    set((state) => ({
-      messages: state.messages.map((msg) =>
-        msg.id === id ? { ...msg, toolUses: [...state.toolUses] } : msg
-      ),
-    })),
+    set((state) => {
+      // Only save tool uses to message if the toggle is enabled
+      if (!state.showCompletedToolUses) {
+        return {}
+      }
+      return {
+        messages: state.messages.map((msg) =>
+          msg.id === id ? { ...msg, toolUses: [...state.toolUses] } : msg
+        ),
+      }
+    }),
   addToolUse: (toolUse) =>
     set((state) => ({
       toolUses: [
@@ -125,4 +138,13 @@ export const useChatStore = create<ChatState>((set) => ({
     })),
   clearToolUses: () => set({ toolUses: [] }),
   clearMessages: () => set({ messages: [], currentStreamingId: null, thinkingContent: '', toolUses: [] }),
-}))
+    }),
+    {
+      name: 'chat-preferences',
+      partialize: (state) => ({
+        showCompletedThinking: state.showCompletedThinking,
+        showCompletedToolUses: state.showCompletedToolUses,
+      }),
+    }
+  )
+)
