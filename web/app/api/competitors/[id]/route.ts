@@ -12,7 +12,7 @@ const COMPANY_COMPETITORS_TABLE = process.env.DYNAMODB_COMPANY_COMPETITORS_TABLE
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check authentication
@@ -24,7 +24,8 @@ export async function DELETE(
       )
     }
 
-    const competitorId = params.id
+    const { id } = await params
+    const competitorId = id
 
     if (!competitorId) {
       return NextResponse.json(

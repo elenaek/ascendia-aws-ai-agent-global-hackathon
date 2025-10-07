@@ -66,6 +66,7 @@ You use the tools provided to you to perform your duties. If you need to ask the
 # Important
 - Use markdown formatting to make your responses more readable.
 - Always use the send_ui_update tool when presenting competitors or insights to the user, allowing them to add the competitors to their database or view the insights.
+- Always highlight the competitor-carousel-minimized button before presenting using the send_ui_update tool before presenting the competitors in the carousel.
 
 # Your Company Information
 {company_information}
@@ -141,6 +142,7 @@ def send_ui_update(
                   - "competitors-panel": Competitors analysis panel showing Direct/Indirect/Potential competitors
                   - "insights-panel": Key insights panel displaying AI-generated strategic insights
                   - "dynamic-ui-overlay": Floating overlay in bottom-right showing real-time cards and progress
+                  - "competitor-carousel-minimized": Minimized floating competitor carousel button (when carousel is minimized)
 
                 Animation behavior:
                   - Prismatic color-cycling glow (cyan → purple → pink → green, 2 cycles over 4 seconds)
@@ -164,7 +166,7 @@ def send_ui_update(
             payload={
                 "company_name": "Anki",
                 "product_name": "Anki App",
-                "website": "ankiapp.com",
+                "website": "https://www.ankiapp.com",
                 "description": "Spaced repetition flashcard app for learning",
                 "category": "Direct Competitors"
             }
@@ -178,14 +180,14 @@ def send_ui_update(
                     {
                         "company_name": "Anki",
                         "product_name": "Anki App",
-                        "website": "ankiapp.com",
+                        "website": "https://www.ankiapp.com",
                         "description": "Spaced repetition flashcard app...",
                         "category": "Direct Competitors"
                     },
                     {
                         "company_name": "Quizlet",
                         "product_name": "Quizlet",
-                        "website": "quizlet.com",
+                        "website": "https://www.quizlet.com",
                         "description": "Study tools and flashcards...",
                         "category": "Direct Competitors"
                     }

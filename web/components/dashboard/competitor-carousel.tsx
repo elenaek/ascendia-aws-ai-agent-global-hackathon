@@ -11,6 +11,7 @@ import { useAnalyticsStore } from '@/stores/analytics-store'
 import { CompetitorContextPayload } from '@/types/websocket-messages'
 import { toast } from 'sonner'
 import { useState, useRef, useEffect } from 'react'
+import { cn } from '@/lib/utils'
 
 interface CompetitorSlideProps {
   competitor: CompetitorContextPayload
@@ -233,7 +234,8 @@ export function CompetitorCarousel() {
     competitorCarousel,
     hideCompetitorCarousel,
     minimizeCompetitorCarousel,
-    expandCompetitorCarousel
+    expandCompetitorCarousel,
+    highlightedElements
   } = useUIStore()
   const { addCompetitor, competitors: existingCompetitors } = useAnalyticsStore()
   const [current, setCurrent] = useState(0)
@@ -328,11 +330,15 @@ export function CompetitorCarousel() {
           {/* Minimized Floating Button */}
           {minimized && (
             <motion.button
+              id="competitor-carousel-minimized"
               initial={{ scale: 0, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0, opacity: 0 }}
               onClick={expandCompetitorCarousel}
-              className="fixed bottom-6 right-6 z-[70] bg-gradient-to-br from-purple-500 to-primary text-white p-4 rounded-full shadow-lg hover:shadow-xl transition-all hover:scale-110 glow group"
+              className={cn(
+                "fixed bottom-6 right-6 z-[70] bg-gradient-to-br from-purple-500 to-primary text-white p-4 rounded-full shadow-lg hover:shadow-xl transition-all hover:scale-110 glow group",
+                highlightedElements.has('competitor-carousel-minimized') && 'element-highlighted'
+              )}
               title="Expand competitor carousel"
             >
               <div className="flex items-center gap-2">

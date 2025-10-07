@@ -89,9 +89,28 @@ export const useChatStore = create<ChatState>()(
         return {
           isThinking: false,
           thinkingContent: '',
-          messages: state.messages.map((msg) =>
-            msg.id === state.currentStreamingId ? { ...msg, thinking: state.thinkingContent } : msg
-          ),
+          messages: state.messages.map((msg) => {
+            if (msg.id !== state.currentStreamingId) return msg
+
+            // Count existing thinking blocks by checking for separator pattern
+            const existingThinking = msg.thinking || ''
+            const separatorPattern = /───────\s+Thought\s+\d+\s+───────/g
+            const existingBlocks = existingThinking.match(separatorPattern)?.length || 0
+            const thoughtNumber = existingBlocks + 1
+
+            // Format: First thought has no separator, subsequent thoughts get numbered separators
+            let newThinking = existingThinking
+            if (existingThinking) {
+              newThinking += `\n\n─────── Thought ${thoughtNumber} ───────\n\n${state.thinkingContent}`
+            } else {
+              newThinking = state.thinkingContent
+            }
+
+            return {
+              ...msg,
+              thinking: newThinking
+            }
+          }),
         }
       }
       // Otherwise just update thinking state

@@ -8,7 +8,7 @@ from typing import Dict, Any, Optional, Literal
 
 # AWS Configuration
 AWS_REGION = os.environ.get('AWS_REGION', 'us-east-1')
-AWS_ACCOUNT_ID = os.environ.get('AWS_ACCOUNT_ID', '738859113996')
+AWS_ACCOUNT_ID = os.environ.get('AWS_ACCOUNT_ID', '123456789012')
 
 # DynamoDB and API Gateway clients
 dynamodb = boto3.resource('dynamodb', region_name=AWS_REGION)

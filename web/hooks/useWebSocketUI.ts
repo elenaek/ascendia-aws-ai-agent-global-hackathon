@@ -148,7 +148,7 @@ export function useWebSocketUI({ enabled }: UseWebSocketUIOptions) {
 
         case 'highlight_element': {
           const payload = message.payload as HighlightElementPayload
-          highlightElement(payload.element_id, payload.duration)
+          highlightElement(payload.element_id, 5000)
           break
         }
 
