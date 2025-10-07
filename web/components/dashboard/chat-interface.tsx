@@ -4,10 +4,18 @@ import { useState, useRef, useEffect } from 'react'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { useChatStore } from '@/stores/chat-store'
 import { useAnalyticsStore } from '@/stores/analytics-store'
 import { useUIStore } from '@/stores/ui-store'
-import { Send, Bot, User, Brain, Loader2, ChevronDown, ChevronUp, Wrench } from 'lucide-react'
+import { Send, Bot, User, Brain, Loader2, ChevronDown, ChevronUp, Wrench, Trash2, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { sendMessageToAgentStreaming, type CompanyInfo } from '@/lib/agentcore-client'
 import { ThinkingDisplay } from './thinking-display'
@@ -34,12 +42,14 @@ export function ChatInterface() {
     saveToolUsesToMessage,
     addToolUse,
     updateToolUse,
-    clearToolUses
+    clearToolUses,
+    clearMessages
   } = useChatStore()
   const { company } = useAnalyticsStore()
   const { highlightedElements } = useUIStore()
   const [input, setInput] = useState('')
   const [expandedThinking, setExpandedThinking] = useState<Set<string>>(new Set())
+  const [showClearDialog, setShowClearDialog] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const toggleThinking = (messageId: string) => {
@@ -52,6 +62,21 @@ export function ChatInterface() {
       }
       return newSet
     })
+  }
+
+  const handleClearMessagesClick = () => {
+    if (messages.length === 0) return
+    setShowClearDialog(true)
+  }
+
+  const handleConfirmClear = () => {
+    clearMessages()
+    setExpandedThinking(new Set())
+    setShowClearDialog(false)
+  }
+
+  const handleCancelClear = () => {
+    setShowClearDialog(false)
   }
 
   const scrollToBottom = () => {
@@ -197,6 +222,17 @@ export function ChatInterface() {
             >
               <Wrench className="w-4 h-4" />
               <span className="text-xs">Tools</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleClearMessagesClick}
+              disabled={messages.length === 0}
+              className="flex items-center gap-2 border-primary/30 text-muted-foreground hover:text-destructive hover:border-destructive/40 disabled:opacity-50"
+              title="Clear all messages"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span className="text-xs">Clear</span>
             </Button>
           </div>
         </div>
@@ -373,6 +409,35 @@ export function ChatInterface() {
           </Button>
         </form>
       </div>
+
+      {/* Clear Messages Confirmation Dialog */}
+      <Dialog open={showClearDialog} onOpenChange={(open) => !open && handleCancelClear()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-destructive" />
+              Clear All Messages
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to clear all messages? This will remove the entire conversation history. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={handleCancelClear}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmClear}
+            >
+              Clear All
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }
