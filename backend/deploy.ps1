@@ -89,7 +89,7 @@ Get-Content ".env" | ForEach-Object {
     # Remove quotes from value if present
     $value = $value.Trim('"', "'")
 
-    Write-Host "  ✓ $key" -ForegroundColor Green
+    Write-Host "  + $key" -ForegroundColor Green
 
     # Add to deploy arguments
     $deployArgs += "--env"
