@@ -10,8 +10,8 @@ if (-Not (Test-Path ".env")) {
     exit 1
 }
 
-# Build the agentcore deploy command
-$deployCmd = "agentcore deploy"
+# Build the agentcore deploy command parts
+$deployArgs = @("deploy")
 
 # First pass: Check if ENV_VARS_TO_PACK is specified
 $varsToPack = $null
@@ -91,13 +91,13 @@ Get-Content ".env" | ForEach-Object {
 
     Write-Host "  ✓ $key" -ForegroundColor Green
 
-    # Escape value for command line
-    $escapedValue = $value -replace '"', '\"'
-    $deployCmd += " --env $key=`"$escapedValue`""
+    # Add to deploy arguments
+    $deployArgs += "--env"
+    $deployArgs += "$key=$value"
 }
 
 # Execute the deploy command
 Write-Host "Executing deployment..." -ForegroundColor Blue
-Invoke-Expression $deployCmd
+& agentcore $deployArgs
 
 Write-Host "=== Deploy Complete ===" -ForegroundColor Green
