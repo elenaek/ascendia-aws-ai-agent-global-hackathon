@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/stores/auth-store'
 import { useAnalyticsStore } from '@/stores/analytics-store'
 import { useChatStore } from '@/stores/chat-store'
+import { useUIStore } from '@/stores/ui-store'
 import { ChatInterface } from '@/components/dashboard/chat-interface'
 import { CompetitorsPanel } from '@/components/dashboard/competitors-panel'
 import { InsightsPanel } from '@/components/dashboard/insights-panel'
@@ -16,8 +17,9 @@ import { useWebSocketUI } from '@/hooks/useWebSocketUI'
 export default function DashboardPage() {
   const router = useRouter()
   const { isAuthenticated, isLoading } = useAuthStore()
-  const { company } = useAnalyticsStore()
+  const { company, fetchCompetitors } = useAnalyticsStore()
   const { isLoading: isChatLoading } = useChatStore()
+  const { competitorCarousel } = useUIStore()
 
   // Connect to WebSocket when agent is responding
   useWebSocketUI({ enabled: isChatLoading })
@@ -35,6 +37,13 @@ export default function DashboardPage() {
       router.push('/auth')
     }
   }, [isAuthenticated, isLoading, company, router])
+
+  // Fetch competitors on mount when authenticated
+  useEffect(() => {
+    if (isAuthenticated && company) {
+      fetchCompetitors()
+    }
+  }, [isAuthenticated, company, fetchCompetitors])
 
 
   if (!isLoading && !isAuthenticated) {
@@ -57,6 +66,7 @@ export default function DashboardPage() {
         rangeSpeed={0.8}
         baseRadius={0.8}
         rangeRadius={1.5}
+        paused={competitorCarousel.visible && !competitorCarousel.minimized}
       >
         <main className="container mx-auto p-6 space-y-6">
           {/* Main Grid Layout */}

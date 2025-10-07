@@ -43,10 +43,12 @@ interface AnalyticsState {
   isLoadingInsights: boolean
   setCompany: (company: CompanyInfo) => void
   setCompetitors: (competitors: Competitor[]) => void
+  addCompetitor: (competitor: Competitor) => void
   setInsights: (insights: string[]) => void
   setSwotAnalysis: (swot: AnalyticsState['swotAnalysis']) => void
   setLoadingCompetitors: (loading: boolean) => void
   setLoadingInsights: (loading: boolean) => void
+  fetchCompetitors: () => Promise<void>
   clearAll: () => void
 }
 
@@ -61,10 +63,31 @@ export const useAnalyticsStore = create<AnalyticsState>()(
       isLoadingInsights: false,
       setCompany: (company) => set({ company }),
       setCompetitors: (competitors) => set({ competitors }),
+      addCompetitor: (competitor) => set((state) => ({
+        competitors: [...state.competitors, competitor]
+      })),
       setInsights: (insights) => set({ insights }),
       setSwotAnalysis: (swot) => set({ swotAnalysis: swot }),
       setLoadingCompetitors: (loading) => set({ isLoadingCompetitors: loading }),
       setLoadingInsights: (loading) => set({ isLoadingInsights: loading }),
+      fetchCompetitors: async () => {
+        set({ isLoadingCompetitors: true })
+        try {
+          const { authenticatedFetch } = await import('@/lib/auth-utils')
+          const response = await authenticatedFetch('/api/competitors', {
+            method: 'GET',
+          })
+
+          if (response.ok) {
+            const result = await response.json()
+            set({ competitors: result.data || [] })
+          }
+        } catch (error) {
+          console.error('Error fetching competitors:', error)
+        } finally {
+          set({ isLoadingCompetitors: false })
+        }
+      },
       clearAll: () => set({
         company: null,
         competitors: [],

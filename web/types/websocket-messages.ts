@@ -18,6 +18,11 @@ export interface CompetitorContextPayload {
   category?: 'Direct Competitors' | 'Indirect Competitors' | 'Potential Competitors'
 }
 
+// For multiple competitors displayed in carousel
+export interface CompetitorCarouselPayload {
+  competitors: CompetitorContextPayload[]
+}
+
 export interface InsightPayload {
   title: string
   content: string
@@ -55,6 +60,7 @@ export interface HighlightElementPayload {
 
 export type WebSocketMessagePayload =
   | CompetitorContextPayload
+  | CompetitorCarouselPayload
   | InsightPayload
   | NotificationPayload
   | UpdateCompetitorPanelPayload

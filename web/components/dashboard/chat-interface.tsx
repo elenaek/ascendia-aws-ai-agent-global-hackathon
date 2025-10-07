@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useChatStore } from '@/stores/chat-store'
 import { useAnalyticsStore } from '@/stores/analytics-store'
+import { useUIStore } from '@/stores/ui-store'
 import { Send, Bot, User, Brain, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { sendMessageToAgentStreaming, type CompanyInfo } from '@/lib/agentcore-client'
@@ -34,6 +35,7 @@ export function ChatInterface() {
     clearToolUses
   } = useChatStore()
   const { company } = useAnalyticsStore()
+  const { highlightedElements } = useUIStore()
   const [input, setInput] = useState('')
   const [expandedThinking, setExpandedThinking] = useState<Set<string>>(new Set())
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -142,7 +144,13 @@ export function ChatInterface() {
   }
 
   return (
-    <Card className="h-[calc(100vh-12rem)] bg-panel border-primary/20 glow flex flex-col">
+    <Card
+      id="chat-interface"
+      className={cn(
+        "h-[calc(100vh-12rem)] bg-panel border-primary/20 glow flex flex-col",
+        highlightedElements.has('chat-interface') && 'element-highlighted'
+      )}
+    >
       {/* Chat Header */}
       <div className="p-4 border-b border-primary/20">
         <div className="flex items-start justify-between gap-4">
@@ -260,36 +268,35 @@ export function ChatInterface() {
                     />
                   ))}
 
-                  <div
-                    className={cn(
-                      'rounded-lg p-3',
-                      message.role === 'user'
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted text-foreground'
-                    )}
-                  >
-                    {message.role === 'assistant' && !message.content.trim() && isLoading ? (
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span className="text-sm">
-                          {(message.toolUses && message.toolUses.length > 0) || toolUses.length > 0
-                            ? 'Processing results...'
-                            : 'Thinking...'}
-                        </span>
-                      </div>
-                    ) : (
-                      <>
-                      
-                        <MessageContent
-                          content={message.content}
-                          role={message.role}
-                        />
-                        <p className="text-xs opacity-70 mt-1">
-                          {new Date(message.timestamp).toLocaleTimeString()}
-                        </p>
-                      </>
-                    )}
-                  </div>
+                  {/* Hide message bubble when processing tool results with no content */}
+                  {!(message.role === 'assistant' && !message.content.trim() && isLoading && ((message.toolUses && message.toolUses.length > 0) || toolUses.length > 0)) && (
+                    <div
+                      className={cn(
+                        'rounded-lg p-3',
+                        message.role === 'user'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted text-foreground'
+                      )}
+                    >
+                      {message.role === 'assistant' && !message.content.trim() && isLoading ? (
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span className="text-sm">Thinking...</span>
+                        </div>
+                      ) : (
+                        <>
+
+                          <MessageContent
+                            content={message.content}
+                            role={message.role}
+                          />
+                          <p className="text-xs opacity-70 mt-1">
+                            {new Date(message.timestamp).toLocaleTimeString()}
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {message.role === 'user' && (

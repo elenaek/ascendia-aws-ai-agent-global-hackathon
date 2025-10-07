@@ -27,63 +27,6 @@ AWS_ACCOUNT_ID = os.getenv("AWS_ACCOUNT_ID")
 app = BedrockAgentCoreApp()
 model = BedrockModel(model_id="us.amazon.nova-pro-v1:0")
 
-
-
-# @lru_cache(maxsize=1)
-# def get_api_credentials():
-#     """
-#     Retrieve API credentials from AWS Secrets Manager and set environment variables.
-#     Cached to avoid repeated AWS API calls.
-#     """
-#     try:
-#         if os.environ.get('MODE', 'production') != 'local':
-#             client = boto3.client('ssm', region_name=AWS_REGION)
-#             parameter_name = f"/ascendia/agentcore/tavily-api-key-{AWS_ACCOUNT_ID}"
-
-#             response = client.get_parameter(Name=parameter_name, WithDecryption=True)
-#             tavily_api_key = response['Parameter']['Value']
-
-#             secrets = {'tavily_api_key': tavily_api_key}
-
-#             # Set the environment variable for strands_tools.tavily to use
-#             if 'tavily_api_key' in secrets:
-#                 os.environ['TAVILY_API_KEY'] = secrets['tavily_api_key']
-
-#             return secrets
-#         else:
-#             # Local development - environment variables already set
-#             return {
-#                 'tavily_api_key': os.environ.get('TAVILY_API_KEY', '')
-#             }
-#     except Exception as e:
-#         print(f"Error retrieving secrets: {e}")
-#         # Fall back to environment variables
-#         return {
-#             'tavily_api_key': os.environ.get('TAVILY_API_KEY', '')
-#         }
-
-# Initialize API credentials on startup
-# get_api_credentials()
-
-# TEST_COMPANY = {
-#     "_id": "68db18fe5d04ff1311963dea",
-#     "company_name": "EmberWise",
-#     "company_url": "https://emberwise.ai",
-#     "company_description": "EmberWise is a startup in pre-mvp stage, focused on creating a SaaS platform for AI-powered learning and helps autodidacts learn and acts as a 'mental gym'",
-#     "unique_value_proposition": "We focus on autodidacts and provide with them tools to perform spaced-repetition learning with novel training modes, powered by AI",
-#     "stage_of_company": "pre-mvp",
-#     "types_of_products": [
-#         {
-#             "product_name": "Emberwise.ai",
-#             "product_description": "EmberWise.ai is a SaaS platform for AI learning and helps autodidacts learn and acts as a 'mental gym'"
-#         }
-#     ],
-#     "pricing_model": "freemium",
-#     "number_of_employees": 2,
-#     "revenue": 0,
-#     "who_are_our_customers": "Autodidacts who want to learn and improve their skills"
-# }
-
 find_competitors_prompt = """# Your Task
 - Think about your company's information and products/services they offer and the market they operate in
 - Research and find 10 of the most relevant competitors for your company
@@ -120,7 +63,9 @@ Remember to:
 agent_system_prompt = """You are an expert market research analyst working for a company to help them analyze the market they operate in and analyze their competitors in order to strategize on the direction they should take.
 You use the tools provided to you to perform your duties. If you need to ask the user for input, ask your question naturally in your response. The user will provide their answer in their next message, and you can continue the conversation from there.
 
+# Important
 - Use markdown formatting to make your responses more readable.
+- Always use the send_ui_update tool when presenting competitors or insights to the user, allowing them to add the competitors to their database or view the insights.
 
 # Your Company Information
 {company_information}
@@ -176,18 +121,36 @@ def send_ui_update(
 
     Args:
         type: Type of UI update to send:
-            - "show_competitor_context": Display a card with competitor information
-                Required payload: {company_name, product_name, website?, description?, category?}
+            - "show_competitor_context": Display competitor information
+                Single competitor: {company_name, product_name, website?, description?, category?}
+                Multiple competitors (carousel): {competitors: [{company_name, product_name, website?, description?, category?}, ...]}
+                Note: When sending multiple competitors, they will be displayed in an interactive carousel
+                      that allows users to browse and save competitors to their database.
+                Use this whenever you are presenting competitors to the user.
             - "show_insight": Show an insight card with your analysis
                 Required payload: {title, content, severity?: "info"|"success"|"warning", category?}
             - "show_notification": Display a toast notification
                 Required payload: {message, type: "info"|"success"|"warning"|"error"}
-            - "update_competitor_panel": Update the competitors panel with new data
-                Required payload: {competitors: [...], category?: "Direct"|"Indirect"|"Potential"}
             - "show_progress": Show a progress indicator for long-running tasks
                 Required payload: {message, percentage?: 0-100}
-            - "highlight_element": Animate/highlight a specific UI element
-                Required payload: {element_id, duration?: milliseconds}
+            - "highlight_element": Draw user attention to specific dashboard panels with a pulsing glow animation
+                Required payload: {element_id, duration?: milliseconds (default: 4000)}
+
+                Available element_ids:
+                  - "chat-interface": Main chat conversation panel (left side, 2/3 width)
+                  - "competitors-panel": Competitors analysis panel showing Direct/Indirect/Potential competitors
+                  - "insights-panel": Key insights panel displaying AI-generated strategic insights
+                  - "dynamic-ui-overlay": Floating overlay in bottom-right showing real-time cards and progress
+
+                Animation behavior:
+                  - Prismatic color-cycling glow (cyan → purple → pink → green, 2 cycles over 4 seconds)
+                  - Automatically removes after specified duration
+                  - Use to guide user attention during multi-step analysis
+
+                Best practices:
+                  - Highlight panels before updating their content
+                  - Use when revealing new insights or competitor data
+                  - Avoid excessive highlighting (max 1-2 per analysis flow)
 
         payload: Dictionary containing the data for the UI update. Structure varies by type.
 
@@ -195,7 +158,7 @@ def send_ui_update(
         Success or error message
 
     Examples:
-        # Show competitor being analyzed
+        # Show single competitor being analyzed
         send_ui_update(
             type="show_competitor_context",
             payload={
@@ -204,6 +167,29 @@ def send_ui_update(
                 "website": "ankiapp.com",
                 "description": "Spaced repetition flashcard app for learning",
                 "category": "Direct Competitors"
+            }
+        )
+
+        # Show multiple competitors in an interactive carousel
+        send_ui_update(
+            type="show_competitor_context",
+            payload={
+                "competitors": [
+                    {
+                        "company_name": "Anki",
+                        "product_name": "Anki App",
+                        "website": "ankiapp.com",
+                        "description": "Spaced repetition flashcard app...",
+                        "category": "Direct Competitors"
+                    },
+                    {
+                        "company_name": "Quizlet",
+                        "product_name": "Quizlet",
+                        "website": "quizlet.com",
+                        "description": "Study tools and flashcards...",
+                        "category": "Direct Competitors"
+                    }
+                ]
             }
         )
 
@@ -223,6 +209,26 @@ def send_ui_update(
             payload={
                 "message": "Found 10 competitors in education technology",
                 "type": "info"
+            }
+        )
+
+        # Highlight a panel to draw attention
+        send_ui_update(
+            type="highlight_element",
+            payload={
+                "element_id": "competitors-panel",
+                "duration": 3000  # 3 seconds
+            }
+        )
+
+        # Highlight before showing insight
+        send_ui_update(type="highlight_element", payload={"element_id": "insights-panel"})
+        send_ui_update(
+            type="show_insight",
+            payload={
+                "title": "Strategic Opportunity",
+                "content": "No competitors are addressing mobile learning effectively",
+                "severity": "success"
             }
         )
     """

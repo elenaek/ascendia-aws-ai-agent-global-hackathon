@@ -3,8 +3,10 @@
 import { Card } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAnalyticsStore } from '@/stores/analytics-store'
+import { useUIStore } from '@/stores/ui-store'
 import { Badge } from '@/components/ui/badge'
 import { ExternalLink, Building2, Activity } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 interface Competitor {
   id: string
@@ -16,6 +18,7 @@ interface Competitor {
 
 export function CompetitorsPanel() {
   const { competitors, isLoadingCompetitors, company } = useAnalyticsStore()
+  const { highlightedElements } = useUIStore()
 
   const directCompetitors = competitors.filter((c) => c.category === 'Direct Competitors')
   const indirectCompetitors = competitors.filter((c) => c.category === 'Indirect Competitors')
@@ -65,7 +68,13 @@ export function CompetitorsPanel() {
   )
 
   return (
-    <Card className="p-4 bg-panel border-primary/20 glow">
+    <Card
+      id="competitors-panel"
+      className={cn(
+        "p-4 bg-panel border-primary/20 glow",
+        highlightedElements.has('competitors-panel') && 'element-highlighted'
+      )}
+    >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2 mb-4">
           <Activity className="w-5 h-5 text-primary" />

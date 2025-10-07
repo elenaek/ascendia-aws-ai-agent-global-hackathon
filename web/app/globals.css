@@ -112,4 +112,67 @@
   *::-webkit-scrollbar-corner {
     background: hsl(217.2, 32.6%, 17.5%);
   }
+
+  /* Highlight Animation for UI Elements - Prismatic Colors with Smooth Transitions */
+  @keyframes highlight-pulse {
+    0% {
+      box-shadow: 0 0 20px rgba(0, 212, 255, 0.6),
+                  0 0 40px rgba(0, 212, 255, 0.4),
+                  inset 0 0 20px rgba(0, 212, 255, 0.2);
+      border-color: rgba(0, 212, 255, 0.9);
+    }
+    12.5% {
+      box-shadow: 0 0 25px rgba(92, 127, 255, 0.65),
+                  0 0 50px rgba(92, 127, 255, 0.45),
+                  inset 0 0 25px rgba(92, 127, 255, 0.2);
+      border-color: rgba(92, 127, 255, 0.95);
+    }
+    25% {
+      box-shadow: 0 0 30px rgba(184, 41, 255, 0.7),
+                  0 0 60px rgba(184, 41, 255, 0.5),
+                  inset 0 0 30px rgba(184, 41, 255, 0.2);
+      border-color: rgba(184, 41, 255, 1);
+    }
+    37.5% {
+      box-shadow: 0 0 30px rgba(220, 44, 203, 0.7),
+                  0 0 60px rgba(220, 44, 203, 0.5),
+                  inset 0 0 30px rgba(220, 44, 203, 0.2);
+      border-color: rgba(220, 44, 203, 1);
+    }
+    50% {
+      box-shadow: 0 0 30px rgba(255, 46, 151, 0.7),
+                  0 0 60px rgba(255, 46, 151, 0.5),
+                  inset 0 0 30px rgba(255, 46, 151, 0.2);
+      border-color: rgba(255, 46, 151, 1);
+    }
+    62.5% {
+      box-shadow: 0 0 30px rgba(128, 151, 108, 0.7),
+                  0 0 60px rgba(128, 151, 108, 0.5),
+                  inset 0 0 30px rgba(128, 151, 108, 0.2);
+      border-color: rgba(128, 151, 108, 1);
+    }
+    75% {
+      box-shadow: 0 0 30px rgba(0, 255, 65, 0.7),
+                  0 0 60px rgba(0, 255, 65, 0.5),
+                  inset 0 0 30px rgba(0, 255, 65, 0.2);
+      border-color: rgba(0, 255, 65, 1);
+    }
+    87.5% {
+      box-shadow: 0 0 25px rgba(0, 234, 160, 0.65),
+                  0 0 50px rgba(0, 234, 160, 0.45),
+                  inset 0 0 25px rgba(0, 234, 160, 0.2);
+      border-color: rgba(0, 234, 160, 0.95);
+    }
+    100% {
+      box-shadow: 0 0 20px rgba(0, 212, 255, 0.6),
+                  0 0 40px rgba(0, 212, 255, 0.4),
+                  inset 0 0 20px rgba(0, 212, 255, 0.2);
+      border-color: rgba(0, 212, 255, 0.9);
+    }
+  }
+
+  .element-highlighted {
+    animation: highlight-pulse 4s linear 1;
+    will-change: box-shadow, border-color;
+  }
 }

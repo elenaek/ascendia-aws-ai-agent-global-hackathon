@@ -36,6 +36,14 @@ interface UIState {
   // Highlighted elements
   highlightedElements: Set<string>
 
+  // Competitor carousel state
+  competitorCarousel: {
+    visible: boolean
+    minimized: boolean
+    competitors: CompetitorContextPayload[]
+    currentIndex: number
+  }
+
   // Actions
   addCard: (type: 'competitor_context' | 'insight', data: CompetitorContextPayload | InsightPayload) => void
   removeCard: (id: string) => void
@@ -50,6 +58,14 @@ interface UIState {
 
   highlightElement: (elementId: string, duration?: number) => void
   unhighlightElement: (elementId: string) => void
+
+  // Carousel actions
+  showCompetitorCarousel: (competitors: CompetitorContextPayload[]) => void
+  hideCompetitorCarousel: () => void
+  minimizeCompetitorCarousel: () => void
+  expandCompetitorCarousel: () => void
+  nextCompetitor: () => void
+  prevCompetitor: () => void
 }
 
 export const useUIStore = create<UIState>((set, get) => ({
@@ -57,6 +73,12 @@ export const useUIStore = create<UIState>((set, get) => ({
   notifications: [],
   progressIndicators: [],
   highlightedElements: new Set(),
+  competitorCarousel: {
+    visible: false,
+    minimized: false,
+    competitors: [],
+    currentIndex: 0,
+  },
 
   addCard: (type, data) => {
     const id = crypto.randomUUID()
@@ -143,5 +165,65 @@ export const useUIStore = create<UIState>((set, get) => ({
       const newSet = new Set(state.highlightedElements)
       newSet.delete(elementId)
       return { highlightedElements: newSet }
+    }),
+
+  showCompetitorCarousel: (competitors) =>
+    set({
+      competitorCarousel: {
+        visible: true,
+        minimized: false,
+        competitors,
+        currentIndex: 0,
+      },
+    }),
+
+  hideCompetitorCarousel: () =>
+    set({
+      competitorCarousel: {
+        visible: false,
+        minimized: false,
+        competitors: [],
+        currentIndex: 0,
+      },
+    }),
+
+  minimizeCompetitorCarousel: () =>
+    set((state) => ({
+      competitorCarousel: {
+        ...state.competitorCarousel,
+        minimized: true,
+      },
+    })),
+
+  expandCompetitorCarousel: () =>
+    set((state) => ({
+      competitorCarousel: {
+        ...state.competitorCarousel,
+        minimized: false,
+      },
+    })),
+
+  nextCompetitor: () =>
+    set((state) => {
+      const { competitors, currentIndex } = state.competitorCarousel
+      const nextIndex = currentIndex + 1 >= competitors.length ? 0 : currentIndex + 1
+      return {
+        competitorCarousel: {
+          ...state.competitorCarousel,
+          currentIndex: nextIndex,
+        },
+      }
+    }),
+
+  prevCompetitor: () =>
+    set((state) => {
+      const { competitors, currentIndex } = state.competitorCarousel
+      const prevIndex = currentIndex - 1 < 0 ? competitors.length - 1 : currentIndex - 1
+      return {
+        competitorCarousel: {
+          ...state.competitorCarousel,
+          currentIndex: prevIndex,
+        },
+      }
     }),
 }))

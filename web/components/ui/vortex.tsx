@@ -19,6 +19,7 @@ interface VortexProps {
   baseRadius?: number;
   rangeRadius?: number;
   backgroundColor?: string;
+  paused?: boolean;
 }
 
 export const Vortex = (props: VortexProps) => {
@@ -28,6 +29,7 @@ export const Vortex = (props: VortexProps) => {
   const isUserInteracting = useRef(false);
   const isVisible = useRef(true);
   const isTabActive = useRef(true);
+  const isPaused = useRef(props.paused || false);
   const interactionTimeout = useRef<NodeJS.Timeout | undefined>(undefined);
   const frameCount = useRef(0);
   const particleCount = props.particleCount || 700;
@@ -109,7 +111,7 @@ export const Vortex = (props: VortexProps) => {
 
   const draw = (canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) => {
     // Check if animation should be paused
-    const shouldAnimate = isVisible.current && isTabActive.current && !isUserInteracting.current;
+    const shouldAnimate = isVisible.current && isTabActive.current && !isUserInteracting.current && !isPaused.current;
 
     // Frame rate limiting: only render every other frame (30fps instead of 60fps)
     frameCount.current++;
@@ -247,6 +249,11 @@ export const Vortex = (props: VortexProps) => {
       resize(canvas, ctx);
     }
   };
+
+  // Update paused state when prop changes
+  useEffect(() => {
+    isPaused.current = props.paused || false;
+  }, [props.paused]);
 
   useEffect(() => {
     setup();

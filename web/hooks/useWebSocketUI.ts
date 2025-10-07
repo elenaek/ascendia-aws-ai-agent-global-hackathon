@@ -32,6 +32,7 @@ export function useWebSocketUI({ enabled }: UseWebSocketUIOptions) {
     addProgress,
     clearProgress,
     highlightElement,
+    showCompetitorCarousel,
   } = useUIStore()
 
   useEffect(() => {
@@ -89,8 +90,15 @@ export function useWebSocketUI({ enabled }: UseWebSocketUIOptions) {
     try {
       switch (message.type) {
         case 'show_competitor_context': {
-          const payload = message.payload as CompetitorContextPayload
-          addCard('competitor_context', payload)
+          const payload = message.payload as any
+
+          // Check if payload contains multiple competitors (carousel mode)
+          if (payload.competitors && Array.isArray(payload.competitors)) {
+            showCompetitorCarousel(payload.competitors)
+          } else {
+            // Single competitor - use existing card behavior
+            addCard('competitor_context', payload as CompetitorContextPayload)
+          }
           break
         }
 

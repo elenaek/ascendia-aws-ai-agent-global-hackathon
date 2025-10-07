@@ -2,15 +2,24 @@
 
 import { Card } from '@/components/ui/card'
 import { useAnalyticsStore } from '@/stores/analytics-store'
+import { useUIStore } from '@/stores/ui-store'
 import { Lightbulb, TrendingUp, AlertCircle } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 export function InsightsPanel() {
   const { insights, swotAnalysis, isLoadingInsights, company } = useAnalyticsStore()
+  const { highlightedElements } = useUIStore()
 
   return (
     <div className="space-y-6">
       {/* Key Insights */}
-      <Card className="p-4 bg-panel border-primary/20 glow">
+      <Card
+        id="insights-panel"
+        className={cn(
+          "p-4 bg-panel border-primary/20 glow",
+          highlightedElements.has('insights-panel') && 'element-highlighted'
+        )}
+      >
         <div className="flex items-center gap-2 mb-4">
           <Lightbulb className="w-5 h-5 text-primary" />
           <h3 className="text-lg font-semibold text-primary">Key Insights</h3>

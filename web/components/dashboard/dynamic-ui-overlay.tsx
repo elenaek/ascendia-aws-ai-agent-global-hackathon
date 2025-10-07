@@ -3,17 +3,27 @@
 import { useUIStore } from '@/stores/ui-store'
 import { DynamicCompetitorCard } from './dynamic-competitor-card'
 import { InsightCard } from './insight-card'
+import { CompetitorCarousel } from './competitor-carousel'
 import { CompetitorContextPayload, InsightPayload } from '@/types/websocket-messages'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Loader2 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 export function DynamicUIOverlay() {
-  const { activeCards, removeCard, progressIndicators } = useUIStore()
+  const { activeCards, removeCard, progressIndicators, highlightedElements } = useUIStore()
 
   return (
     <>
+      {/* Competitor Carousel Modal */}
+      <CompetitorCarousel />
       {/* Dynamic Cards - Fixed position in bottom right */}
-      <div className="fixed bottom-6 right-6 z-50 space-y-4 max-w-md pointer-events-none">
+      <div
+        id="dynamic-ui-overlay"
+        className={cn(
+          "fixed bottom-6 right-6 z-50 space-y-4 max-w-md pointer-events-none",
+          highlightedElements.has('dynamic-ui-overlay') && 'element-highlighted'
+        )}
+      >
         <div className="pointer-events-auto space-y-4">
           <AnimatePresence mode="popLayout">
             {activeCards.map((card) => {
