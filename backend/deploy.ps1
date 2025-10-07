@@ -10,8 +10,8 @@ if (-Not (Test-Path ".env")) {
     exit 1
 }
 
-# Build the agentcore deploy command parts
-$deployArgs = @("deploy")
+# Build the agentcore launch command parts
+$deployArgs = @("launch")
 
 # First pass: Check if ENV_VARS_TO_PACK is specified
 $varsToPack = $null

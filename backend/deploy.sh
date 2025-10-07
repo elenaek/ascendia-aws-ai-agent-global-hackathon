@@ -18,8 +18,8 @@ if [ ! -f ".env" ]; then
     exit 1
 fi
 
-# Build the agentcore deploy command
-DEPLOY_CMD="agentcore deploy"
+# Build the agentcore launch command
+DEPLOY_CMD="agentcore launch"
 
 # First pass: Check if ENV_VARS_TO_PACK is specified
 VARS_TO_PACK=""
