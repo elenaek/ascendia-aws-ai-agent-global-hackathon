@@ -24,6 +24,10 @@ export async function POST(request: NextRequest) {
       company_description,
       unique_value_proposition,
       stage_of_company,
+      revenue,
+      number_of_employees,
+      pricing_model,
+      target_customers,
       types_of_products
     } = body
 
@@ -50,6 +54,10 @@ export async function POST(request: NextRequest) {
       company_description,
       unique_value_proposition,
       stage_of_company,
+      revenue: revenue || '',
+      number_of_employees: number_of_employees || '',
+      pricing_model: pricing_model || '',
+      target_customers: target_customers || '',
       types_of_products,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -114,6 +122,90 @@ export async function GET(request: NextRequest) {
     console.error('Error fetching company data:', error)
     return NextResponse.json(
       { error: 'Failed to fetch company data' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    // Check authentication
+    const auth = await getAuthFromRequest(request)
+    if (!auth) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    const body = await request.json()
+    const {
+      company_name,
+      company_url,
+      company_description,
+      unique_value_proposition,
+      stage_of_company,
+      revenue,
+      number_of_employees,
+      pricing_model,
+      target_customers,
+      types_of_products
+    } = body
+
+    // Validate required fields
+    if (!company_name || !company_url || !company_description ||
+        !unique_value_proposition || !stage_of_company ||
+        !types_of_products || types_of_products.length === 0) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      )
+    }
+
+    // Get the Cognito identity ID
+    const identityId = await getCognitoIdentityId(auth.idToken)
+
+    // Get authenticated DynamoDB client
+    const docClient = await getAuthenticatedDynamoDBClient(auth.idToken)
+
+    // Fetch existing data to preserve created_at
+    const existing = await docClient.send(new GetCommand({
+      TableName: COMPANIES_TABLE,
+      Key: {
+        company_id: identityId
+      },
+    }))
+
+    const companyData = {
+      company_id: identityId,
+      company_name,
+      company_url,
+      company_description,
+      unique_value_proposition,
+      stage_of_company,
+      revenue: revenue || '',
+      number_of_employees: number_of_employees || '',
+      pricing_model: pricing_model || '',
+      target_customers: target_customers || '',
+      types_of_products,
+      created_at: existing.Item?.created_at || new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+
+    // Update in DynamoDB
+    await docClient.send(new PutCommand({
+      TableName: COMPANIES_TABLE,
+      Item: companyData,
+    }))
+
+    return NextResponse.json({
+      success: true,
+      data: companyData
+    })
+  } catch (error) {
+    console.error('Error updating company data:', error)
+    return NextResponse.json(
+      { error: 'Failed to update company data' },
       { status: 500 }
     )
   }

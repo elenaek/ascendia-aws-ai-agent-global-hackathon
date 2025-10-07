@@ -22,6 +22,10 @@ interface CompanyInfo {
   company_description: string
   unique_value_proposition: string
   stage_of_company: string
+  revenue: string
+  number_of_employees: string
+  pricing_model: string
+  target_customers: string
   types_of_products: Product[]
 }
 

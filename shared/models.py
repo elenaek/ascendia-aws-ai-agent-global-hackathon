@@ -17,6 +17,9 @@ class Company(BaseModel):
     unique_value_proposition: str = Field(description="The unique value proposition of the company")
     stage_of_company: str = Field(description="The stage of the company")
     types_of_products: list[Product] = Field(description="The types of products the company offers")
+    revenue: Optional[float] = Field(default=None, description="The revenue of the company")
+    number_of_employees: Optional[int] = Field(default=None, description="The number of employees of the company")
+    who_are_our_customers: Optional[str] = Field(default=None, description="The who are our customers of the company")
 
 class Competitor(BaseModel):
     """Competitor data model - represents a unique competitor company/product"""

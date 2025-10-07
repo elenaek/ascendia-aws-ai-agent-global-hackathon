@@ -95,11 +95,11 @@ export function ChatInterface() {
           product_name: p.product_name,
           product_description: p.product_description
         })),
-        // Add default values for optional fields if needed
-        pricing_model: 'not specified',
-        number_of_employees: 0,
-        revenue: 0,
-        who_are_our_customers: 'not specified'
+        // Map new fields to agent format
+        pricing_model: company.pricing_model || 'not specified',
+        number_of_employees: company.number_of_employees ? parseInt(company.number_of_employees) || 0 : 0,
+        revenue: company.revenue ? parseFloat(company.revenue) || 0 : 0,
+        who_are_our_customers: company.target_customers || 'not specified'
       } : null
 
       await sendMessageToAgentStreaming(userMessage, companyInfo, {

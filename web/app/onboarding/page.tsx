@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Plus, Trash2, Loader2 } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
 import { useAnalyticsStore } from '@/stores/analytics-store'
+import { toast } from 'sonner'
 
 export default function OnboardingPage() {
   const router = useRouter()
@@ -23,6 +24,10 @@ export default function OnboardingPage() {
     company_description: '',
     unique_value_proposition: '',
     stage_of_company: 'startup',
+    revenue: '',
+    number_of_employees: '',
+    pricing_model: '',
+    target_customers: '',
     types_of_products: [{
       product_name: '',
       product_url: '',
@@ -94,6 +99,7 @@ export default function OnboardingPage() {
 
         if (!user?.id) {
           console.error('No user ID found')
+          toast.error('Authentication error. Please try logging in again.')
           setIsSubmitting(false)
           return
         }
@@ -126,11 +132,15 @@ export default function OnboardingPage() {
         // console.log('Setting company data in cache:', companyData)
         setCompany(companyData)
 
+        // Show success message
+        toast.success('Company information saved successfully!')
+
         // console.log('Onboarding complete, redirecting to dashboard...')
         // Navigate to dashboard
         router.push('/dashboard')
     } catch (error) {
       console.error('Error during onboarding:', error)
+      toast.error('Failed to save company information. Please try again.')
       setIsSubmitting(false)
     }
   }
@@ -239,6 +249,72 @@ export default function OnboardingPage() {
                   <SelectItem value="mature">Mature</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Additional Company Information */}
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="revenue" className="text-foreground">
+                  Annual Revenue
+                </Label>
+                <Input
+                  id="revenue"
+                  type="text"
+                  placeholder="e.g., $1M - $5M"
+                  value={formData.revenue}
+                  onChange={(e) =>
+                    setFormData({ ...formData, revenue: e.target.value })
+                  }
+                  className="bg-background border-primary/30 focus:border-primary"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="number_of_employees" className="text-foreground">
+                  Number of Employees
+                </Label>
+                <Input
+                  id="number_of_employees"
+                  type="text"
+                  placeholder="e.g., 10-50"
+                  value={formData.number_of_employees}
+                  onChange={(e) =>
+                    setFormData({ ...formData, number_of_employees: e.target.value })
+                  }
+                  className="bg-background border-primary/30 focus:border-primary"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="pricing_model" className="text-foreground">
+                Pricing Model
+              </Label>
+              <Input
+                id="pricing_model"
+                type="text"
+                placeholder="e.g., Subscription, One-time, Freemium"
+                value={formData.pricing_model}
+                onChange={(e) =>
+                  setFormData({ ...formData, pricing_model: e.target.value })
+                }
+                className="bg-background border-primary/30 focus:border-primary"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="target_customers" className="text-foreground">
+                Who Are Your Customers?
+              </Label>
+              <Textarea
+                id="target_customers"
+                placeholder="Describe your target customers and customer segments..."
+                value={formData.target_customers}
+                onChange={(e) =>
+                  setFormData({ ...formData, target_customers: e.target.value })
+                }
+                className="bg-background border-primary/30 focus:border-primary min-h-[80px]"
+              />
             </div>
 
             {/* Products Section */}

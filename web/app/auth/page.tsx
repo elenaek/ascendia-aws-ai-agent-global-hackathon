@@ -94,6 +94,10 @@ function AuthContent() {
               company_description: result.data.company_description,
               unique_value_proposition: result.data.unique_value_proposition,
               stage_of_company: result.data.stage_of_company,
+              revenue: result.data.revenue || '',
+              number_of_employees: result.data.number_of_employees || '',
+              pricing_model: result.data.pricing_model || '',
+              target_customers: result.data.target_customers || '',
               types_of_products: result.data.types_of_products || [],
             })
 

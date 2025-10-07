@@ -1,5 +1,6 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
 import { useAnalyticsStore } from '@/stores/analytics-store'
 import { Button } from '@/components/ui/button'
@@ -13,11 +14,16 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Building2, LogOut, User } from 'lucide-react'
 
 export function Header() {
+  const router = useRouter()
   const { user, logout } = useAuth()
   const { company } = useAnalyticsStore()
 
   const handleLogout = async () => {
     await logout()
+  }
+
+  const handleProfileClick = () => {
+    router.push('/profile')
   }
 
   return (
@@ -56,7 +62,10 @@ export function Header() {
               align="end"
               className="w-48 bg-card border-primary/20"
             >
-              <DropdownMenuItem className="cursor-pointer hover:bg-primary/10">
+              <DropdownMenuItem
+                className="cursor-pointer hover:bg-primary/10"
+                onClick={handleProfileClick}
+              >
                 <User className="w-4 h-4 mr-2" />
                 Profile
               </DropdownMenuItem>
