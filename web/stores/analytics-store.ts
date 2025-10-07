@@ -44,6 +44,7 @@ interface AnalyticsState {
   setCompany: (company: CompanyInfo) => void
   setCompetitors: (competitors: Competitor[]) => void
   addCompetitor: (competitor: Competitor) => void
+  removeCompetitor: (competitorId: string) => Promise<boolean>
   setInsights: (insights: string[]) => void
   setSwotAnalysis: (swot: AnalyticsState['swotAnalysis']) => void
   setLoadingCompetitors: (loading: boolean) => void
@@ -66,6 +67,25 @@ export const useAnalyticsStore = create<AnalyticsState>()(
       addCompetitor: (competitor) => set((state) => ({
         competitors: [...state.competitors, competitor]
       })),
+      removeCompetitor: async (competitorId: string) => {
+        try {
+          const { authenticatedFetch } = await import('@/lib/auth-utils')
+          const response = await authenticatedFetch(`/api/competitors/${competitorId}`, {
+            method: 'DELETE',
+          })
+
+          if (response.ok) {
+            set((state) => ({
+              competitors: state.competitors.filter((c) => c.id !== competitorId)
+            }))
+            return true
+          }
+          return false
+        } catch (error) {
+          console.error('Error removing competitor:', error)
+          return false
+        }
+      },
       setInsights: (insights) => set({ insights }),
       setSwotAnalysis: (swot) => set({ swotAnalysis: swot }),
       setLoadingCompetitors: (loading) => set({ isLoadingCompetitors: loading }),

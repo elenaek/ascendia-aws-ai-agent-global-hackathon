@@ -292,13 +292,14 @@ class InfrastructureStack(Stack):
             }
         ))
 
-        # Add policy for reading competitors (they can view all competitors)
+        # Add policy for reading and creating competitors (they can view all competitors and create new ones)
         authenticated_role.add_to_policy(iam.PolicyStatement(
             effect=iam.Effect.ALLOW,
             actions=[
                 "dynamodb:GetItem",
                 "dynamodb:Query",
                 "dynamodb:Scan",
+                "dynamodb:PutItem",
             ],
             resources=[
                 competitors_table.table_arn,

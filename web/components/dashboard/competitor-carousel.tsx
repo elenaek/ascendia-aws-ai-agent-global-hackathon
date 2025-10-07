@@ -3,7 +3,7 @@
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Building2, ExternalLink, X, Plus, Minimize2, Maximize2 } from 'lucide-react'
+import { Building2, ExternalLink, X, Plus, Minimize2, Maximize2, Check } from 'lucide-react'
 import { IconArrowNarrowRight } from '@tabler/icons-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useUIStore } from '@/stores/ui-store'
@@ -19,6 +19,7 @@ interface CompetitorSlideProps {
   handleSlideClick: (index: number) => void
   onAddCompetitor: () => void
   isSaving: boolean
+  isAlreadyAdded: boolean
 }
 
 const CompetitorSlide = ({
@@ -28,6 +29,7 @@ const CompetitorSlide = ({
   handleSlideClick,
   onAddCompetitor,
   isSaving,
+  isAlreadyAdded,
 }: CompetitorSlideProps) => {
   const slideRef = useRef<HTMLLIElement>(null)
   const xRef = useRef(0)
@@ -182,11 +184,15 @@ const CompetitorSlide = ({
                     e.stopPropagation()
                     onAddCompetitor()
                   }}
-                  disabled={isSaving}
-                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                  disabled={isSaving || isAlreadyAdded}
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Plus className="w-4 h-4 mr-2" />
-                  {isSaving ? 'Adding...' : 'Add to My Competitors'}
+                  {isAlreadyAdded ? (
+                    <Check className="w-4 h-4 mr-2" />
+                  ) : (
+                    <Plus className="w-4 h-4 mr-2" />
+                  )}
+                  {isAlreadyAdded ? 'Already Added' : isSaving ? 'Adding...' : 'Add to My Competitors'}
                 </Button>
               </motion.div>
             )}
@@ -229,16 +235,18 @@ export function CompetitorCarousel() {
     minimizeCompetitorCarousel,
     expandCompetitorCarousel
   } = useUIStore()
-  const { addCompetitor } = useAnalyticsStore()
+  const { addCompetitor, competitors: existingCompetitors } = useAnalyticsStore()
   const [current, setCurrent] = useState(0)
   const [isSaving, setIsSaving] = useState(false)
+  const [addedIndices, setAddedIndices] = useState<Set<number>>(new Set())
 
   const { visible, minimized, competitors } = competitorCarousel
 
-  // Reset current index when carousel becomes visible
+  // Reset current index and added indices when carousel becomes visible
   useEffect(() => {
     if (visible) {
       setCurrent(0)
+      setAddedIndices(new Set())
     }
   }, [visible])
 
@@ -260,6 +268,16 @@ export function CompetitorCarousel() {
     if (current !== index) {
       setCurrent(index)
     }
+  }
+
+  // Check if a competitor already exists in the user's list
+  const isCompetitorAlreadyAdded = (index: number) => {
+    if (addedIndices.has(index)) return true
+
+    const competitor = competitors[index]
+    return existingCompetitors.some(
+      (existing) => existing.name.toLowerCase() === competitor.company_name.toLowerCase()
+    )
   }
 
   const handleAddCompetitor = async () => {
@@ -290,6 +308,9 @@ export function CompetitorCarousel() {
 
       // Add to local store
       addCompetitor(result.data)
+
+      // Mark this competitor as added in the carousel
+      setAddedIndices(prev => new Set(prev).add(current))
 
       toast.success(`${currentCompetitor.company_name} added to your competitors!`)
     } catch (error) {
@@ -399,6 +420,7 @@ export function CompetitorCarousel() {
                     handleSlideClick={handleSlideClick}
                     onAddCompetitor={handleAddCompetitor}
                     isSaving={isSaving}
+                    isAlreadyAdded={isCompetitorAlreadyAdded(index)}
                   />
                 ))}
               </ul>

@@ -5,8 +5,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAnalyticsStore } from '@/stores/analytics-store'
 import { useUIStore } from '@/stores/ui-store'
 import { Badge } from '@/components/ui/badge'
-import { ExternalLink, Building2, Activity } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { ExternalLink, Building2, Activity, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
+import { useState } from 'react'
 
 interface Competitor {
   id: string
@@ -17,12 +20,33 @@ interface Competitor {
 }
 
 export function CompetitorsPanel() {
-  const { competitors, isLoadingCompetitors, company } = useAnalyticsStore()
+  const { competitors, isLoadingCompetitors, company, removeCompetitor } = useAnalyticsStore()
   const { highlightedElements } = useUIStore()
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const directCompetitors = competitors.filter((c) => c.category === 'Direct Competitors')
   const indirectCompetitors = competitors.filter((c) => c.category === 'Indirect Competitors')
   const potentialCompetitors = competitors.filter((c) => c.category === 'Potential Competitors')
+
+  const handleRemoveCompetitor = async (competitor: Competitor) => {
+    if (!window.confirm(`Are you sure you want to remove ${competitor.name} from your competitors list?`)) {
+      return
+    }
+
+    setDeletingId(competitor.id)
+    try {
+      const success = await removeCompetitor(competitor.id)
+      if (success) {
+        toast.success(`${competitor.name} removed from your competitors`)
+      } else {
+        toast.error('Failed to remove competitor')
+      }
+    } catch (error) {
+      toast.error('Failed to remove competitor')
+    } finally {
+      setDeletingId(null)
+    }
+  }
 
   const CompetitorsList = ({ competitors }: { competitors: Competitor[] }) => (
     <div className="space-y-3">
@@ -41,7 +65,7 @@ export function CompetitorsPanel() {
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-2 flex-1">
                 <Building2 className="w-4 h-4 text-primary flex-shrink-0" />
-                <div>
+                <div className="flex-1">
                   <h4 className="font-medium text-foreground">{competitor.name}</h4>
                   {competitor.description && (
                     <p className="text-xs text-muted-foreground mt-1">
@@ -50,16 +74,27 @@ export function CompetitorsPanel() {
                   )}
                 </div>
               </div>
-              {competitor.website && (
-                <a
-                  href={competitor.website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary hover:text-primary/80 flex-shrink-0"
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {competitor.website && (
+                  <a
+                    href={competitor.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:text-primary/80"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                  </a>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleRemoveCompetitor(competitor)}
+                  disabled={deletingId === competitor.id}
+                  className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                 >
-                  <ExternalLink className="w-4 h-4" />
-                </a>
-              )}
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           </div>
         ))
