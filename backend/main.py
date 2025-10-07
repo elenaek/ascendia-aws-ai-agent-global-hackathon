@@ -4,6 +4,7 @@ import jwt
 import json
 import os
 from functools import lru_cache
+from typing import Literal, Dict, Any
 
 load_dotenv()
 
@@ -15,6 +16,8 @@ from strands_tools.tavily import tavily_search
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
 from bedrock_agentcore.services.identity import IdentityClient
 from bedrock_agentcore.identity.auth import requires_api_key
+
+from websocket_helper import send_ui_update_to_identity
 
 COGNITO_USER_POOL_ID="us-east-1_boVMbYh4u"
 COGNITO_IDENTITY_POOL_ID="us-east-1:f4f3f1af-8c82-4ad5-93af-39a9e984277d"
@@ -152,16 +155,111 @@ def get_identity_id(idToken: str) -> str:
 def set_tavily_api_key(*, api_key: str):
     os.environ['TAVILY_API_KEY'] = api_key
 
+# Global variable to store current user's identity_id for tool access
+_current_identity_id = None
+
+@tool
+def send_ui_update(
+    type: Literal[
+        "show_competitor_context",
+        "show_insight",
+        "show_notification",
+        "update_competitor_panel",
+        "show_progress",
+        "highlight_element"
+    ],
+    payload: Dict[str, Any]
+) -> str:
+    """
+    Send real-time UI updates to the frontend dashboard during your analysis.
+    Use this to create a dynamic, interactive experience for the user.
+
+    Args:
+        type: Type of UI update to send:
+            - "show_competitor_context": Display a card with competitor information
+                Required payload: {company_name, product_name, website?, description?, category?}
+            - "show_insight": Show an insight card with your analysis
+                Required payload: {title, content, severity?: "info"|"success"|"warning", category?}
+            - "show_notification": Display a toast notification
+                Required payload: {message, type: "info"|"success"|"warning"|"error"}
+            - "update_competitor_panel": Update the competitors panel with new data
+                Required payload: {competitors: [...], category?: "Direct"|"Indirect"|"Potential"}
+            - "show_progress": Show a progress indicator for long-running tasks
+                Required payload: {message, percentage?: 0-100}
+            - "highlight_element": Animate/highlight a specific UI element
+                Required payload: {element_id, duration?: milliseconds}
+
+        payload: Dictionary containing the data for the UI update. Structure varies by type.
+
+    Returns:
+        Success or error message
+
+    Examples:
+        # Show competitor being analyzed
+        send_ui_update(
+            type="show_competitor_context",
+            payload={
+                "company_name": "Anki",
+                "product_name": "Anki App",
+                "website": "ankiapp.com",
+                "description": "Spaced repetition flashcard app for learning",
+                "category": "Direct Competitors"
+            }
+        )
+
+        # Display an insight
+        send_ui_update(
+            type="show_insight",
+            payload={
+                "title": "Market Gap Identified",
+                "content": "Your competitors lack mobile-first features",
+                "severity": "success"
+            }
+        )
+
+        # Show notification
+        send_ui_update(
+            type="show_notification",
+            payload={
+                "message": "Found 10 competitors in education technology",
+                "type": "info"
+            }
+        )
+    """
+    global _current_identity_id
+
+    if not _current_identity_id:
+        return "Error: No active user session for WebSocket updates"
+
+    try:
+        success = send_ui_update_to_identity(_current_identity_id, type, payload)
+
+        if success:
+            return f"UI update sent successfully: {type}"
+        else:
+            return f"Failed to send UI update (user may not have active WebSocket connection): {type}"
+
+    except Exception as e:
+        return f"Error sending UI update: {str(e)}"
+
 @app.entrypoint
 async def invoke(payload):
     """Process user input and return a streaming response"""
+    global _current_identity_id
+
     company_info = payload.get("company_information")
     app.logger.info(f"Company Info: {company_info}")
     set_tavily_api_key(api_key=payload.get("tavily_api_key"))
+
+    # Set identity_id for WebSocket updates (from company_info which contains _id/identity_id)
+    if company_info and '_id' in company_info:
+        _current_identity_id = company_info['_id']
+        app.logger.info(f"Set identity_id for WebSocket updates: {_current_identity_id}")
+
     agent_instance = Agent(
         model=model,
         system_prompt=agent_system_prompt.format(company_information=company_info),
-        tools=[tavily_search, think]
+        tools=[tavily_search, think, send_ui_update]
     )
 
     user_message = payload.get("prompt", "Hello")
