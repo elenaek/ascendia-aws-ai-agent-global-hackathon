@@ -10,6 +10,7 @@ from aws_cdk import (
     aws_cognito as cognito,
     aws_iam as iam,
     aws_secretsmanager as secretsmanager,
+    aws_apigatewayv2 as apigwv2,
     RemovalPolicy,
     BundlingOptions,
 )
@@ -233,6 +234,29 @@ class InfrastructureStack(Stack):
             projection_type=dynamodb.ProjectionType.ALL
         )
 
+        # Table 5: WebSocket Connections
+        websocket_connections_table = dynamodb.Table(
+            self, "WebSocketConnectionsTable",
+            table_name=f"websocket-connections-{self.account}",
+            partition_key=dynamodb.Attribute(
+                name="connection_id",
+                type=dynamodb.AttributeType.STRING
+            ),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            removal_policy=RemovalPolicy.DESTROY,
+            time_to_live_attribute="ttl",
+        )
+
+        # GSI: Query by identity_id to find active connections
+        websocket_connections_table.add_global_secondary_index(
+            index_name="identity-index",
+            partition_key=dynamodb.Attribute(
+                name="identity_id",
+                type=dynamodb.AttributeType.STRING
+            ),
+            projection_type=dynamodb.ProjectionType.ALL
+        )
+
         # Create Identity Pool first (it will create its own default roles)
         identity_pool_instance = identity_pool.IdentityPool(
             self, "AscendiaIdentityPool",
@@ -324,6 +348,18 @@ class InfrastructureStack(Stack):
             }
         ))
 
+        # Add policy for WebSocket API connections (for frontend to connect)
+        authenticated_role.add_to_policy(iam.PolicyStatement(
+            effect=iam.Effect.ALLOW,
+            actions=[
+                "execute-api:Invoke",
+                "execute-api:ManageConnections",
+            ],
+            resources=[
+                f"arn:aws:execute-api:{self.region}:{self.account}:{websocket_api.ref}/*",
+            ]
+        ))
+
         # Copy shared directory to lambda during bundling
         lambda_dir = Path("lambda")
         shared_src = Path("../shared")
@@ -378,6 +414,113 @@ class InfrastructureStack(Stack):
                 allowed_headers=["*"],
             )
         )
+
+        # ============ WebSocket API Gateway for Dynamic UI Updates ============
+
+        # Lambda handler for WebSocket $connect route
+        websocket_connect_lambda = PythonFunction(
+            self, "WebSocketConnectHandler",
+            runtime=_lambda.Runtime.PYTHON_3_12,
+            entry="lambda",
+            index="websocket_connect.py",
+            handler="handler",
+            environment={
+                "CONNECTIONS_TABLE": websocket_connections_table.table_name,
+            },
+            timeout=Duration.seconds(10),
+            memory_size=128,
+            log_retention=logs.RetentionDays.ONE_WEEK,
+        )
+
+        # Lambda handler for WebSocket $disconnect route
+        websocket_disconnect_lambda = PythonFunction(
+            self, "WebSocketDisconnectHandler",
+            runtime=_lambda.Runtime.PYTHON_3_12,
+            entry="lambda",
+            index="websocket_disconnect.py",
+            handler="handler",
+            environment={
+                "CONNECTIONS_TABLE": websocket_connections_table.table_name,
+            },
+            timeout=Duration.seconds(10),
+            memory_size=128,
+            log_retention=logs.RetentionDays.ONE_WEEK,
+        )
+
+        # Grant Lambda permissions to access DynamoDB
+        websocket_connections_table.grant_read_write_data(websocket_connect_lambda)
+        websocket_connections_table.grant_read_write_data(websocket_disconnect_lambda)
+
+        # Create WebSocket API
+        websocket_api = apigwv2.CfnApi(
+            self, "WebSocketAPI",
+            name=f"ascendia-websocket-api-{self.account}",
+            protocol_type="WEBSOCKET",
+            route_selection_expression="$request.body.action",
+        )
+
+        # Create integrations for Lambda functions
+        connect_integration = apigwv2.CfnIntegration(
+            self, "ConnectIntegration",
+            api_id=websocket_api.ref,
+            integration_type="AWS_PROXY",
+            integration_uri=f"arn:aws:apigateway:{self.region}:lambda:path/2015-03-31/functions/{websocket_connect_lambda.function_arn}/invocations",
+        )
+
+        disconnect_integration = apigwv2.CfnIntegration(
+            self, "DisconnectIntegration",
+            api_id=websocket_api.ref,
+            integration_type="AWS_PROXY",
+            integration_uri=f"arn:aws:apigateway:{self.region}:lambda:path/2015-03-31/functions/{websocket_disconnect_lambda.function_arn}/invocations",
+        )
+
+        # Create routes
+        connect_route = apigwv2.CfnRoute(
+            self, "ConnectRoute",
+            api_id=websocket_api.ref,
+            route_key="$connect",
+            authorization_type="AWS_IAM",
+            target=f"integrations/{connect_integration.ref}",
+        )
+
+        disconnect_route = apigwv2.CfnRoute(
+            self, "DisconnectRoute",
+            api_id=websocket_api.ref,
+            route_key="$disconnect",
+            target=f"integrations/{disconnect_integration.ref}",
+        )
+
+        # Create deployment
+        websocket_deployment = apigwv2.CfnDeployment(
+            self, "WebSocketDeployment",
+            api_id=websocket_api.ref,
+        )
+        websocket_deployment.add_dependency(connect_route)
+        websocket_deployment.add_dependency(disconnect_route)
+
+        # Create stage
+        websocket_stage = apigwv2.CfnStage(
+            self, "WebSocketStage",
+            api_id=websocket_api.ref,
+            deployment_id=websocket_deployment.ref,
+            stage_name="prod",
+        )
+
+        # Grant API Gateway permission to invoke Lambda functions
+        websocket_connect_lambda.add_permission(
+            "WebSocketConnectInvokePermission",
+            principal=iam.ServicePrincipal("apigateway.amazonaws.com"),
+            source_arn=f"arn:aws:execute-api:{self.region}:{self.account}:{websocket_api.ref}/*/*",
+        )
+
+        websocket_disconnect_lambda.add_permission(
+            "WebSocketDisconnectInvokePermission",
+            principal=iam.ServicePrincipal("apigateway.amazonaws.com"),
+            source_arn=f"arn:aws:execute-api:{self.region}:{self.account}:{websocket_api.ref}/*/*",
+        )
+
+        # Store WebSocket API endpoint for output
+        websocket_url = f"wss://{websocket_api.ref}.execute-api.{self.region}.amazonaws.com/{websocket_stage.stage_name}"
 
         # ============ Grant AgentCore Execution Role Access to Secret ============
 
@@ -461,8 +604,32 @@ class InfrastructureStack(Stack):
             export_name=f"{self.stack_name}-AgentCoreSecretsPolicyArn"
         )
 
+        CfnOutput(
+            self, "WebSocketApiUrl",
+            value=websocket_url,
+            description="WebSocket API Gateway URL for dynamic UI updates",
+            export_name=f"{self.stack_name}-WebSocketApiUrl"
+        )
+
+        CfnOutput(
+            self, "WebSocketApiId",
+            value=websocket_api.ref,
+            description="WebSocket API Gateway ID",
+            export_name=f"{self.stack_name}-WebSocketApiId"
+        )
+
+        CfnOutput(
+            self, "WebSocketConnectionsTable",
+            value=websocket_connections_table.table_name,
+            description="DynamoDB table for WebSocket connections",
+            export_name=f"{self.stack_name}-WebSocketConnectionsTable"
+        )
+
         # Store for programmatic access
         self.user_pool_id = user_pool.user_pool_id
         self.user_pool_client_id = user_pool_client.user_pool_client_id
         self.api_url = webhook_url.url
         self.secret_arn = dataforseo_auth_param.parameter_name
+        self.websocket_url = websocket_url
+        self.websocket_api_id = websocket_api.ref
+        self.websocket_connections_table_name = websocket_connections_table.table_name
