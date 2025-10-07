@@ -348,18 +348,6 @@ class InfrastructureStack(Stack):
             }
         ))
 
-        # Add policy for WebSocket API connections (for frontend to connect)
-        authenticated_role.add_to_policy(iam.PolicyStatement(
-            effect=iam.Effect.ALLOW,
-            actions=[
-                "execute-api:Invoke",
-                "execute-api:ManageConnections",
-            ],
-            resources=[
-                f"arn:aws:execute-api:{self.region}:{self.account}:{websocket_api.ref}/*",
-            ]
-        ))
-
         # Copy shared directory to lambda during bundling
         lambda_dir = Path("lambda")
         shared_src = Path("../shared")
@@ -521,6 +509,18 @@ class InfrastructureStack(Stack):
 
         # Store WebSocket API endpoint for output
         websocket_url = f"wss://{websocket_api.ref}.execute-api.{self.region}.amazonaws.com/{websocket_stage.stage_name}"
+
+        # Grant authenticated Cognito role permissions to connect to WebSocket API
+        authenticated_role.add_to_policy(iam.PolicyStatement(
+            effect=iam.Effect.ALLOW,
+            actions=[
+                "execute-api:Invoke",
+                "execute-api:ManageConnections",
+            ],
+            resources=[
+                f"arn:aws:execute-api:{self.region}:{self.account}:{websocket_api.ref}/*",
+            ]
+        ))
 
         # ============ Grant AgentCore Execution Role Access to Secret ============
 
