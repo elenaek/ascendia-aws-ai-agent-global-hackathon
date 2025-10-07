@@ -8,6 +8,7 @@ import { ChatInterface } from '@/components/dashboard/chat-interface'
 import { CompetitorsPanel } from '@/components/dashboard/competitors-panel'
 import { InsightsPanel } from '@/components/dashboard/insights-panel'
 import { Header } from '@/components/dashboard/header'
+import { Vortex } from '@/components/ui/vortex'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -40,11 +41,16 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      {/* <Vortex
+      <Vortex
         backgroundColor="black"
-        rangeY={800}
-        particleCount={100}
-      > */}
+        rangeY={400}
+        particleCount={50}
+        baseHue={190}
+        baseSpeed={0.1}
+        rangeSpeed={0.8}
+        baseRadius={0.8}
+        rangeRadius={1.5}
+      >
         <main className="container mx-auto p-6 space-y-6">
           {/* Main Grid Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -60,7 +66,7 @@ export default function DashboardPage() {
             </div>
           </div>
         </main>
-      {/* </Vortex> */}
+      </Vortex>
     </div>
   )
 }

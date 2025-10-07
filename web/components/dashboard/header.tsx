@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Building2, LogOut, User } from 'lucide-react'
+import { Building2, LogOut, User, LayoutDashboard } from 'lucide-react'
 
 export function Header() {
   const router = useRouter()
@@ -26,13 +26,20 @@ export function Header() {
     router.push('/profile')
   }
 
+  const handleDashboardClick = () => {
+    router.push('/dashboard')
+  }
+
   return (
     <header className="border-b border-primary/20 bg-panel backdrop-blur-lg sticky top-0 z-50">
       <div className="container mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
           {/* Logo */}
           <div className="flex items-center gap-3">
-            <div className="text-3xl font-bold text-primary text-glow">
+            <div
+              className="text-3xl font-bold text-primary text-glow cursor-pointer hover:text-primary/80 transition-colors"
+              onClick={handleDashboardClick}
+            >
               Ascendia
             </div>
             {company && (
@@ -62,6 +69,13 @@ export function Header() {
               align="end"
               className="w-48 bg-card border-primary/20"
             >
+              <DropdownMenuItem
+                className="cursor-pointer hover:bg-primary/10"
+                onClick={handleDashboardClick}
+              >
+                <LayoutDashboard className="w-4 h-4 mr-2" />
+                Dashboard
+              </DropdownMenuItem>
               <DropdownMenuItem
                 className="cursor-pointer hover:bg-primary/10"
                 onClick={handleProfileClick}

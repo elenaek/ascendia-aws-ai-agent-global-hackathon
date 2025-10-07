@@ -30,8 +30,8 @@ export function MessageContent({ content, role, className }: MessageContentProps
         components={{
           // Custom component rendering for better styling
           p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-          ul: ({ children }) => <ul className="list-disc list-inside mb-2 space-y-1 gap-2">{children}</ul>,
-          ol: ({ children }) => <ol className="list-decimal list-inside mb-2 space-y-1 gap-2">{children}</ol>,
+          ul: ({ children }) => <ul className="list-disc mb-2 ml-2 space-y-1 gap-2">{children}</ul>,
+          ol: ({ children }) => <ol className="list-decimal mb-2 ml-2 space-y-1 gap-2">{children}</ol>,
           li: ({ children }) => <li className="ml-2 gap-2">{children}</li>,
           code: (props) => {
             const { inline, children, ...rest } = props as { inline?: boolean; children?: React.ReactNode; [key: string]: unknown }

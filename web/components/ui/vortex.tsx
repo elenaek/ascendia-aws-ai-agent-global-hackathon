@@ -25,6 +25,11 @@ export const Vortex = (props: VortexProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef(null);
   const animationFrameId = useRef<number | undefined>(undefined);
+  const isUserInteracting = useRef(false);
+  const isVisible = useRef(true);
+  const isTabActive = useRef(true);
+  const interactionTimeout = useRef<NodeJS.Timeout | undefined>(undefined);
+  const frameCount = useRef(0);
   const particleCount = props.particleCount || 700;
   const particlePropCount = 9;
   const particlePropsLength = particleCount * particlePropCount;
@@ -36,7 +41,7 @@ export const Vortex = (props: VortexProps) => {
   const baseRadius = props.baseRadius || 1;
   const rangeRadius = props.rangeRadius || 2;
   const baseHue = props.baseHue || 220;
-  const rangeHue = 100;
+  const rangeHue = 20;
   const noiseSteps = 3;
   const xOff = 0.00125;
   const yOff = 0.00125;
@@ -103,16 +108,25 @@ export const Vortex = (props: VortexProps) => {
   };
 
   const draw = (canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) => {
-    tick++;
+    // Check if animation should be paused
+    const shouldAnimate = isVisible.current && isTabActive.current && !isUserInteracting.current;
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Frame rate limiting: only render every other frame (30fps instead of 60fps)
+    frameCount.current++;
+    const shouldRender = frameCount.current % 2 === 0;
 
-    ctx.fillStyle = backgroundColor;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    if (shouldAnimate && shouldRender) {
+      tick++;
 
-    drawParticles(ctx);
-    renderGlow(canvas, ctx);
-    renderToScreen(canvas, ctx);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = backgroundColor;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      drawParticles(ctx);
+      renderGlow(canvas, ctx);
+      renderToScreen(canvas, ctx);
+    }
 
     animationFrameId.current = window.requestAnimationFrame(() =>
       draw(canvas, ctx),
@@ -210,13 +224,7 @@ export const Vortex = (props: VortexProps) => {
     ctx: CanvasRenderingContext2D,
   ) => {
     ctx.save();
-    ctx.filter = "blur(8px) brightness(200%)";
-    ctx.globalCompositeOperation = "lighter";
-    ctx.drawImage(canvas, 0, 0);
-    ctx.restore();
-
-    ctx.save();
-    ctx.filter = "blur(4px) brightness(200%)";
+    ctx.filter = "blur(6px) brightness(150%)";
     ctx.globalCompositeOperation = "lighter";
     ctx.drawImage(canvas, 0, 0);
     ctx.restore();
@@ -244,8 +252,65 @@ export const Vortex = (props: VortexProps) => {
     setup();
     window.addEventListener("resize", handleResize);
 
+    // User interaction detection - pause animation during interaction
+    const handleUserInteraction = () => {
+      isUserInteracting.current = true;
+
+      // Clear existing timeout
+      if (interactionTimeout.current) {
+        clearTimeout(interactionTimeout.current);
+      }
+
+      // Resume animation after 200ms of no interaction
+      interactionTimeout.current = setTimeout(() => {
+        isUserInteracting.current = false;
+      }, 200);
+    };
+
+    // Add interaction listeners
+    window.addEventListener("keydown", handleUserInteraction);
+    window.addEventListener("mousemove", handleUserInteraction);
+    window.addEventListener("click", handleUserInteraction);
+    window.addEventListener("scroll", handleUserInteraction, true);
+
+    // Page Visibility API - pause when tab is inactive
+    const handleVisibilityChange = () => {
+      isTabActive.current = !document.hidden;
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    // Intersection Observer - pause when canvas not visible
+    const canvas = canvasRef.current;
+    let observer: IntersectionObserver | undefined;
+
+    if (canvas) {
+      observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            isVisible.current = entry.intersectionRatio > 0.1;
+          });
+        },
+        { threshold: [0, 0.1, 0.5, 1] }
+      );
+      observer.observe(canvas);
+    }
+
     return () => {
       window.removeEventListener("resize", handleResize);
+      window.removeEventListener("keydown", handleUserInteraction);
+      window.removeEventListener("mousemove", handleUserInteraction);
+      window.removeEventListener("click", handleUserInteraction);
+      window.removeEventListener("scroll", handleUserInteraction, true);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+
+      if (interactionTimeout.current) {
+        clearTimeout(interactionTimeout.current);
+      }
+
+      if (observer && canvas) {
+        observer.unobserve(canvas);
+      }
+
       if (animationFrameId.current) {
         cancelAnimationFrame(animationFrameId.current);
       }
