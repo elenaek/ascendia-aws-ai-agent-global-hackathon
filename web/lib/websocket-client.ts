@@ -5,6 +5,9 @@
 
 import { fetchAuthSession } from 'aws-amplify/auth'
 import { WebSocketMessage } from '@/types/websocket-messages'
+import { SignatureV4 } from '@smithy/signature-v4'
+import { Sha256 } from '@aws-crypto/sha256-js'
+import { HttpRequest } from '@smithy/protocol-http'
 
 const WEBSOCKET_URL = process.env.NEXT_PUBLIC_WEBSOCKET_URL || ''
 const AWS_REGION = process.env.NEXT_PUBLIC_AWS_REGION || 'us-east-1'
@@ -42,45 +45,53 @@ export class WebSocketClient {
         throw new Error('No AWS credentials available')
       }
 
-      // Extract access key, secret key, and session token
-      const { accessKeyId, secretAccessKey, sessionToken } = credentials
+      // Parse the WebSocket URL
+      const wsUrl = new URL(WEBSOCKET_URL)
 
-      // Create the WebSocket URL with IAM auth query parameters
-      const url = new URL(WEBSOCKET_URL)
+      // Convert wss:// to https:// for signing (required by SigV4)
+      const signingUrl = WEBSOCKET_URL.replace('wss://', 'https://')
+      const parsedUrl = new URL(signingUrl)
 
-      // For WebSocket connections with IAM auth, we need to sign the connection request
-      // AWS AppSync/API Gateway uses SigV4 signing for WebSocket connections
-
-      // Create canonical request
-      const timestamp = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '')
-      const date = timestamp.substring(0, 8)
-
-      const headers = {
-        host: url.host,
-        'x-amz-date': timestamp,
-        ...(sessionToken && { 'x-amz-security-token': sessionToken })
-      }
-
-      // For WebSocket connections with IAM, we'll use the header-based approach
-      // Since WebSocket doesn't support custom headers in browser, we'll pass credentials via query params
-      // This is a simplified approach - in production you might want to use a signing library
-
-      const queryParams = new URLSearchParams({
-        'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
-        'X-Amz-Credential': `${accessKeyId}/${date}/${AWS_REGION}/execute-api/aws4_request`,
-        'X-Amz-Date': timestamp,
-        'X-Amz-SignedHeaders': 'host',
+      // Create HTTP request for signing with presign
+      const request = new HttpRequest({
+        method: 'GET',
+        protocol: 'https:',
+        hostname: parsedUrl.hostname,
+        path: parsedUrl.pathname,
+        headers: {
+          host: parsedUrl.hostname,
+        },
       })
 
-      if (sessionToken) {
-        queryParams.set('X-Amz-Security-Token', sessionToken)
+      // Create SigV4 signer with presigning
+      const signer = new SignatureV4({
+        credentials: {
+          accessKeyId: credentials.accessKeyId,
+          secretAccessKey: credentials.secretAccessKey,
+          sessionToken: credentials.sessionToken,
+        },
+        region: AWS_REGION,
+        service: 'execute-api',
+        sha256: Sha256,
+      })
+
+      // Presign the request (300 second expiry)
+      const presigned = await signer.presign(request, {
+        expiresIn: 300,
+      })
+
+      // Build the final WebSocket URL
+      const signedUrl = new URL(WEBSOCKET_URL)
+
+      // Copy all query parameters from presigned request
+      if (presigned.query) {
+        Object.entries(presigned.query).forEach(([key, value]) => {
+          signedUrl.searchParams.set(key, value as string)
+        })
       }
 
-      // For proper SigV4 signing, we'd need to compute a signature
-      // For now, we'll rely on IAM authorizer accepting the credentials
-      // In production, use @aws-sdk/signature-v4 for proper signing
-
-      return `${url.toString()}?${queryParams.toString()}`
+      console.log('WebSocket URL signed successfully')
+      return signedUrl.toString()
     } catch (error) {
       console.error('Error signing WebSocket URL:', error)
       throw error
