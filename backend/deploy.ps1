@@ -13,9 +13,46 @@ if (-Not (Test-Path ".env")) {
 # Build the agentcore deploy command
 $deployCmd = "agentcore deploy"
 
-# Parse .env file and append --env flags
-Write-Host "Reading environment variables from .env..." -ForegroundColor Blue
+# First pass: Check if ENV_VARS_TO_PACK is specified
+$varsToPack = $null
+$allowedVars = @()
 
+Get-Content ".env" | ForEach-Object {
+    $line = $_.Trim()
+
+    # Skip empty lines and comments
+    if ([string]::IsNullOrWhiteSpace($line) -or $line.StartsWith("#")) {
+        return
+    }
+
+    # Split on first = only
+    $parts = $line -split '=', 2
+
+    if ($parts.Length -ne 2) {
+        return
+    }
+
+    $key = $parts[0].Trim()
+
+    if ($key -eq "ENV_VARS_TO_PACK") {
+        $value = $parts[1].Trim().Trim('"', "'")
+        $varsToPack = $value
+
+        # Split by comma and trim each var name
+        $allowedVars = $varsToPack -split ',' | ForEach-Object { $_.Trim() }
+        return
+    }
+}
+
+# Parse .env file and append --env flags
+if ($varsToPack) {
+    Write-Host "Scoped deployment: Only packing specified variables" -ForegroundColor Yellow
+    Write-Host "Variables to pack: $varsToPack" -ForegroundColor Blue
+} else {
+    Write-Host "Reading all environment variables from .env..." -ForegroundColor Blue
+}
+
+# Second pass: Pack the environment variables
 Get-Content ".env" | ForEach-Object {
     $line = $_.Trim()
 
@@ -39,6 +76,16 @@ Get-Content ".env" | ForEach-Object {
         return
     }
 
+    # Skip ENV_VARS_TO_PACK itself
+    if ($key -eq "ENV_VARS_TO_PACK") {
+        return
+    }
+
+    # If scoping is enabled, check if this var is in the allowed list
+    if ($varsToPack -and -not ($allowedVars -contains $key)) {
+        return
+    }
+
     # Remove quotes from value if present
     $value = $value.Trim('"', "'")
 
@@ -50,7 +97,7 @@ Get-Content ".env" | ForEach-Object {
 }
 
 # Execute the deploy command
-Write-Host "Executing: $deployCmd" -ForegroundColor Blue
+Write-Host "Executing deployment..." -ForegroundColor Blue
 Invoke-Expression $deployCmd
 
 Write-Host "=== Deploy Complete ===" -ForegroundColor Green

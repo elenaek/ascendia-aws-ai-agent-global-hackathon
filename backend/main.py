@@ -19,10 +19,10 @@ from bedrock_agentcore.identity.auth import requires_api_key
 
 from websocket_helper import send_ui_update_to_identity
 
-COGNITO_USER_POOL_ID="us-east-1_boVMbYh4u"
-COGNITO_IDENTITY_POOL_ID="us-east-1:f4f3f1af-8c82-4ad5-93af-39a9e984277d"
-AWS_REGION="us-east-1"
-AWS_ACCOUNT_ID = os.environ.get('AWS_ACCOUNT_ID', '738859113996')
+COGNITO_USER_POOL_ID=os.getenv("COGNITO_USER_POOL_ID")
+COGNITO_IDENTITY_POOL_ID=os.getenv("COGNITO_IDENTITY_POOL_ID")
+AWS_REGION=os.getenv("AWS_REGION")
+AWS_ACCOUNT_ID = os.getenv("AWS_ACCOUNT_ID")
 
 app = BedrockAgentCoreApp()
 model = BedrockModel(model_id="us.amazon.nova-pro-v1:0")
