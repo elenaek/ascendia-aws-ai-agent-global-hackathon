@@ -619,7 +619,7 @@ class InfrastructureStack(Stack):
         )
 
         CfnOutput(
-            self, "WebSocketConnectionsTable",
+            self, "WebSocketConnectionsTableName",
             value=websocket_connections_table.table_name,
             description="DynamoDB table for WebSocket connections",
             export_name=f"{self.stack_name}-WebSocketConnectionsTable"
