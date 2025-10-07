@@ -4,16 +4,23 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/stores/auth-store'
 import { useAnalyticsStore } from '@/stores/analytics-store'
+import { useChatStore } from '@/stores/chat-store'
 import { ChatInterface } from '@/components/dashboard/chat-interface'
 import { CompetitorsPanel } from '@/components/dashboard/competitors-panel'
 import { InsightsPanel } from '@/components/dashboard/insights-panel'
 import { Header } from '@/components/dashboard/header'
 import { Vortex } from '@/components/ui/vortex'
+import { DynamicUIOverlay } from '@/components/dashboard/dynamic-ui-overlay'
+import { useWebSocketUI } from '@/hooks/useWebSocketUI'
 
 export default function DashboardPage() {
   const router = useRouter()
   const { isAuthenticated, isLoading } = useAuthStore()
   const { company } = useAnalyticsStore()
+  const { isLoading: isChatLoading } = useChatStore()
+
+  // Connect to WebSocket when agent is responding
+  useWebSocketUI({ enabled: isChatLoading })
 
   useEffect(() => {
     // If not authenticated, redirect to auth
@@ -67,6 +74,9 @@ export default function DashboardPage() {
           </div>
         </main>
       </Vortex>
+
+      {/* Dynamic UI Overlay - Cards and Progress */}
+      <DynamicUIOverlay />
     </div>
   )
 }
