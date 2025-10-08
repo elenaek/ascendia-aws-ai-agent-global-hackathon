@@ -12,9 +12,10 @@ interface ToolbarItemProps {
   onClick: () => void
   onClose?: () => void
   isActive?: boolean
+  isHighlighted?: boolean
 }
 
-const ToolbarItem = ({ icon, label, badge, onClick, onClose, isActive }: ToolbarItemProps) => {
+const ToolbarItem = ({ icon, label, badge, onClick, onClose, isActive, isHighlighted }: ToolbarItemProps) => {
   return (
     <motion.div
       initial={{ scale: 0, opacity: 0 }}
@@ -29,7 +30,8 @@ const ToolbarItem = ({ icon, label, badge, onClick, onClose, isActive }: Toolbar
           "flex items-center gap-2 px-3 py-1.5 rounded-md transition-all duration-200",
           "bg-background/80 backdrop-blur-sm border border-primary/30",
           "hover:bg-primary/10 hover:border-primary/50 hover:shadow-lg",
-          isActive && "bg-primary/20 border-primary/60 shadow-md"
+          isActive && "bg-primary/20 border-primary/60 shadow-md",
+          isHighlighted && "element-highlighted"
         )}
         title={label}
       >
@@ -68,6 +70,7 @@ export function AgentToolbar() {
     insightsCarousel,
     expandInsightsCarousel,
     hideInsightsCarousel,
+    highlightedToolbarItems,
   } = useUIStore()
 
   // Determine which items should be shown in the toolbar
@@ -101,6 +104,7 @@ export function AgentToolbar() {
                     onClick={expandCompetitorCarousel}
                     onClose={hideCompetitorCarousel}
                     isActive={false}
+                    isHighlighted={highlightedToolbarItems.has('competitors')}
                   />
                 )}
 
@@ -113,6 +117,7 @@ export function AgentToolbar() {
                     onClick={expandInsightsCarousel}
                     onClose={hideInsightsCarousel}
                     isActive={false}
+                    isHighlighted={highlightedToolbarItems.has('insights')}
                   />
                 )}
 

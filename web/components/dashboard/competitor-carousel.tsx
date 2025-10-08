@@ -3,6 +3,13 @@
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Building2, ExternalLink, X, Plus, Minimize2, Check, Trash2 } from 'lucide-react'
 import { IconArrowNarrowRight } from '@tabler/icons-react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -10,7 +17,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { useAnalyticsStore } from '@/stores/analytics-store'
 import { CompetitorContextPayload } from '@/types/websocket-messages'
 import { toast } from 'sonner'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { cn } from '@/lib/utils'
 
 interface CompetitorSlideProps {
@@ -255,16 +262,50 @@ export function CompetitorCarousel() {
   const [current, setCurrent] = useState(0)
   const [isSaving, setIsSaving] = useState(false)
   const [addedIndices, setAddedIndices] = useState<Set<number>>(new Set())
+  const [selectedCategory, setSelectedCategory] = useState<string>('all')
 
   const { visible, minimized, competitors } = competitorCarousel
+
+  // Extract unique categories
+  const categories = useMemo(() => {
+    const uniqueCategories = new Set<string>()
+    competitors.forEach((competitor) => {
+      if (competitor.category) {
+        uniqueCategories.add(competitor.category)
+      }
+    })
+    return Array.from(uniqueCategories).sort()
+  }, [competitors])
+
+  // Filter competitors by selected category
+  const filteredCompetitors = useMemo(() => {
+    if (selectedCategory === 'all') {
+      return competitors
+    }
+    return competitors.filter((competitor) => competitor.category === selectedCategory)
+  }, [competitors, selectedCategory])
 
   // Reset current index and added indices when carousel becomes visible
   useEffect(() => {
     if (visible) {
       setCurrent(0)
       setAddedIndices(new Set())
+      setSelectedCategory('all')
     }
   }, [visible])
+
+  // Sync current index when competitors array changes (e.g., when items are removed)
+  useEffect(() => {
+    if (current >= filteredCompetitors.length && filteredCompetitors.length > 0) {
+      setCurrent(filteredCompetitors.length - 1)
+    }
+  }, [filteredCompetitors.length, current])
+
+  // Reset to first item when category changes
+  const handleCategoryChange = (value: string) => {
+    setSelectedCategory(value)
+    setCurrent(0)
+  }
 
   if (!visible || competitors.length === 0) {
     return null
@@ -272,12 +313,12 @@ export function CompetitorCarousel() {
 
   const handlePreviousClick = () => {
     const previous = current - 1
-    setCurrent(previous < 0 ? competitors.length - 1 : previous)
+    setCurrent(previous < 0 ? filteredCompetitors.length - 1 : previous)
   }
 
   const handleNextClick = () => {
     const next = current + 1
-    setCurrent(next === competitors.length ? 0 : next)
+    setCurrent(next === filteredCompetitors.length ? 0 : next)
   }
 
   const handleSlideClick = (index: number) => {
@@ -288,16 +329,19 @@ export function CompetitorCarousel() {
 
   // Check if a competitor already exists in the user's list
   const isCompetitorAlreadyAdded = (index: number) => {
-    if (addedIndices.has(index)) return true
+    // Find the original index in the unfiltered array
+    const competitor = filteredCompetitors[index]
+    const originalIndex = competitors.findIndex(c => c === competitor)
 
-    const competitor = competitors[index]
+    if (addedIndices.has(originalIndex)) return true
+
     return existingCompetitors.some(
       (existing) => existing.name.toLowerCase() === competitor.company_name.toLowerCase()
     )
   }
 
   const handleAddCompetitor = async () => {
-    const currentCompetitor = competitors[current]
+    const currentCompetitor = filteredCompetitors[current]
     setIsSaving(true)
     try {
       const { authenticatedFetch } = await import('@/lib/auth-utils')
@@ -325,8 +369,11 @@ export function CompetitorCarousel() {
       // Add to local store
       addCompetitor(result.data)
 
-      // Mark this competitor as added in the carousel
-      setAddedIndices(prev => new Set(prev).add(current))
+      // Mark this competitor as added in the carousel (use original index)
+      const originalIndex = competitors.findIndex(c => c === currentCompetitor)
+      if (originalIndex !== -1) {
+        setAddedIndices(prev => new Set(prev).add(originalIndex))
+      }
 
       toast.success(`${currentCompetitor.company_name} added to your competitors!`)
     } catch (error) {
@@ -360,7 +407,23 @@ export function CompetitorCarousel() {
             onClick={(e) => e.stopPropagation()}
           >
               {/* Action buttons */}
-              <div className="absolute top-6 right-6 flex gap-2 z-10">
+              <div className="absolute top-6 right-6 flex gap-2 z-10 items-center">
+                {/* Category Filter */}
+                {categories.length > 0 && (
+                  <Select value={selectedCategory} onValueChange={handleCategoryChange}>
+                    <SelectTrigger className="w-[180px] h-9 text-sm bg-background/80 backdrop-blur-sm border-primary/30">
+                      <SelectValue placeholder="All Categories" />
+                    </SelectTrigger>
+                    <SelectContent className="z-[80]">
+                      <SelectItem value="all">All Categories</SelectItem>
+                      {categories.map((category) => (
+                        <SelectItem key={category} value={category}>
+                          {category}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
                 <button
                   onClick={hideCompetitorCarousel}
                   className="text-muted-foreground hover:text-destructive transition-colors p-2 rounded-full bg-background/80 backdrop-blur-sm border border-primary/30 hover:bg-destructive/10 hover:border-destructive/30"
@@ -395,47 +458,64 @@ export function CompetitorCarousel() {
 
             {/* Carousel */}
             <div className="relative w-[70vmin] h-[70vmin]">
-              <ul
-                className="absolute flex mx-[-4vmin] transition-transform duration-1000 ease-in-out"
-                style={{
-                  transform: `translateX(-${current * (100 / competitors.length)}%)`,
-                }}
-              >
-                {competitors.map((competitor, index) => (
-                  <CompetitorSlide
-                    key={index}
-                    competitor={competitor}
-                    index={index}
-                    current={current}
-                    handleSlideClick={handleSlideClick}
-                    onAddCompetitor={handleAddCompetitor}
-                    onRemove={() => removeCompetitorFromCarousel(index)}
-                    isSaving={isSaving}
-                    isAlreadyAdded={isCompetitorAlreadyAdded(index)}
-                  />
-                ))}
-              </ul>
+              {filteredCompetitors.length === 0 ? (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-muted-foreground text-center">
+                    No competitors found for category "{selectedCategory}"
+                  </p>
+                </div>
+              ) : (
+                <ul
+                  className="absolute flex mx-[-4vmin] transition-transform duration-1000 ease-in-out"
+                  style={{
+                    transform: `translateX(-${current * (100 / filteredCompetitors.length)}%)`,
+                  }}
+                >
+                  {filteredCompetitors.map((competitor, index) => (
+                    <CompetitorSlide
+                      key={index}
+                      competitor={competitor}
+                      index={index}
+                      current={current}
+                      handleSlideClick={handleSlideClick}
+                      onAddCompetitor={handleAddCompetitor}
+                      onRemove={() => {
+                        // Find the original index in the unfiltered array
+                        const originalIndex = competitors.findIndex(c => c === competitor)
+                        if (originalIndex !== -1) {
+                          removeCompetitorFromCarousel(originalIndex)
+                        }
+                      }}
+                      isSaving={isSaving}
+                      isAlreadyAdded={isCompetitorAlreadyAdded(index)}
+                    />
+                  ))}
+                </ul>
+              )}
 
               {/* Navigation Controls */}
-              <div className="absolute flex justify-center items-center w-full top-[calc(100%+1rem)]">
-                <CarouselControl
-                  type="previous"
-                  title="Go to previous competitor"
-                  handleClick={handlePreviousClick}
-                  disabled={competitors.length === 1}
-                />
+              {filteredCompetitors.length > 0 && (
+                <div className="absolute flex justify-center items-center w-full top-[calc(100%+1rem)]">
+                  <CarouselControl
+                    type="previous"
+                    title="Go to previous competitor"
+                    handleClick={handlePreviousClick}
+                    disabled={filteredCompetitors.length === 1}
+                  />
 
-                <span className="text-sm text-muted-foreground font-medium min-w-[60px] text-center mx-4">
-                  {current + 1} of {competitors.length}
-                </span>
+                  <span className="text-sm text-muted-foreground font-medium min-w-[60px] text-center mx-4">
+                    {current + 1} of {filteredCompetitors.length}
+                    {selectedCategory !== 'all' && ` (${filteredCompetitors.length} filtered)`}
+                  </span>
 
-                <CarouselControl
-                  type="next"
-                  title="Go to next competitor"
-                  handleClick={handleNextClick}
-                  disabled={competitors.length === 1}
-                />
-              </div>
+                  <CarouselControl
+                    type="next"
+                    title="Go to next competitor"
+                    handleClick={handleNextClick}
+                    disabled={filteredCompetitors.length === 1}
+                  />
+                </div>
+              )}
             </div>
           </motion.div>
         </>

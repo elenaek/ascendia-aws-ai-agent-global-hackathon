@@ -14,10 +14,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { ExternalLink, Building2, Activity, Trash2, AlertTriangle } from 'lucide-react'
+import { ExternalLink, Building2, Activity, Trash2, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { useState } from 'react'
+
+const ITEMS_PER_PAGE = 3
 
 interface Competitor {
   id: string
@@ -32,6 +34,9 @@ export function CompetitorsPanel() {
   const { highlightedElements } = useUIStore()
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [competitorToDelete, setCompetitorToDelete] = useState<Competitor | null>(null)
+  const [directPage, setDirectPage] = useState(0)
+  const [indirectPage, setIndirectPage] = useState(0)
+  const [potentialPage, setPotentialPage] = useState(0)
 
   const directCompetitors = competitors.filter((c) => c.category === 'Direct Competitors')
   const indirectCompetitors = competitors.filter((c) => c.category === 'Indirect Competitors')
@@ -64,75 +69,121 @@ export function CompetitorsPanel() {
     setCompetitorToDelete(null)
   }
 
-  const CompetitorsList = ({ competitors }: { competitors: Competitor[] }) => (
-    <div className="space-y-3">
-      {competitors.length === 0 ? (
-        <p className="text-muted-foreground text-sm text-center py-8">
-          {company
-            ? `No competitors found for ${company.company_name} in this category`
-            : 'No competitors found in this category'}
-        </p>
-      ) : (
-        competitors.map((competitor) => (
-          <div
-            key={competitor.id}
-            className="p-3 bg-background/50 rounded-lg border border-primary/10 hover:border-primary/30 transition-colors"
-          >
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex items-center gap-2 flex-1">
-                <Building2 className="w-4 h-4 text-primary flex-shrink-0" />
-                <div className="flex-1">
-                  <h4 className="font-medium text-foreground">{competitor.name}</h4>
-                  {competitor.description && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {competitor.description}
-                    </p>
-                  )}
+  const CompetitorsList = ({
+    competitors,
+    currentPage,
+    onPageChange
+  }: {
+    competitors: Competitor[]
+    currentPage: number
+    onPageChange: (page: number) => void
+  }) => {
+    const totalPages = Math.ceil(competitors.length / ITEMS_PER_PAGE)
+    const startIndex = currentPage * ITEMS_PER_PAGE
+    const endIndex = startIndex + ITEMS_PER_PAGE
+    const paginatedCompetitors = competitors.slice(startIndex, endIndex)
+
+    return (
+      <>
+        <div className="space-y-2 min-h-[180px]">
+          {competitors.length === 0 ? (
+            <p className="text-muted-foreground text-sm text-center py-8">
+              {company
+                ? `No competitors found for ${company.company_name} in this category`
+                : 'No competitors found in this category'}
+            </p>
+          ) : (
+            paginatedCompetitors.map((competitor) => (
+              <div
+                key={competitor.id}
+                className="p-2 bg-background/50 rounded-md border border-primary/10 hover:border-primary/30 transition-colors"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2 flex-1">
+                    <Building2 className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                    <div className="flex-1">
+                      <h4 className="text-sm font-medium text-foreground">{competitor.name}</h4>
+                      {competitor.description && (
+                        <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">
+                          {competitor.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    {competitor.website && (
+                      <a
+                        href={competitor.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:text-primary/80"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteClick(competitor)}
+                      disabled={deletingId === competitor.id}
+                      className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                {competitor.website && (
-                  <a
-                    href={competitor.website}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:text-primary/80"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
-                )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleDeleteClick(competitor)}
-                  disabled={deletingId === competitor.id}
-                  className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
+            ))
+          )}
+        </div>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-3 pt-2 border-t border-primary/10">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onPageChange(currentPage - 1)}
+              disabled={currentPage === 0}
+              className="h-7 px-2 text-xs"
+            >
+              <ChevronLeft className="w-3.5 h-3.5 mr-1" />
+              Prev
+            </Button>
+            <span className="text-[11px] text-muted-foreground">
+              {currentPage + 1} of {totalPages}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onPageChange(currentPage + 1)}
+              disabled={currentPage === totalPages - 1}
+              className="h-7 px-2 text-xs"
+            >
+              Next
+              <ChevronRight className="w-3.5 h-3.5 ml-1" />
+            </Button>
           </div>
-        ))
-      )}
-    </div>
-  )
+        )}
+      </>
+    )
+  }
 
   return (
     <>
       <Card
         id="competitors-panel"
         className={cn(
-          "p-4 bg-panel border-primary/20 glow",
+          "p-3 bg-panel border-primary/20 glow",
           highlightedElements.has('competitors-panel') && 'element-highlighted'
         )}
       >
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2 mb-4">
-            <Activity className="w-5 h-5 text-primary" />
-            <h3 className="text-lg font-semibold text-primary">Competitors</h3>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Activity className="w-4 h-4 text-primary" />
+            <h3 className="text-base font-semibold text-primary">Competitors</h3>
           </div>
-          <Badge variant="outline" className="border-primary/30 text-primary">
+          <Badge variant="outline" className="border-primary/30 text-primary text-[11px]">
             {competitors.length} Total
           </Badge>
         </div>
@@ -156,15 +207,27 @@ export function CompetitorsPanel() {
             </TabsList>
 
             <TabsContent value="direct" className="mt-4">
-              <CompetitorsList competitors={directCompetitors} />
+              <CompetitorsList
+                competitors={directCompetitors}
+                currentPage={directPage}
+                onPageChange={setDirectPage}
+              />
             </TabsContent>
 
             <TabsContent value="indirect" className="mt-4">
-              <CompetitorsList competitors={indirectCompetitors} />
+              <CompetitorsList
+                competitors={indirectCompetitors}
+                currentPage={indirectPage}
+                onPageChange={setIndirectPage}
+              />
             </TabsContent>
 
             <TabsContent value="potential" className="mt-4">
-              <CompetitorsList competitors={potentialCompetitors} />
+              <CompetitorsList
+                competitors={potentialCompetitors}
+                currentPage={potentialPage}
+                onPageChange={setPotentialPage}
+              />
             </TabsContent>
           </Tabs>
         )}

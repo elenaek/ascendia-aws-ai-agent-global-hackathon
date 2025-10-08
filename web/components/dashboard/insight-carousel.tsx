@@ -2,12 +2,19 @@
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Lightbulb, Sparkles, AlertCircle, Info, X, Minimize2, Trash2 } from 'lucide-react'
 import { IconArrowNarrowRight } from '@tabler/icons-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useUIStore } from '@/stores/ui-store'
 import { InsightPayload } from '@/types/websocket-messages'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { cn } from '@/lib/utils'
 
 interface InsightSlideProps {
@@ -222,15 +229,49 @@ export function InsightCarousel() {
     removeInsightFromCarousel,
   } = useUIStore()
   const [current, setCurrent] = useState(0)
+  const [selectedCategory, setSelectedCategory] = useState<string>('all')
 
   const { visible, minimized, insights } = insightsCarousel
+
+  // Extract unique categories
+  const categories = useMemo(() => {
+    const uniqueCategories = new Set<string>()
+    insights.forEach((insight) => {
+      if (insight.category) {
+        uniqueCategories.add(insight.category)
+      }
+    })
+    return Array.from(uniqueCategories).sort()
+  }, [insights])
+
+  // Filter insights by selected category
+  const filteredInsights = useMemo(() => {
+    if (selectedCategory === 'all') {
+      return insights
+    }
+    return insights.filter((insight) => insight.category === selectedCategory)
+  }, [insights, selectedCategory])
 
   // Reset current index when carousel becomes visible
   useEffect(() => {
     if (visible) {
       setCurrent(0)
+      setSelectedCategory('all')
     }
   }, [visible])
+
+  // Sync current index when insights array changes (e.g., when items are removed)
+  useEffect(() => {
+    if (current >= filteredInsights.length && filteredInsights.length > 0) {
+      setCurrent(filteredInsights.length - 1)
+    }
+  }, [filteredInsights.length, current])
+
+  // Reset to first item when category changes
+  const handleCategoryChange = (value: string) => {
+    setSelectedCategory(value)
+    setCurrent(0)
+  }
 
   if (!visible || insights.length === 0) {
     return null
@@ -238,12 +279,12 @@ export function InsightCarousel() {
 
   const handlePreviousClick = () => {
     const previous = current - 1
-    setCurrent(previous < 0 ? insights.length - 1 : previous)
+    setCurrent(previous < 0 ? filteredInsights.length - 1 : previous)
   }
 
   const handleNextClick = () => {
     const next = current + 1
-    setCurrent(next === insights.length ? 0 : next)
+    setCurrent(next === filteredInsights.length ? 0 : next)
   }
 
   const handleSlideClick = (index: number) => {
@@ -275,7 +316,23 @@ export function InsightCarousel() {
             onClick={(e) => e.stopPropagation()}
           >
             {/* Action buttons */}
-            <div className="absolute top-6 right-6 flex gap-2 z-10">
+            <div className="absolute top-6 right-6 flex gap-2 z-10 items-center">
+              {/* Category Filter */}
+              {categories.length > 0 && (
+                <Select value={selectedCategory} onValueChange={handleCategoryChange}>
+                  <SelectTrigger className="w-[140px] h-9 text-sm bg-background/80 backdrop-blur-sm border-primary/30">
+                    <SelectValue placeholder="All Categories" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[80]">
+                    <SelectItem value="all">All Categories</SelectItem>
+                    {categories.map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {category}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
               <button
                 onClick={hideInsightsCarousel}
                 className="text-muted-foreground hover:text-destructive transition-colors p-2 rounded-full bg-background/80 backdrop-blur-sm border border-primary/30 hover:bg-destructive/10 hover:border-destructive/30"
@@ -310,44 +367,61 @@ export function InsightCarousel() {
 
             {/* Carousel */}
             <div className="relative w-[70vmin] h-[70vmin]">
-              <ul
-                className="absolute flex mx-[-4vmin] transition-transform duration-1000 ease-in-out"
-                style={{
-                  transform: `translateX(-${current * (100 / insights.length)}%)`,
-                }}
-              >
-                {insights.map((insight, index) => (
-                  <InsightSlide
-                    key={index}
-                    insight={insight}
-                    index={index}
-                    current={current}
-                    handleSlideClick={handleSlideClick}
-                    onRemove={() => removeInsightFromCarousel(index)}
-                  />
-                ))}
-              </ul>
+              {filteredInsights.length === 0 ? (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-muted-foreground text-center">
+                    No insights found for category "{selectedCategory}"
+                  </p>
+                </div>
+              ) : (
+                <ul
+                  className="absolute flex mx-[-4vmin] transition-transform duration-1000 ease-in-out"
+                  style={{
+                    transform: `translateX(-${current * (100 / filteredInsights.length)}%)`,
+                  }}
+                >
+                  {filteredInsights.map((insight, index) => (
+                    <InsightSlide
+                      key={index}
+                      insight={insight}
+                      index={index}
+                      current={current}
+                      handleSlideClick={handleSlideClick}
+                      onRemove={() => {
+                        // Find the original index in the unfiltered array
+                        const originalIndex = insights.findIndex(i => i === insight)
+                        if (originalIndex !== -1) {
+                          removeInsightFromCarousel(originalIndex)
+                        }
+                      }}
+                    />
+                  ))}
+                </ul>
+              )}
 
               {/* Navigation Controls */}
-              <div className="absolute flex justify-center items-center w-full top-[calc(100%+1rem)]">
-                <CarouselControl
-                  type="previous"
-                  title="Go to previous insight"
-                  handleClick={handlePreviousClick}
-                  disabled={insights.length === 1}
-                />
+              {filteredInsights.length > 0 && (
+                <div className="absolute flex justify-center items-center w-full top-[calc(100%+1rem)]">
+                  <CarouselControl
+                    type="previous"
+                    title="Go to previous insight"
+                    handleClick={handlePreviousClick}
+                    disabled={filteredInsights.length === 1}
+                  />
 
-                <span className="text-sm text-muted-foreground font-medium min-w-[60px] text-center mx-4">
-                  {current + 1} of {insights.length}
-                </span>
+                  <span className="text-sm text-muted-foreground font-medium min-w-[60px] text-center mx-4">
+                    {current + 1} of {filteredInsights.length}
+                    {selectedCategory !== 'all' && ` (${filteredInsights.length} filtered)`}
+                  </span>
 
-                <CarouselControl
-                  type="next"
-                  title="Go to next insight"
-                  handleClick={handleNextClick}
-                  disabled={insights.length === 1}
-                />
-              </div>
+                  <CarouselControl
+                    type="next"
+                    title="Go to next insight"
+                    handleClick={handleNextClick}
+                    disabled={filteredInsights.length === 1}
+                  />
+                </div>
+              )}
             </div>
           </motion.div>
         </>

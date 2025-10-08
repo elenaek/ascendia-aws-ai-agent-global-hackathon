@@ -37,6 +37,9 @@ interface UIState {
   // Highlighted elements
   highlightedElements: Set<string>
 
+  // Highlighted toolbar items
+  highlightedToolbarItems: Set<string>
+
   // Competitor carousel state
   competitorCarousel: {
     visible: boolean
@@ -68,6 +71,9 @@ interface UIState {
   highlightElement: (elementId: string, duration?: number) => void
   unhighlightElement: (elementId: string) => void
 
+  highlightToolbarItem: (itemId: string, duration?: number) => void
+  unhighlightToolbarItem: (itemId: string) => void
+
   // Carousel actions
   showCompetitorCarousel: (competitors: CompetitorContextPayload[]) => void
   hideCompetitorCarousel: () => void
@@ -97,6 +103,7 @@ export const useUIStore = create<UIState>()(
   notifications: [],
   progressIndicators: [],
   highlightedElements: new Set(),
+  highlightedToolbarItems: new Set(),
   competitorCarousel: {
     visible: false,
     minimized: false,
@@ -197,7 +204,25 @@ export const useUIStore = create<UIState>()(
       return { highlightedElements: newSet }
     }),
 
-  showCompetitorCarousel: (competitors) =>
+  highlightToolbarItem: (itemId, duration = 3000) => {
+    set((state) => ({
+      highlightedToolbarItems: new Set(state.highlightedToolbarItems).add(itemId),
+    }))
+
+    // Auto-remove highlight after duration
+    setTimeout(() => {
+      get().unhighlightToolbarItem(itemId)
+    }, duration)
+  },
+
+  unhighlightToolbarItem: (itemId) =>
+    set((state) => {
+      const newSet = new Set(state.highlightedToolbarItems)
+      newSet.delete(itemId)
+      return { highlightedToolbarItems: newSet }
+    }),
+
+  showCompetitorCarousel: (competitors) => {
     set((state) => {
       // If carousel is already visible, append new competitors (avoiding duplicates by company_name)
       if (state.competitorCarousel.visible) {
@@ -219,16 +244,20 @@ export const useUIStore = create<UIState>()(
         }
       }
 
-      // If carousel is not visible, show it with the new competitors
+      // If carousel is not visible, show it minimized by default
       return {
         competitorCarousel: {
           visible: true,
-          minimized: false,
+          minimized: true,
           competitors,
           currentIndex: 0,
         },
       }
-    }),
+    })
+
+    // Highlight the toolbar item to draw attention
+    get().highlightToolbarItem('competitors')
+  },
 
   hideCompetitorCarousel: () =>
     set({
@@ -316,7 +345,7 @@ export const useUIStore = create<UIState>()(
       }
     }),
 
-  showInsightsCarousel: (insights) =>
+  showInsightsCarousel: (insights) => {
     set((state) => {
       // If carousel is already visible, append new insights (avoiding duplicates by title)
       if (state.insightsCarousel.visible) {
@@ -338,16 +367,20 @@ export const useUIStore = create<UIState>()(
         }
       }
 
-      // If carousel is not visible, show it with the new insights
+      // If carousel is not visible, show it minimized by default
       return {
         insightsCarousel: {
           visible: true,
-          minimized: false,
+          minimized: true,
           insights,
           currentIndex: 0,
         },
       }
-    }),
+    })
+
+    // Highlight the toolbar item to draw attention
+    get().highlightToolbarItem('insights')
+  },
 
   hideInsightsCarousel: () =>
     set({

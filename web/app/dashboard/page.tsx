@@ -72,14 +72,14 @@ export default function DashboardPage() {
       >
         <main className="container mx-auto p-6 space-y-6">
           {/* Main Grid Layout */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-3">
             {/* Left Column - Chat Interface */}
             <div className="lg:col-span-2">
               <ChatInterface />
             </div>
 
             {/* Right Column - Analytics Panels */}
-            <div className="space-y-6">
+            <div className="space-y-2">
               <CompetitorsPanel />
               <InsightsPanel />
             </div>

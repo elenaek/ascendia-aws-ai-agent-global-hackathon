@@ -260,17 +260,6 @@ def send_ui_update(
                 "duration": 3000  # 3 seconds
             }
         )
-
-        # Highlight before showing insight
-        send_ui_update(type="highlight_element", payload={"element_id": "insights-panel"})
-        send_ui_update(
-            type="show_insight",
-            payload={
-                "title": "Strategic Opportunity",
-                "content": "No competitors are addressing mobile learning effectively",
-                "severity": "success"
-            }
-        )
     """
     global _current_identity_id
 

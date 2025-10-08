@@ -26,7 +26,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-x-hidden">
       {/* Hero Section */}
       <div className="container mx-auto px-6 py-20">
         <div className="max-w-4xl mx-auto text-center space-y-8">
