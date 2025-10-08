@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import {
   CompetitorContextPayload,
   InsightPayload,
@@ -66,9 +67,15 @@ interface UIState {
   expandCompetitorCarousel: () => void
   nextCompetitor: () => void
   prevCompetitor: () => void
+  removeCompetitorFromCarousel: (index: number) => void
+
+  // Clear all persisted agent updates
+  clearAllAgentUpdates: () => void
 }
 
-export const useUIStore = create<UIState>((set, get) => ({
+export const useUIStore = create<UIState>()(
+  persist(
+    (set, get) => ({
   activeCards: [],
   notifications: [],
   progressIndicators: [],
@@ -249,4 +256,58 @@ export const useUIStore = create<UIState>((set, get) => ({
         },
       }
     }),
-}))
+
+  removeCompetitorFromCarousel: (index) =>
+    set((state) => {
+      const { competitors, currentIndex } = state.competitorCarousel
+      const newCompetitors = competitors.filter((_, i) => i !== index)
+
+      // If no more competitors, hide the carousel
+      if (newCompetitors.length === 0) {
+        return {
+          competitorCarousel: {
+            visible: false,
+            minimized: false,
+            competitors: [],
+            currentIndex: 0,
+          },
+        }
+      }
+
+      // Adjust currentIndex if needed
+      let newCurrentIndex = currentIndex
+      if (index < currentIndex) {
+        // Removed item was before current, shift index down
+        newCurrentIndex = currentIndex - 1
+      } else if (index === currentIndex) {
+        // Removed item was current, stay at same index (or go to previous if at end)
+        newCurrentIndex = currentIndex >= newCompetitors.length ? newCompetitors.length - 1 : currentIndex
+      }
+
+      return {
+        competitorCarousel: {
+          ...state.competitorCarousel,
+          competitors: newCompetitors,
+          currentIndex: newCurrentIndex,
+        },
+      }
+    }),
+
+  clearAllAgentUpdates: () =>
+    set({
+      competitorCarousel: {
+        visible: false,
+        minimized: false,
+        competitors: [],
+        currentIndex: 0,
+      },
+    }),
+    }),
+    {
+      name: 'agent-updates-storage',
+      partialize: (state) => ({
+        competitorCarousel: state.competitorCarousel,
+      }),
+    }
+  )
+)

@@ -10,6 +10,7 @@ import { ChatInterface } from '@/components/dashboard/chat-interface'
 import { CompetitorsPanel } from '@/components/dashboard/competitors-panel'
 import { InsightsPanel } from '@/components/dashboard/insights-panel'
 import { Header } from '@/components/dashboard/header'
+import { AgentToolbar } from '@/components/dashboard/agent-toolbar'
 import { Vortex } from '@/components/ui/vortex'
 import { DynamicUIOverlay } from '@/components/dashboard/dynamic-ui-overlay'
 import { useWebSocketUI } from '@/hooks/useWebSocketUI'
@@ -57,6 +58,7 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
+      <AgentToolbar />
       <Vortex
         backgroundColor="black"
         rangeY={400}

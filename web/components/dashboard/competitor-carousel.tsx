@@ -3,7 +3,7 @@
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Building2, ExternalLink, X, Plus, Minimize2, Maximize2, Check } from 'lucide-react'
+import { Building2, ExternalLink, X, Plus, Minimize2, Check, Trash2 } from 'lucide-react'
 import { IconArrowNarrowRight } from '@tabler/icons-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useUIStore } from '@/stores/ui-store'
@@ -19,6 +19,7 @@ interface CompetitorSlideProps {
   current: number
   handleSlideClick: (index: number) => void
   onAddCompetitor: () => void
+  onRemove: () => void
   isSaving: boolean
   isAlreadyAdded: boolean
 }
@@ -29,6 +30,7 @@ const CompetitorSlide = ({
   current,
   handleSlideClick,
   onAddCompetitor,
+  onRemove,
   isSaving,
   isAlreadyAdded,
 }: CompetitorSlideProps) => {
@@ -125,6 +127,18 @@ const CompetitorSlide = ({
 
           {/* Content */}
           <div className="relative h-full flex flex-col p-8">
+            {/* Remove Button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onRemove()
+              }}
+              className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-destructive/80 hover:bg-destructive flex items-center justify-center transition-all hover:scale-110 shadow-lg"
+              title="Remove from carousel"
+            >
+              <X className="w-4 h-4 text-destructive-foreground" />
+            </button>
+
             {/* Header */}
             <div className="flex items-start gap-4 mb-6">
               <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0 animate-glow-pulse">
@@ -235,7 +249,7 @@ export function CompetitorCarousel() {
     hideCompetitorCarousel,
     minimizeCompetitorCarousel,
     expandCompetitorCarousel,
-    highlightedElements
+    removeCompetitorFromCarousel,
   } = useUIStore()
   const { addCompetitor, competitors: existingCompetitors } = useAnalyticsStore()
   const [current, setCurrent] = useState(0)
@@ -325,58 +339,36 @@ export function CompetitorCarousel() {
 
   return (
     <AnimatePresence>
-      {visible && (
+      {visible && !minimized && (
         <>
-          {/* Minimized Floating Button */}
-          {minimized && (
-            <motion.button
-              id="competitor-carousel-minimized"
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0, opacity: 0 }}
-              onClick={expandCompetitorCarousel}
-              className={cn(
-                "fixed bottom-6 right-6 z-[70] bg-gradient-to-br from-purple-500 to-primary text-white p-4 rounded-full shadow-lg hover:shadow-xl transition-all hover:scale-110 glow group",
-                highlightedElements.has('competitor-carousel-minimized') && 'element-highlighted'
-              )}
-              title="Expand competitor carousel"
-            >
-              <div className="flex items-center gap-2">
-                <Building2 className="w-6 h-6" />
-                <span className="text-sm font-medium">
-                  {competitors.length} Competitors
-                </span>
-                <Maximize2 className="w-4 h-4 ml-1 opacity-70 group-hover:opacity-100" />
-              </div>
-              <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-xs font-bold animate-pulse">
-                {competitors.length}
-              </div>
-            </motion.button>
-          )}
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={hideCompetitorCarousel}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60]"
+          />
 
-          {/* Backdrop - only show when not minimized */}
-          {!minimized && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={hideCompetitorCarousel}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60]"
-            />
-          )}
-
-          {/* Carousel Container - only show when not minimized */}
-          {!minimized && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ duration: 0.3, ease: 'easeOut' }}
-              className="fixed inset-0 flex flex-col items-center justify-center z-[70] p-4"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Close and Minimize buttons */}
+          {/* Carousel Container */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+            className="fixed inset-0 flex flex-col items-center justify-center z-[70] p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+              {/* Action buttons */}
               <div className="absolute top-6 right-6 flex gap-2 z-10">
+                <button
+                  onClick={hideCompetitorCarousel}
+                  className="text-muted-foreground hover:text-destructive transition-colors p-2 rounded-full bg-background/80 backdrop-blur-sm border border-primary/30 hover:bg-destructive/10 hover:border-destructive/30"
+                  aria-label="Clear all"
+                  title="Clear all competitors"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </button>
                 <button
                   onClick={minimizeCompetitorCarousel}
                   className="text-muted-foreground hover:text-foreground transition-colors p-2 rounded-full bg-background/80 backdrop-blur-sm border border-primary/30 hover:bg-primary/10"
@@ -384,14 +376,6 @@ export function CompetitorCarousel() {
                   title="Minimize"
                 >
                   <Minimize2 className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={hideCompetitorCarousel}
-                  className="text-muted-foreground hover:text-foreground transition-colors p-2 rounded-full bg-background/80 backdrop-blur-sm border border-primary/30 hover:bg-primary/10"
-                  aria-label="Close"
-                  title="Close"
-                >
-                  <X className="w-6 h-6" />
                 </button>
               </div>
 
@@ -425,6 +409,7 @@ export function CompetitorCarousel() {
                     current={current}
                     handleSlideClick={handleSlideClick}
                     onAddCompetitor={handleAddCompetitor}
+                    onRemove={() => removeCompetitorFromCarousel(index)}
                     isSaving={isSaving}
                     isAlreadyAdded={isCompetitorAlreadyAdded(index)}
                   />
@@ -452,8 +437,7 @@ export function CompetitorCarousel() {
                 />
               </div>
             </div>
-            </motion.div>
-          )}
+          </motion.div>
         </>
       )}
     </AnimatePresence>
