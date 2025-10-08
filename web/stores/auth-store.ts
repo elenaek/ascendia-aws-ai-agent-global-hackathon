@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { useAnalyticsStore } from './analytics-store'
 import { useUIStore } from './ui-store'
+import { useChatStore } from './chat-store'
 
 interface User {
   id: string
@@ -43,6 +44,8 @@ export const useAuthStore = create<AuthState>()(
         useAnalyticsStore.getState().clearAll()
         // Clear UI store (agent updates)
         useUIStore.getState().clearAllAgentUpdates()
+        // Clear chat store (messages)
+        useChatStore.getState().clearMessages()
         // Clear session storage
         if (typeof window !== 'undefined') {
           sessionStorage.removeItem('auth-storage')

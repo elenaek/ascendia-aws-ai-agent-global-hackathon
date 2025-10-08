@@ -45,6 +45,14 @@ interface UIState {
     currentIndex: number
   }
 
+  // Insights carousel state
+  insightsCarousel: {
+    visible: boolean
+    minimized: boolean
+    insights: InsightPayload[]
+    currentIndex: number
+  }
+
   // Actions
   addCard: (type: 'competitor_context' | 'insight', data: CompetitorContextPayload | InsightPayload) => void
   removeCard: (id: string) => void
@@ -69,6 +77,15 @@ interface UIState {
   prevCompetitor: () => void
   removeCompetitorFromCarousel: (index: number) => void
 
+  // Insights carousel actions
+  showInsightsCarousel: (insights: InsightPayload[]) => void
+  hideInsightsCarousel: () => void
+  minimizeInsightsCarousel: () => void
+  expandInsightsCarousel: () => void
+  nextInsight: () => void
+  prevInsight: () => void
+  removeInsightFromCarousel: (index: number) => void
+
   // Clear all persisted agent updates
   clearAllAgentUpdates: () => void
 }
@@ -84,6 +101,12 @@ export const useUIStore = create<UIState>()(
     visible: false,
     minimized: false,
     competitors: [],
+    currentIndex: 0,
+  },
+  insightsCarousel: {
+    visible: false,
+    minimized: false,
+    insights: [],
     currentIndex: 0,
   },
 
@@ -293,6 +316,125 @@ export const useUIStore = create<UIState>()(
       }
     }),
 
+  showInsightsCarousel: (insights) =>
+    set((state) => {
+      // If carousel is already visible, append new insights (avoiding duplicates by title)
+      if (state.insightsCarousel.visible) {
+        const existingInsights = state.insightsCarousel.insights
+        const existingTitles = new Set(
+          existingInsights.map((i) => i.title.toLowerCase())
+        )
+
+        // Only add insights that don't already exist
+        const newInsights = insights.filter(
+          (i) => !existingTitles.has(i.title.toLowerCase())
+        )
+
+        return {
+          insightsCarousel: {
+            ...state.insightsCarousel,
+            insights: [...existingInsights, ...newInsights],
+          },
+        }
+      }
+
+      // If carousel is not visible, show it with the new insights
+      return {
+        insightsCarousel: {
+          visible: true,
+          minimized: false,
+          insights,
+          currentIndex: 0,
+        },
+      }
+    }),
+
+  hideInsightsCarousel: () =>
+    set({
+      insightsCarousel: {
+        visible: false,
+        minimized: false,
+        insights: [],
+        currentIndex: 0,
+      },
+    }),
+
+  minimizeInsightsCarousel: () =>
+    set((state) => ({
+      insightsCarousel: {
+        ...state.insightsCarousel,
+        minimized: true,
+      },
+    })),
+
+  expandInsightsCarousel: () =>
+    set((state) => ({
+      insightsCarousel: {
+        ...state.insightsCarousel,
+        minimized: false,
+      },
+    })),
+
+  nextInsight: () =>
+    set((state) => {
+      const { insights, currentIndex } = state.insightsCarousel
+      const nextIndex = currentIndex + 1 >= insights.length ? 0 : currentIndex + 1
+      return {
+        insightsCarousel: {
+          ...state.insightsCarousel,
+          currentIndex: nextIndex,
+        },
+      }
+    }),
+
+  prevInsight: () =>
+    set((state) => {
+      const { insights, currentIndex } = state.insightsCarousel
+      const prevIndex = currentIndex - 1 < 0 ? insights.length - 1 : currentIndex - 1
+      return {
+        insightsCarousel: {
+          ...state.insightsCarousel,
+          currentIndex: prevIndex,
+        },
+      }
+    }),
+
+  removeInsightFromCarousel: (index) =>
+    set((state) => {
+      const { insights, currentIndex } = state.insightsCarousel
+      const newInsights = insights.filter((_, i) => i !== index)
+
+      // If no more insights, hide the carousel
+      if (newInsights.length === 0) {
+        return {
+          insightsCarousel: {
+            visible: false,
+            minimized: false,
+            insights: [],
+            currentIndex: 0,
+          },
+        }
+      }
+
+      // Adjust currentIndex if needed
+      let newCurrentIndex = currentIndex
+      if (index < currentIndex) {
+        // Removed item was before current, shift index down
+        newCurrentIndex = currentIndex - 1
+      } else if (index === currentIndex) {
+        // Removed item was current, stay at same index (or go to previous if at end)
+        newCurrentIndex = currentIndex >= newInsights.length ? newInsights.length - 1 : currentIndex
+      }
+
+      return {
+        insightsCarousel: {
+          ...state.insightsCarousel,
+          insights: newInsights,
+          currentIndex: newCurrentIndex,
+        },
+      }
+    }),
+
   clearAllAgentUpdates: () =>
     set({
       competitorCarousel: {
@@ -301,12 +443,19 @@ export const useUIStore = create<UIState>()(
         competitors: [],
         currentIndex: 0,
       },
+      insightsCarousel: {
+        visible: false,
+        minimized: false,
+        insights: [],
+        currentIndex: 0,
+      },
     }),
     }),
     {
       name: 'agent-updates-storage',
       partialize: (state) => ({
         competitorCarousel: state.competitorCarousel,
+        insightsCarousel: state.insightsCarousel,
       }),
     }
   )

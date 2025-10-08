@@ -8,7 +8,15 @@ import { cn } from '@/lib/utils'
 
 export function InsightsPanel() {
   const { insights, swotAnalysis, isLoadingInsights, company } = useAnalyticsStore()
-  const { highlightedElements } = useUIStore()
+  const { highlightedElements, insightsCarousel, expandInsightsCarousel } = useUIStore()
+
+  // Get insights from carousel
+  const carouselInsights = insightsCarousel.insights || []
+
+  // Check if we have any insights to display
+  const hasCarouselInsights = carouselInsights.length > 0
+  const hasStoredInsights = insights.length > 0
+  const hasAnyInsights = hasCarouselInsights || hasStoredInsights
 
   return (
     <div className="space-y-6">
@@ -29,7 +37,7 @@ export function InsightsPanel() {
           <div className="text-center py-8 text-primary animate-pulse">
             Generating insights...
           </div>
-        ) : insights.length === 0 ? (
+        ) : !hasAnyInsights ? (
           <p className="text-muted-foreground text-sm text-center py-8">
             {company
               ? `No insights available for ${company.company_name} yet. Start a conversation to generate insights.`
@@ -37,9 +45,53 @@ export function InsightsPanel() {
           </p>
         ) : (
           <div className="space-y-3">
-            {insights.map((insight, index) => (
+            {/* Carousel Insights (from agent) */}
+            {hasCarouselInsights && (
+              <>
+                {carouselInsights.map((insight, index) => {
+                  const getSeverityColor = (severity?: string) => {
+                    switch (severity) {
+                      case 'success':
+                        return 'border-green-500/30 bg-green-500/5 hover:bg-green-500/10'
+                      case 'warning':
+                        return 'border-yellow-500/30 bg-yellow-500/5 hover:bg-yellow-500/10'
+                      case 'info':
+                      default:
+                        return 'border-cyan-500/30 bg-cyan-500/5 hover:bg-cyan-500/10'
+                    }
+                  }
+
+                  return (
+                    <div
+                      key={`carousel-${index}`}
+                      className={cn(
+                        "p-3 rounded-lg border cursor-pointer transition-all hover:shadow-md",
+                        getSeverityColor(insight.severity)
+                      )}
+                      onClick={expandInsightsCarousel}
+                      title="Click to view full details"
+                    >
+                      <div className="flex items-start gap-2">
+                        <Lightbulb className="w-4 h-4 text-cyan-400 flex-shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground mb-1">{insight.title}</p>
+                          <p className="text-xs text-muted-foreground line-clamp-2">
+                            {insight.content.length > 100
+                              ? `${insight.content.substring(0, 100)}...`
+                              : insight.content}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </>
+            )}
+
+            {/* Stored Insights (historical) */}
+            {hasStoredInsights && insights.map((insight, index) => (
               <div
-                key={index}
+                key={`stored-${index}`}
                 className="p-3 bg-background/50 rounded-lg border border-primary/10"
               >
                 <div className="flex items-start gap-2">

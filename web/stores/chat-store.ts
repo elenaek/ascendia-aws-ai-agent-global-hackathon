@@ -159,8 +159,9 @@ export const useChatStore = create<ChatState>()(
   clearMessages: () => set({ messages: [], currentStreamingId: null, thinkingContent: '', toolUses: [] }),
     }),
     {
-      name: 'chat-preferences',
+      name: 'chat-storage',
       partialize: (state) => ({
+        messages: state.messages,
         showCompletedThinking: state.showCompletedThinking,
         showCompletedToolUses: state.showCompletedToolUses,
       }),

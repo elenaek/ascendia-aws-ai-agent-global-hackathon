@@ -65,12 +65,18 @@ You use the tools provided to you to perform your duties. If you need to ask the
 
 # Important
 - Use markdown formatting to make your responses more readable.
-- Always use the send_ui_update tool when presenting competitors or insights to the user, allowing them to add the competitors to their database or view the insights.
-- Always highlight the competitor-carousel-minimized button before presenting using the send_ui_update tool before presenting the competitors in the carousel.
+- Always use the send_ui_update tool when presenting competitors or insights to the user:
+  * For competitors: Display them in the interactive carousel so users can browse and save them to their database
+  * For insights: Display strategic insights, market opportunities, or analysis findings in the insights carousel
+  * Both carousels persist across page refreshes and can be minimized to the agent toolbar for easy access
+- When presenting multiple related insights (e.g., from a SWOT analysis or market research), send them together as a group using the insights array format
+- Highlight relevant panels (competitors-panel, insights-panel) before presenting new content to draw user attention
 
 # Your Company Information
 {company_information}
 """
+
+
 
 
 # Tools
@@ -128,8 +134,12 @@ def send_ui_update(
                 Note: When sending multiple competitors, they will be displayed in an interactive carousel
                       that allows users to browse and save competitors to their database.
                 Use this whenever you are presenting competitors to the user.
-            - "show_insight": Show an insight card with your analysis
-                Required payload: {title, content, severity?: "info"|"success"|"warning", category?}
+            - "show_insight": Show insights in an interactive carousel (similar to competitors)
+                Single insight: {title, content, severity?: "info"|"success"|"warning", category?}
+                Multiple insights: {insights: [{title, content, severity?, category?}, ...]}
+                Note: Insights are displayed in a persistent carousel that can be minimized to the agent toolbar.
+                      They are automatically shown in the Insights panel as clickable summaries.
+                Use this to share strategic insights, market opportunities, or analysis findings with the user.
             - "show_notification": Display a toast notification
                 Required payload: {message, type: "info"|"success"|"warning"|"error"}
             - "show_progress": Show a progress indicator for long-running tasks
@@ -195,13 +205,41 @@ def send_ui_update(
             }
         )
 
-        # Display an insight
+        # Display a single insight
         send_ui_update(
             type="show_insight",
             payload={
                 "title": "Market Gap Identified",
-                "content": "Your competitors lack mobile-first features",
-                "severity": "success"
+                "content": "Your competitors lack mobile-first features, presenting a significant opportunity for differentiation in the mobile learning space.",
+                "severity": "success",
+                "category": "Opportunity"
+            }
+        )
+
+        # Display multiple insights in a carousel
+        send_ui_update(
+            type="show_insight",
+            payload={
+                "insights": [
+                    {
+                        "title": "Market Gap: Mobile-First Learning",
+                        "content": "Analysis shows that 78% of your competitors do not have dedicated mobile apps. This represents a major opportunity to capture the mobile learning market.",
+                        "severity": "success",
+                        "category": "Market Opportunity"
+                    },
+                    {
+                        "title": "Pricing Strategy Risk",
+                        "content": "Your current pricing is 40% higher than the market average. Consider introducing a freemium tier to increase user acquisition.",
+                        "severity": "warning",
+                        "category": "Pricing"
+                    },
+                    {
+                        "title": "Feature Parity Gap",
+                        "content": "Competitors offer AI-powered study recommendations, which is absent in your current product. This feature is highly rated in user reviews.",
+                        "severity": "info",
+                        "category": "Product Development"
+                    }
+                ]
             }
         )
 

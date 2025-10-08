@@ -33,6 +33,7 @@ export function useWebSocketUI({ enabled }: UseWebSocketUIOptions) {
     clearProgress,
     highlightElement,
     showCompetitorCarousel,
+    showInsightsCarousel,
   } = useUIStore()
 
   useEffect(() => {
@@ -103,8 +104,15 @@ export function useWebSocketUI({ enabled }: UseWebSocketUIOptions) {
         }
 
         case 'show_insight': {
-          const payload = message.payload as InsightPayload
-          addCard('insight', payload)
+          const payload = message.payload as any
+
+          // Check if payload contains multiple insights (carousel mode)
+          if (payload.insights && Array.isArray(payload.insights)) {
+            showInsightsCarousel(payload.insights)
+          } else {
+            // Single insight - also use carousel
+            showInsightsCarousel([payload as InsightPayload])
+          }
           break
         }
 

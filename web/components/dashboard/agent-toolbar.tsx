@@ -65,10 +65,19 @@ export function AgentToolbar() {
     competitorCarousel,
     expandCompetitorCarousel,
     hideCompetitorCarousel,
+    insightsCarousel,
+    expandInsightsCarousel,
+    hideInsightsCarousel,
   } = useUIStore()
 
   // Determine which items should be shown in the toolbar
   const hasCompetitors = competitorCarousel.visible && competitorCarousel.minimized
+  const hasInsights = insightsCarousel.visible && insightsCarousel.minimized
+  const hasAnyItems = hasCompetitors || hasInsights
+
+  if (!hasAnyItems) {
+    return null
+  }
 
   return (
     <div className="fixed bottom-4 left-0 right-0 z-[50] pointer-events-none">
@@ -95,20 +104,23 @@ export function AgentToolbar() {
                   />
                 )}
 
+                {hasInsights && (
+                  <ToolbarItem
+                    key="insights"
+                    icon={<Lightbulb className="w-4 h-4 text-cyan-400" />}
+                    label="Insights"
+                    badge={insightsCarousel.insights.length}
+                    onClick={expandInsightsCarousel}
+                    onClose={hideInsightsCarousel}
+                    isActive={false}
+                  />
+                )}
+
                 {/* Placeholder: Graphs - Future feature */}
                 {/* <ToolbarItem
                   key="graphs"
                   icon={<BarChart3 className="w-4 h-4 text-blue-400" />}
                   label="Graphs"
-                  badge={0}
-                  onClick={() => {}}
-                /> */}
-
-                {/* Placeholder: Insights - Future feature */}
-                {/* <ToolbarItem
-                  key="insights"
-                  icon={<Lightbulb className="w-4 h-4 text-yellow-400" />}
-                  label="Insights"
                   badge={0}
                   onClick={() => {}}
                 /> */}
