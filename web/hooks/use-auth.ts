@@ -1,9 +1,13 @@
 import { useEffect } from 'react'
 import { fetchAuthSession, getCurrentUser, signIn, signOut, signUp } from 'aws-amplify/auth'
 import { useAuthStore } from '@/stores/auth-store'
+import { useTokenRefresh } from './use-token-refresh'
 
 export function useAuth() {
   const { user, isAuthenticated, isLoading, setUser, setLoading, logout } = useAuthStore()
+
+  // Enable automatic token refresh when user is authenticated
+  useTokenRefresh()
 
   useEffect(() => {
     checkAuth()
