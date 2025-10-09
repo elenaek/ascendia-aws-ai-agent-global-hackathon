@@ -149,7 +149,6 @@ def send_ui_update(
 
                 Available element_ids:
                   - "chat-interface": Main chat conversation panel (left side, 2/3 width)
-                  - "competitors-panel": Competitors analysis panel showing Direct/Indirect/Potential competitors
                   - "insights-panel": Key insights panel displaying AI-generated strategic insights
                   - "dynamic-ui-overlay": Floating overlay in bottom-right showing real-time cards and progress
                   - "competitor-carousel-minimized": Minimized floating competitor carousel button (when carousel is minimized)
@@ -160,7 +159,7 @@ def send_ui_update(
                   - Use to guide user attention during multi-step analysis
 
                 Best practices:
-                  - Highlight panels before updating their content
+                  - Highlight panels after updating their content
                   - Use when revealing new insights or competitor data
                   - Avoid excessive highlighting (max 1-2 per analysis flow)
 

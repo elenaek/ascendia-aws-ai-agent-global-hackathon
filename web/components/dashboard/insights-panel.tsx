@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/select'
 import { useAnalyticsStore } from '@/stores/analytics-store'
 import { useUIStore } from '@/stores/ui-store'
-import { Lightbulb, TrendingUp, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Lightbulb, TrendingUp, AlertCircle, ChevronLeft, ChevronRight, X, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useState, useMemo } from 'react'
 
@@ -20,7 +20,7 @@ const INSIGHTS_PER_PAGE = 3
 
 export function InsightsPanel() {
   const { insights, swotAnalysis, isLoadingInsights, company } = useAnalyticsStore()
-  const { highlightedElements, insightsCarousel, expandInsightsCarousel } = useUIStore()
+  const { highlightedElements, insightsCarousel, expandInsightsCarousel, removeInsightFromCarousel, hideInsightsCarousel } = useUIStore()
   const [currentPage, setCurrentPage] = useState(0)
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
 
@@ -101,22 +101,44 @@ export function InsightsPanel() {
             <h3 className="text-base font-semibold text-primary">Key Insights</h3>
           </div>
 
-          {/* Category Filter - only show if there are categories */}
-          {hasCarouselInsights && categories.length > 0 && (
-            <Select value={selectedCategory} onValueChange={handleCategoryChange}>
-              <SelectTrigger className="w-[140px] h-7 text-xs">
-                <SelectValue placeholder="All Categories" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all" className="text-xs">All Categories</SelectItem>
-                {categories.map((category) => (
-                  <SelectItem key={category} value={category} className="text-xs">
-                    {category}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          <div className="flex items-center gap-2">
+            {/* Total Badge */}
+            {hasCarouselInsights && (
+              <Badge variant="outline" className="border-primary/30 text-primary text-[11px]">
+                {carouselInsights.length} Total
+              </Badge>
+            )}
+
+            {/* Category Filter - only show if there are categories */}
+            {hasCarouselInsights && categories.length > 0 && (
+              <Select value={selectedCategory} onValueChange={handleCategoryChange}>
+                <SelectTrigger className="w-[140px] h-7 text-xs">
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-xs">All Categories</SelectItem>
+                  {categories.map((category) => (
+                    <SelectItem key={category} value={category} className="text-xs">
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            {/* Clear All Button */}
+            {hasCarouselInsights && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={hideInsightsCarousel}
+                className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                title="Clear all insights"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </Button>
+            )}
+          </div>
         </div>
 
         {isLoadingInsights ? (
@@ -160,13 +182,15 @@ export function InsightsPanel() {
                       <div
                         key={`carousel-${startIndex + index}`}
                         className={cn(
-                          "p-2 rounded-md border cursor-pointer transition-all hover:shadow-md",
+                          "p-2 rounded-md border transition-all hover:shadow-md relative group",
                           getSeverityColor(insight.severity)
                         )}
-                        onClick={() => expandInsightsCarousel(originalIndex >= 0 ? originalIndex : 0)}
-                        title="Click to view full details"
                       >
-                        <div className="flex items-start gap-2">
+                        <div
+                          className="flex items-start gap-2 cursor-pointer"
+                          onClick={() => expandInsightsCarousel(originalIndex >= 0 ? originalIndex : 0)}
+                          title="Click to view full details"
+                        >
                           <Lightbulb className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0 mt-0.5" />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5 mb-0.5">
@@ -180,6 +204,18 @@ export function InsightsPanel() {
                             </p>
                           </div>
                         </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            if (originalIndex >= 0) {
+                              removeInsightFromCarousel(originalIndex)
+                            }
+                          }}
+                          className="absolute top-1 right-1 w-5 h-5 rounded-full bg-destructive/80 hover:bg-destructive flex items-center justify-center transition-all hover:scale-110 opacity-0 group-hover:opacity-100"
+                          title="Remove insight"
+                        >
+                          <X className="w-3 h-3 text-destructive-foreground" />
+                        </button>
                       </div>
                     )
                   })
