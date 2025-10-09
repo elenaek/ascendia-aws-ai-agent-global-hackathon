@@ -1,10 +1,8 @@
 from dotenv import load_dotenv
 import boto3
-import jwt
-import json
 import os
-from functools import lru_cache
 from typing import Literal, Dict, Any
+from datetime import datetime
 
 load_dotenv()
 
@@ -14,10 +12,10 @@ from strands_tools import think
 from strands_tools.tavily import tavily_search
 
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
-from bedrock_agentcore.services.identity import IdentityClient
 from bedrock_agentcore.identity.auth import requires_api_key
 
 from websocket_helper import send_ui_update_to_identity
+from memory_session import create_or_get_session, AgentMemorySession
 
 COGNITO_USER_POOL_ID=os.getenv("COGNITO_USER_POOL_ID")
 COGNITO_IDENTITY_POOL_ID=os.getenv("COGNITO_IDENTITY_POOL_ID")
@@ -26,6 +24,8 @@ AWS_ACCOUNT_ID = os.getenv("AWS_ACCOUNT_ID")
 
 app = BedrockAgentCoreApp()
 model = BedrockModel(model_id="us.amazon.nova-pro-v1:0")
+# model = BedrockModel(model_id="openai.gpt-oss-120b-1:0")
+# model = BedrockModel(model_id="us.amazon.nova-premier-v1:0")
 
 find_competitors_prompt = """# Your Task
 - Think about your company's information and products/services they offer and the market they operate in
@@ -72,8 +72,11 @@ You use the tools provided to you to perform your duties. If you need to ask the
 - When presenting multiple related insights (e.g., from a SWOT analysis or market research), send them together as a group using the insights array format
 - Highlight relevant panels (competitors-panel, insights-panel) before presenting new content to draw user attention
 
-# Your Company Information
+# User's Company Information
 {company_information}
+
+# Memory Context
+{memory_context}
 """
 
 
@@ -132,6 +135,7 @@ def send_ui_update(
             - "show_competitor_context": Display competitor information
                 Single competitor: {company_name, product_name, website?, description?, category?}
                 Multiple competitors (carousel): {competitors: [{company_name, product_name, website?, description?, category?}, ...]}
+                Use one of the following categories: Direct Competitors, Indirect Competitors, Potential Competitors
                 Note: When sending multiple competitors, they will be displayed in an interactive carousel
                       that allows users to browse and save competitors to their database.
                 Use this whenever you are presenting competitors to the user.
@@ -449,9 +453,62 @@ async def invoke(payload):
         _current_identity_id = company_info['_id']
         app.logger.info(f"Set identity_id for WebSocket updates: {_current_identity_id}")
 
+
+    # Create or get memory session for this user
+    memory_session = None
+    memory_context_text = "No previous conversation history available."
+
+    try:
+        # Generate session_id if not provided (use date-based for daily sessions)
+        session_id = payload.get("session_id")
+        session_source = "payload" if session_id else "auto-generated"
+
+        if not session_id:
+            # Create session per day for continuity within same day
+            today = datetime.utcnow().strftime("%Y-%m-%d")
+            # Sanitize identity_id: replace colons with hyphens (session_id regex: [a-zA-Z0-9][a-zA-Z0-9-_]*)
+            sanitized_identity = _current_identity_id.replace(":", "-")
+            session_id = f"{sanitized_identity}_{today}"
+
+        app.logger.info(f"Memory session initialized | Source: {session_source} | Session ID: {session_id} | Actor: {_current_identity_id}")
+
+        # Create/get memory session
+        memory_session = create_or_get_session(
+            actor_id=_current_identity_id,
+            session_id=session_id
+        )
+
+        # Retrieve memory context (smart retrieval with limited turns)
+        max_recent_turns = int(os.getenv("MAX_RECENT_TURNS", "10"))
+        memory_summary = memory_session.get_memory_summary(recent_turns_k=max_recent_turns)
+        memory_context_text = memory_session.format_memory_for_prompt(recent_turns_k=max_recent_turns)
+
+        recent_turns_count = len(memory_summary.get("recent_context", []))
+        app.logger.info(
+            f"Memory retrieved | Session: {session_id} | "
+            f"Recent turns: {recent_turns_count}/{max_recent_turns} | "
+            f"Context size: {len(memory_context_text)} chars"
+        )
+
+        if recent_turns_count > 0:
+            # Log a preview of recent memory
+            recent_preview = memory_summary["recent_context"][-1] if memory_summary["recent_context"] else None
+            if recent_preview:
+                app.logger.debug(
+                    f"Most recent memory turn | Role: {recent_preview.get('role')} | "
+                    f"Content preview: {recent_preview.get('content', '')[:100]}..."
+                )
+
+    except Exception as e:
+        app.logger.error(f"Memory initialization failed (continuing without memory): {str(e)}")
+        memory_context_text = "Memory service temporarily unavailable."
+
     agent_instance = Agent(
         model=model,
-        system_prompt=agent_system_prompt.format(company_information=company_info),
+        system_prompt=agent_system_prompt.format(
+            company_information=company_info,
+            memory_context=memory_context_text
+        ),
         tools=[tavily_search, think, send_ui_update]
     )
 
@@ -461,8 +518,9 @@ async def invoke(payload):
     stream = agent_instance.stream_async(user_message)
 
     # Stream events back to the client
-    # Track thinking state
+    # Track thinking state and collect full assistant response
     in_thinking = False
+    assistant_response_parts = []  # Collect full response for memory storage
 
     async for event in stream:
         # Parse <thinking> tags and convert to proper event types
@@ -505,8 +563,41 @@ async def invoke(payload):
                 }
                 continue
 
+            # Collect assistant response text (outside thinking blocks)
+            if not in_thinking:
+                assistant_response_parts.append(text)
+
         # Each event contains a chunk of the response
         yield event
+
+    app.logger.info(agent_system_prompt.format(
+        company_information=company_info,
+        memory_context=memory_context_text
+    ))
+
+    # Store the conversation turn in memory
+    if memory_session:
+        try:
+            full_assistant_response = "".join(assistant_response_parts)
+
+            # Only store if we have meaningful content
+            if full_assistant_response.strip():
+                memory_session.add_conversation_turn(
+                    user_message=user_message,
+                    assistant_message=full_assistant_response
+                )
+                app.logger.info(
+                    f"Conversation turn stored successfully | Session: {session_id} | "
+                    f"User message: {len(user_message)} chars | Assistant response: {len(full_assistant_response)} chars | "
+                    f"User preview: '{user_message[:50]}...'"
+                )
+            else:
+                app.logger.warning(f"Assistant response was empty, skipping memory storage | Session: {session_id}")
+
+        except Exception as e:
+            app.logger.error(f"Failed to store conversation in memory | Session: {session_id} | Error: {str(e)}")
+            import traceback
+            app.logger.error(f"Memory storage traceback: {traceback.format_exc()}")
 
 if __name__ == "__main__":
     app.run()

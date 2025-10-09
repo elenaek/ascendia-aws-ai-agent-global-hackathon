@@ -26,6 +26,13 @@ agents:
       project_name: bedrock-agentcore-business_analyst-builder
       execution_role: arn:aws:iam::738859113996:role/AmazonBedrockAgentCoreSDKCodeBuild-us-east-1-a25730fb49
       source_bucket: bedrock-agentcore-codebuild-sources-738859113996-us-east-1
+    memory:
+      mode: STM_ONLY
+      memory_id: business_analyst_memory-BDbynKGEgS
+      memory_arn: arn:aws:bedrock-agentcore:us-east-1:738859113996:memory/business_analyst_memory-BDbynKGEgS
+      memory_name: business_analyst_mem
+      event_expiry_days: 30
+      first_invoke_memory_check_done: false
     authorizer_configuration:
       customJWTAuthorizer:
         discoveryUrl: https://cognito-idp.us-east-1.amazonaws.com/us-east-1_boVMbYh4u/.well-known/openid-configuration

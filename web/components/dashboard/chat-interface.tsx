@@ -17,10 +17,12 @@ import { useAnalyticsStore } from '@/stores/analytics-store'
 import { useUIStore } from '@/stores/ui-store'
 import { Send, Bot, User, Brain, Loader2, ChevronDown, ChevronUp, Wrench, Trash2, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { sendMessageToAgentStreaming, type CompanyInfo } from '@/lib/agentcore-client'
+import { sendMessageToAgentStreaming, type CompanyInfo, getSessionId, setSessionId, resetSession } from '@/lib/agentcore-client'
 import { ThinkingDisplay } from './thinking-display'
 import { ToolUseDisplay } from './tool-use-display'
 import { MessageContent } from './message-content'
+
+const SESSION_STORAGE_KEY = 'agentcore-session-id'
 
 export function ChatInterface() {
   const {
@@ -31,6 +33,7 @@ export function ChatInterface() {
     toolUses,
     showCompletedThinking,
     showCompletedToolUses,
+    currentStreamingId,
     addMessage,
     appendToMessage,
     setLoading,
@@ -51,6 +54,23 @@ export function ChatInterface() {
   const [expandedThinking, setExpandedThinking] = useState<Set<string>>(new Set())
   const [showClearDialog, setShowClearDialog] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Restore session ID from localStorage on mount
+  useEffect(() => {
+    const savedSessionId = localStorage.getItem(SESSION_STORAGE_KEY)
+    if (savedSessionId) {
+      setSessionId(savedSessionId)
+      console.log('Restored session ID from storage:', savedSessionId)
+    }
+  }, [])
+
+  // Save session ID to localStorage whenever a message is sent
+  useEffect(() => {
+    const currentSessionId = getSessionId()
+    if (currentSessionId && messages.length > 0) {
+      localStorage.setItem(SESSION_STORAGE_KEY, currentSessionId)
+    }
+  }, [messages.length])
 
   const toggleThinking = (messageId: string) => {
     setExpandedThinking(prev => {
@@ -73,6 +93,10 @@ export function ChatInterface() {
     clearMessages()
     setExpandedThinking(new Set())
     setShowClearDialog(false)
+    // Clear session ID to start a fresh conversation
+    resetSession()
+    localStorage.removeItem(SESSION_STORAGE_KEY)
+    console.log('Session reset - new conversation will start with fresh memory')
   }
 
   const handleCancelClear = () => {
@@ -323,8 +347,8 @@ export function ChatInterface() {
                     />
                   ))}
 
-                  {/* Hide message bubble when processing tool results with no content */}
-                  {!(message.role === 'assistant' && !message.content.trim() && isLoading && ((message.toolUses && message.toolUses.length > 0) || toolUses.length > 0)) && (
+                  {/* Hide message bubble when currently streaming (will be shown after ToolUseDisplay) */}
+                  {!(message.role === 'assistant' && message.id === currentStreamingId && isLoading) && (
                     <div
                       className={cn(
                         'rounded-lg p-3',
@@ -379,6 +403,41 @@ export function ChatInterface() {
               />
             ))}
 
+            {/* Show streaming message content at the bottom */}
+            {isLoading && currentStreamingId && (() => {
+              const streamingMessage = messages.find(m => m.id === currentStreamingId)
+              return streamingMessage && (
+                <div className="flex gap-3 items-start justify-start">
+                  <div className={cn(
+                    "w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0",
+                    !streamingMessage.content.trim() && "animate-pulse"
+                  )}>
+                    <Bot className="w-4 h-4 text-primary" />
+                  </div>
+                  <div className="flex flex-col gap-2 max-w-[80%]">
+                    <div className="rounded-lg p-3 bg-muted text-foreground">
+                      {!streamingMessage.content.trim() ? (
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span className="text-sm">Thinking...</span>
+                        </div>
+                      ) : (
+                        <>
+                          <MessageContent
+                            content={streamingMessage.content}
+                            role="assistant"
+                          />
+                          <p className="text-xs opacity-70 mt-1">
+                            {new Date(streamingMessage.timestamp).toLocaleTimeString()}
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
+
             <div ref={messagesEndRef} />
           </>
         )}
@@ -419,7 +478,7 @@ export function ChatInterface() {
               Clear All Messages
             </DialogTitle>
             <DialogDescription>
-              Are you sure you want to clear all messages? This will remove the entire conversation history. This action cannot be undone.
+              Are you sure you want to clear all messages? This will remove the entire conversation history and start a new session with fresh memory. This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

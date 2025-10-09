@@ -13,6 +13,7 @@ pydantic = "*"
 boto3 = "*"
 bedrock-agentcore = "*"
 pyjwt = "*"
+bedrock-agentcore-starter-toolkit = "*"
 
 [dev-packages]
 

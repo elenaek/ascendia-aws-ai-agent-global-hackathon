@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware'
 import { useAnalyticsStore } from './analytics-store'
 import { useUIStore } from './ui-store'
 import { useChatStore } from './chat-store'
+import { resetSession } from '@/lib/agentcore-client'
 
 interface User {
   id: string
@@ -46,9 +47,12 @@ export const useAuthStore = create<AuthState>()(
         useUIStore.getState().clearAllAgentUpdates()
         // Clear chat store (messages)
         useChatStore.getState().clearMessages()
-        // Clear session storage
+        // Reset AgentCore session
+        resetSession()
+        // Clear session storage and localStorage
         if (typeof window !== 'undefined') {
           sessionStorage.removeItem('auth-storage')
+          localStorage.removeItem('agentcore-session-id')
         }
       },
     }),

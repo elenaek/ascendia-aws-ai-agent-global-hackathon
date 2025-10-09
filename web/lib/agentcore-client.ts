@@ -78,6 +78,7 @@ export async function sendMessageToAgent(
   // Prepare the request body
   const requestBody = {
     prompt,
+    session_id: sessionId, // Include session ID in payload for backend memory
     company_information: companyInfo ? {
       _id: companyInfo._id || companyInfo.id,
       company_name: companyInfo.company_name,
@@ -153,6 +154,7 @@ export async function sendMessageToAgentStreaming(
   // Prepare the request body
   const requestBody = {
     prompt,
+    session_id: sessionId, // Include session ID in payload for backend memory
     company_information: companyInfo ? {
       _id: companyInfo._id || companyInfo.id,
       company_name: companyInfo.company_name,
@@ -186,7 +188,10 @@ export async function sendMessageToAgentStreaming(
     // Stream events from AgentCore
     for await (const event of client.invokeAgentStream({
       prompt,
-      additionalParams: requestBody.company_information ? { company_information: requestBody.company_information } : undefined
+      additionalParams: {
+        session_id: sessionId,
+        ...(requestBody.company_information && { company_information: requestBody.company_information })
+      }
     })) {
       // Handle content blocks with thinking tag detection
       if (event.type === EventType.CONTENT_BLOCK_START) {
@@ -293,6 +298,20 @@ export async function sendMessageToAgentStreaming(
     callbacks.onError?.(error as Error)
     throw error
   }
+}
+
+/**
+ * Get the current session ID
+ */
+export function getSessionId(): string | null {
+  return sessionId
+}
+
+/**
+ * Set a specific session ID (useful for restoring from localStorage)
+ */
+export function setSessionId(id: string | null) {
+  sessionId = id
 }
 
 /**
