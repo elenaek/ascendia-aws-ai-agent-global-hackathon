@@ -87,7 +87,7 @@ interface UIState {
   showInsightsCarousel: (insights: InsightPayload[]) => void
   hideInsightsCarousel: () => void
   minimizeInsightsCarousel: () => void
-  expandInsightsCarousel: () => void
+  expandInsightsCarousel: (index?: number) => void
   nextInsight: () => void
   prevInsight: () => void
   removeInsightFromCarousel: (index: number) => void
@@ -400,11 +400,13 @@ export const useUIStore = create<UIState>()(
       },
     })),
 
-  expandInsightsCarousel: () =>
+  expandInsightsCarousel: (index?: number) =>
     set((state) => ({
       insightsCarousel: {
         ...state.insightsCarousel,
+        visible: true,
         minimized: false,
+        currentIndex: index !== undefined ? index : state.insightsCarousel.currentIndex,
       },
     })),
 

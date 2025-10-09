@@ -1,7 +1,7 @@
 'use client'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import { Building2, BarChart3, Lightbulb, X } from 'lucide-react'
+import { Building2, Lightbulb, X } from 'lucide-react'
 import { useUIStore } from '@/stores/ui-store'
 import { cn } from '@/lib/utils'
 
@@ -101,7 +101,7 @@ export function AgentToolbar() {
                     icon={<Building2 className="w-4 h-4 text-primary" />}
                     label="Competitors"
                     badge={competitorCarousel.competitors.length}
-                    onClick={expandCompetitorCarousel}
+                    onClick={() => expandCompetitorCarousel()}
                     onClose={hideCompetitorCarousel}
                     isActive={false}
                     isHighlighted={highlightedToolbarItems.has('competitors')}
@@ -114,7 +114,7 @@ export function AgentToolbar() {
                     icon={<Lightbulb className="w-4 h-4 text-cyan-400" />}
                     label="Insights"
                     badge={insightsCarousel.insights.length}
-                    onClick={expandInsightsCarousel}
+                    onClick={() => expandInsightsCarousel()}
                     onClose={hideInsightsCarousel}
                     isActive={false}
                     isHighlighted={highlightedToolbarItems.has('insights')}

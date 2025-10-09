@@ -1,6 +1,5 @@
 'use client'
 
-import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -18,7 +17,6 @@ import { useAnalyticsStore } from '@/stores/analytics-store'
 import { CompetitorContextPayload } from '@/types/websocket-messages'
 import { toast } from 'sonner'
 import { useState, useRef, useEffect, useMemo } from 'react'
-import { cn } from '@/lib/utils'
 
 interface CompetitorSlideProps {
   competitor: CompetitorContextPayload
@@ -255,7 +253,6 @@ export function CompetitorCarousel() {
     competitorCarousel,
     hideCompetitorCarousel,
     minimizeCompetitorCarousel,
-    expandCompetitorCarousel,
     removeCompetitorFromCarousel,
   } = useUIStore()
   const { addCompetitor, competitors: existingCompetitors } = useAnalyticsStore()
@@ -461,7 +458,7 @@ export function CompetitorCarousel() {
               {filteredCompetitors.length === 0 ? (
                 <div className="flex items-center justify-center h-full">
                   <p className="text-muted-foreground text-center">
-                    No competitors found for category "{selectedCategory}"
+                    No competitors found for category &ldquo;{selectedCategory}&rdquo;
                   </p>
                 </div>
               ) : (

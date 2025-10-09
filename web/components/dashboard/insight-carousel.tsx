@@ -1,7 +1,6 @@
 'use client'
 
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import {
   Select,
   SelectContent,
@@ -9,13 +8,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Lightbulb, Sparkles, AlertCircle, Info, X, Minimize2, Trash2 } from 'lucide-react'
+import { Lightbulb, Sparkles, AlertCircle, X, Minimize2, Trash2 } from 'lucide-react'
 import { IconArrowNarrowRight } from '@tabler/icons-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useUIStore } from '@/stores/ui-store'
 import { InsightPayload } from '@/types/websocket-messages'
 import { useState, useRef, useEffect, useMemo } from 'react'
-import { cn } from '@/lib/utils'
 
 interface InsightSlideProps {
   insight: InsightPayload
@@ -225,7 +223,6 @@ export function InsightCarousel() {
     insightsCarousel,
     hideInsightsCarousel,
     minimizeInsightsCarousel,
-    expandInsightsCarousel,
     removeInsightFromCarousel,
   } = useUIStore()
   const [current, setCurrent] = useState(0)
@@ -255,10 +252,10 @@ export function InsightCarousel() {
   // Reset current index when carousel becomes visible
   useEffect(() => {
     if (visible) {
-      setCurrent(0)
+      setCurrent(insightsCarousel.currentIndex)
       setSelectedCategory('all')
     }
-  }, [visible])
+  }, [visible, insightsCarousel.currentIndex])
 
   // Sync current index when insights array changes (e.g., when items are removed)
   useEffect(() => {
@@ -370,7 +367,7 @@ export function InsightCarousel() {
               {filteredInsights.length === 0 ? (
                 <div className="flex items-center justify-center h-full">
                   <p className="text-muted-foreground text-center">
-                    No insights found for category "{selectedCategory}"
+                    No insights found for category &ldquo;{selectedCategory}&rdquo;
                   </p>
                 </div>
               ) : (

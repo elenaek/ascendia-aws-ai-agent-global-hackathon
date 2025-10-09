@@ -137,7 +137,7 @@ export function InsightsPanel() {
                 <>
                   {filteredInsights.length === 0 ? (
                     <p className="text-muted-foreground text-sm text-center py-8">
-                      No insights found for category "{selectedCategory}"
+                      No insights found for category &ldquo;{selectedCategory}&rdquo;
                     </p>
                   ) : (
                     paginatedInsights.map((insight, index) => {
@@ -153,6 +153,9 @@ export function InsightsPanel() {
                       }
                     }
 
+                    // Find the original index in the unfiltered carousel insights array
+                    const originalIndex = carouselInsights.findIndex(i => i === insight)
+
                     return (
                       <div
                         key={`carousel-${startIndex + index}`}
@@ -160,7 +163,7 @@ export function InsightsPanel() {
                           "p-2 rounded-md border cursor-pointer transition-all hover:shadow-md",
                           getSeverityColor(insight.severity)
                         )}
-                        onClick={expandInsightsCarousel}
+                        onClick={() => expandInsightsCarousel(originalIndex >= 0 ? originalIndex : 0)}
                         title="Click to view full details"
                       >
                         <div className="flex items-start gap-2">

@@ -181,7 +181,7 @@ export function CompetitorsPanel() {
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Activity className="w-4 h-4 text-primary" />
-            <h3 className="text-base font-semibold text-primary">Competitors</h3>
+            <h3 className="text-base font-semibold text-primary">My Competitors</h3>
           </div>
           <Badge variant="outline" className="border-primary/30 text-primary text-[11px]">
             {competitors.length} Total
