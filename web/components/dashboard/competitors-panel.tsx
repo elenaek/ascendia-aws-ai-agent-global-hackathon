@@ -58,7 +58,7 @@ export function CompetitorsPanel() {
       } else {
         toast.error('Failed to remove competitor')
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to remove competitor')
     } finally {
       setDeletingId(null)

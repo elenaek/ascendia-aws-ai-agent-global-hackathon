@@ -28,7 +28,8 @@ MessageType = Literal[
     "show_notification",
     "update_competitor_panel",
     "show_progress",
-    "highlight_element"
+    "highlight_element",
+    "show_graph"
 ]
 
 

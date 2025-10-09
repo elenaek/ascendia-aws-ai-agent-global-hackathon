@@ -5,6 +5,7 @@ import { DynamicCompetitorCard } from './dynamic-competitor-card'
 import { InsightCard } from './insight-card'
 import { CompetitorCarousel } from './competitor-carousel'
 import { InsightCarousel } from './insight-carousel'
+import { GraphCarousel } from './graph-carousel'
 import { CompetitorContextPayload, InsightPayload } from '@/types/websocket-messages'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Loader2 } from 'lucide-react'
@@ -19,6 +20,8 @@ export function DynamicUIOverlay() {
       <CompetitorCarousel />
       {/* Insight Carousel Modal */}
       <InsightCarousel />
+      {/* Graph Carousel Modal */}
+      <GraphCarousel />
       {/* Dynamic Cards - Fixed position in bottom right */}
       <div
         id="dynamic-ui-overlay"

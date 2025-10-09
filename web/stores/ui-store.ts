@@ -5,6 +5,7 @@ import {
   InsightPayload,
   NotificationPayload,
   ProgressPayload,
+  GraphPayload,
 } from '@/types/websocket-messages'
 
 export interface DynamicCard {
@@ -56,6 +57,14 @@ interface UIState {
     currentIndex: number
   }
 
+  // Graphs carousel state
+  graphsCarousel: {
+    visible: boolean
+    minimized: boolean
+    graphs: GraphPayload[]
+    currentIndex: number
+  }
+
   // Actions
   addCard: (type: 'competitor_context' | 'insight', data: CompetitorContextPayload | InsightPayload) => void
   removeCard: (id: string) => void
@@ -92,6 +101,15 @@ interface UIState {
   prevInsight: () => void
   removeInsightFromCarousel: (index: number) => void
 
+  // Graphs carousel actions
+  showGraphsCarousel: (graphs: GraphPayload[]) => void
+  hideGraphsCarousel: () => void
+  minimizeGraphsCarousel: () => void
+  expandGraphsCarousel: (index?: number) => void
+  nextGraph: () => void
+  prevGraph: () => void
+  removeGraphFromCarousel: (index: number) => void
+
   // Clear all persisted agent updates
   clearAllAgentUpdates: () => void
 }
@@ -114,6 +132,12 @@ export const useUIStore = create<UIState>()(
     visible: false,
     minimized: false,
     insights: [],
+    currentIndex: 0,
+  },
+  graphsCarousel: {
+    visible: false,
+    minimized: false,
+    graphs: [],
     currentIndex: 0,
   },
 
@@ -470,6 +494,131 @@ export const useUIStore = create<UIState>()(
       }
     }),
 
+  showGraphsCarousel: (graphs) => {
+    set((state) => {
+      // If carousel is already visible, append new graphs (avoiding duplicates by title)
+      if (state.graphsCarousel.visible) {
+        const existingGraphs = state.graphsCarousel.graphs
+        const existingTitles = new Set(
+          existingGraphs.map((g) => g.title.toLowerCase())
+        )
+
+        // Only add graphs that don't already exist
+        const newGraphs = graphs.filter(
+          (g) => !existingTitles.has(g.title.toLowerCase())
+        )
+
+        return {
+          graphsCarousel: {
+            ...state.graphsCarousel,
+            graphs: [...existingGraphs, ...newGraphs],
+          },
+        }
+      }
+
+      // If carousel is not visible, show it minimized by default
+      return {
+        graphsCarousel: {
+          visible: true,
+          minimized: true,
+          graphs,
+          currentIndex: 0,
+        },
+      }
+    })
+
+    // Highlight the toolbar item to draw attention
+    get().highlightToolbarItem('graphs')
+  },
+
+  hideGraphsCarousel: () =>
+    set({
+      graphsCarousel: {
+        visible: false,
+        minimized: false,
+        graphs: [],
+        currentIndex: 0,
+      },
+    }),
+
+  minimizeGraphsCarousel: () =>
+    set((state) => ({
+      graphsCarousel: {
+        ...state.graphsCarousel,
+        minimized: true,
+      },
+    })),
+
+  expandGraphsCarousel: (index?: number) =>
+    set((state) => ({
+      graphsCarousel: {
+        ...state.graphsCarousel,
+        visible: true,
+        minimized: false,
+        currentIndex: index !== undefined ? index : state.graphsCarousel.currentIndex,
+      },
+    })),
+
+  nextGraph: () =>
+    set((state) => {
+      const { graphs, currentIndex } = state.graphsCarousel
+      const nextIndex = currentIndex + 1 >= graphs.length ? 0 : currentIndex + 1
+      return {
+        graphsCarousel: {
+          ...state.graphsCarousel,
+          currentIndex: nextIndex,
+        },
+      }
+    }),
+
+  prevGraph: () =>
+    set((state) => {
+      const { graphs, currentIndex } = state.graphsCarousel
+      const prevIndex = currentIndex - 1 < 0 ? graphs.length - 1 : currentIndex - 1
+      return {
+        graphsCarousel: {
+          ...state.graphsCarousel,
+          currentIndex: prevIndex,
+        },
+      }
+    }),
+
+  removeGraphFromCarousel: (index) =>
+    set((state) => {
+      const { graphs, currentIndex } = state.graphsCarousel
+      const newGraphs = graphs.filter((_, i) => i !== index)
+
+      // If no more graphs, hide the carousel
+      if (newGraphs.length === 0) {
+        return {
+          graphsCarousel: {
+            visible: false,
+            minimized: false,
+            graphs: [],
+            currentIndex: 0,
+          },
+        }
+      }
+
+      // Adjust currentIndex if needed
+      let newCurrentIndex = currentIndex
+      if (index < currentIndex) {
+        // Removed item was before current, shift index down
+        newCurrentIndex = currentIndex - 1
+      } else if (index === currentIndex) {
+        // Removed item was current, stay at same index (or go to previous if at end)
+        newCurrentIndex = currentIndex >= newGraphs.length ? newGraphs.length - 1 : currentIndex
+      }
+
+      return {
+        graphsCarousel: {
+          ...state.graphsCarousel,
+          graphs: newGraphs,
+          currentIndex: newCurrentIndex,
+        },
+      }
+    }),
+
   clearAllAgentUpdates: () =>
     set({
       competitorCarousel: {
@@ -484,6 +633,12 @@ export const useUIStore = create<UIState>()(
         insights: [],
         currentIndex: 0,
       },
+      graphsCarousel: {
+        visible: false,
+        minimized: false,
+        graphs: [],
+        currentIndex: 0,
+      },
     }),
     }),
     {
@@ -491,6 +646,7 @@ export const useUIStore = create<UIState>()(
       partialize: (state) => ({
         competitorCarousel: state.competitorCarousel,
         insightsCarousel: state.insightsCarousel,
+        graphsCarousel: state.graphsCarousel,
       }),
     }
   )

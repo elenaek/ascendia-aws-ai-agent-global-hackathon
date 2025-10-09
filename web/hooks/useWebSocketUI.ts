@@ -14,6 +14,7 @@ import type {
   UpdateCompetitorPanelPayload,
   ProgressPayload,
   HighlightElementPayload,
+  GraphPayload,
 } from '@/types/websocket-messages'
 
 interface UseWebSocketUIOptions {
@@ -34,6 +35,7 @@ export function useWebSocketUI({ enabled }: UseWebSocketUIOptions) {
     highlightElement,
     showCompetitorCarousel,
     showInsightsCarousel,
+    showGraphsCarousel,
   } = useUIStore()
 
   useEffect(() => {
@@ -157,6 +159,19 @@ export function useWebSocketUI({ enabled }: UseWebSocketUIOptions) {
         case 'highlight_element': {
           const payload = message.payload as HighlightElementPayload
           highlightElement(payload.element_id, 5000)
+          break
+        }
+
+        case 'show_graph': {
+          const payload = message.payload as any
+
+          // Check if payload contains multiple graphs (carousel mode)
+          if (payload.graphs && Array.isArray(payload.graphs)) {
+            showGraphsCarousel(payload.graphs)
+          } else {
+            // Single graph - also use carousel
+            showGraphsCarousel([payload as GraphPayload])
+          }
           break
         }
 

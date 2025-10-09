@@ -2,7 +2,7 @@
 
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Lightbulb, Sparkles, AlertCircle, Info, X } from 'lucide-react'
+import { Lightbulb, Sparkles, AlertCircle, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { InsightPayload } from '@/types/websocket-messages'
 

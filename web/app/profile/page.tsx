@@ -17,7 +17,7 @@ import { toast } from 'sonner'
 export default function ProfilePage() {
   const router = useRouter()
   const { isAuthenticated, isLoading: authLoading } = useAuthStore()
-  const { company, setCompany } = useAnalyticsStore()
+  const { setCompany } = useAnalyticsStore()
 
   const [formData, setFormData] = useState({
     company_name: '',

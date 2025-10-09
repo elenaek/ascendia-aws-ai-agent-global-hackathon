@@ -118,7 +118,8 @@ def send_ui_update(
         "show_notification",
         "update_competitor_panel",
         "show_progress",
-        "highlight_element"
+        "highlight_element",
+        "show_graph"
     ],
     payload: Dict[str, Any]
 ) -> str:
@@ -162,6 +163,63 @@ def send_ui_update(
                   - Highlight panels after updating their content
                   - Use when revealing new insights or competitor data
                   - Avoid excessive highlighting (max 1-2 per analysis flow)
+
+            - "show_graph": Display interactive data visualizations in an interactive carousel
+                Single graph: {title, graphType, data, options?, category?, description?}
+                Multiple graphs (carousel): {graphs: [{title, graphType, data, options?, category?, description?}, ...]}
+
+                Graph Types (graphType):
+                  - "scatter": Scatter plot (ideal for perceptual maps, positioning analysis)
+                  - "bar": Vertical bar chart (ideal for comparisons, rankings)
+                  - "line": Line chart (ideal for trends over time)
+                  - "radar": Radar/spider chart (ideal for multi-dimensional comparisons)
+                  - "pie": Pie chart (ideal for market share, proportions)
+                  - "doughnut": Doughnut chart (similar to pie, with center hole)
+                  - "bubble": Bubble chart (3-dimensional scatter plot with size)
+
+                Required Fields:
+                  - title (str): Graph title displayed at the top
+                  - graphType (str): One of the chart types listed above
+                  - data (dict): Chart.js data structure with datasets
+                    * For scatter/bubble: data = [{"x": value, "y": value, "label": "Point Name"}, ...]
+                    * For bar/line/radar: labels (list) + datasets with data (list of numbers)
+                    * For pie/doughnut: labels (list) + datasets with data (list of numbers)
+                  - **options.scales.x.title.text (str)**: **REQUIRED** for scatter/bar/line/bubble/radar charts
+                    X-axis label describing what the horizontal axis represents
+                  - **options.scales.y.title.text (str)**: **REQUIRED** for scatter/bar/line/bubble/radar charts
+                    Y-axis label describing what the vertical axis represents
+
+                Optional Fields:
+                  - description (str): Brief explanation of what the graph shows
+                  - category (str): Category for filtering (e.g., "Competitive Analysis", "Market Analysis")
+                  - options (dict): Chart.js options for customization
+                    * scales: Configure x/y axes (title, min, max)
+                    * plugins.legend: Configure legend (display, position)
+                    * plugins.title: Configure title
+
+                Data Structure Details:
+                  - datasets (list): Array of dataset objects
+                    * label (str): Dataset name for legend
+                    * data (list): Data points (numbers or {x, y, label} objects)
+                    * backgroundColor (str/list): Color(s) for data points
+                    * borderColor (str/list): Border color(s)
+                    * pointRadius (int/list): Size of points (for scatter/bubble)
+
+                Best Practices:
+                  - **ALWAYS include axis labels** (options.scales.x.title.text and y.title.text) for clarity
+                  - Use scatter plots for competitive positioning (perceptual maps)
+                    * Example axes: "Price (Low to High)" vs "Innovation (Low to High)"
+                  - Use bar/line charts for feature comparisons or trends
+                    * Example axes: "Feature Categories" vs "Performance Score (0-10)"
+                  - Use pie/doughnut for market share analysis (no axes needed)
+                  - Provide descriptive, specific axis labels that explain the scale
+                  - Use consistent colors: "#00ff88" for user's company, "#ff6b6b" for competitors
+                  - Include category for better organization in the Graphs panel
+                  - Send multiple related graphs together in a carousel for comprehensive analysis
+
+                Note: Graphs are displayed in a persistent carousel that can be minimized to the agent toolbar.
+                      They are automatically shown in the Graphs panel as clickable summaries.
+                      Use this for competitive analysis, market positioning, feature comparisons, and data-driven insights.
 
         payload: Dictionary containing the data for the UI update. Structure varies by type.
 
@@ -257,6 +315,107 @@ def send_ui_update(
             payload={
                 "element_id": "competitors-panel",
                 "duration": 3000  # 3 seconds
+            }
+        )
+
+        # Show a perceptual map for competitive positioning
+        send_ui_update(
+            type="show_graph",
+            payload={
+                "title": "Competitive Positioning Map",
+                "graphType": "scatter",
+                "description": "Visual representation of your company's position vs competitors across key dimensions",
+                "category": "Competitive Analysis",
+                "data": {
+                    "datasets": [
+                        {
+                            "label": "Your Company",
+                            "data": [{"x": 7, "y": 8, "label": "Your Company"}],
+                            "backgroundColor": "#00ff88",
+                            "borderColor": "#00ff88",
+                            "pointRadius": 12
+                        },
+                        {
+                            "label": "Direct Competitors",
+                            "data": [
+                                {"x": 8, "y": 6, "label": "Competitor A"},
+                                {"x": 6, "y": 7, "label": "Competitor B"},
+                                {"x": 9, "y": 5, "label": "Competitor C"}
+                            ],
+                            "backgroundColor": "#ff6b6b",
+                            "borderColor": "#ff6b6b",
+                            "pointRadius": 8
+                        },
+                        {
+                            "label": "Indirect Competitors",
+                            "data": [
+                                {"x": 5, "y": 5, "label": "Competitor D"},
+                                {"x": 4, "y": 6, "label": "Competitor E"}
+                            ],
+                            "backgroundColor": "#ffd93d",
+                            "borderColor": "#ffd93d",
+                            "pointRadius": 6
+                        }
+                    ]
+                },
+                "options": {
+                    "scales": {
+                        "x": {
+                            "title": {"display": True, "text": "Price (1=Low, 10=High)"},
+                            "min": 0,
+                            "max": 10
+                        },
+                        "y": {
+                            "title": {"display": True, "text": "Innovation/Features (1=Low, 10=High)"},
+                            "min": 0,
+                            "max": 10
+                        }
+                    },
+                    "plugins": {
+                        "legend": {"display": True, "position": "top"}
+                    }
+                }
+            }
+        )
+
+        # Show multiple graphs in a carousel
+        send_ui_update(
+            type="show_graph",
+            payload={
+                "graphs": [
+                    {
+                        "title": "Market Share Comparison",
+                        "graphType": "pie",
+                        "category": "Market Analysis",
+                        "data": {
+                            "labels": ["Your Company", "Competitor A", "Competitor B", "Others"],
+                            "datasets": [{
+                                "data": [15, 25, 20, 40],
+                                "backgroundColor": ["#00ff88", "#ff6b6b", "#ffd93d", "#6b8cff"]
+                            }]
+                        }
+                    },
+                    {
+                        "title": "Feature Comparison",
+                        "graphType": "bar",
+                        "category": "Product Analysis",
+                        "data": {
+                            "labels": ["AI Features", "Mobile App", "Integrations", "Analytics", "Support"],
+                            "datasets": [
+                                {
+                                    "label": "Your Company",
+                                    "data": [8, 9, 7, 6, 8],
+                                    "backgroundColor": "#00ff88"
+                                },
+                                {
+                                    "label": "Industry Average",
+                                    "data": [6, 7, 8, 7, 6],
+                                    "backgroundColor": "#6b8cff"
+                                }
+                            ]
+                        }
+                    }
+                ]
             }
         )
     """

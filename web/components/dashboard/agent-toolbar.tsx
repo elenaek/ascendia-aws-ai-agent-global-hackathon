@@ -1,7 +1,7 @@
 'use client'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import { Building2, Lightbulb, X } from 'lucide-react'
+import { Building2, Lightbulb, X, BarChart3 } from 'lucide-react'
 import { useUIStore } from '@/stores/ui-store'
 import { cn } from '@/lib/utils'
 
@@ -70,13 +70,17 @@ export function AgentToolbar() {
     insightsCarousel,
     expandInsightsCarousel,
     hideInsightsCarousel,
+    graphsCarousel,
+    expandGraphsCarousel,
+    hideGraphsCarousel,
     highlightedToolbarItems,
   } = useUIStore()
 
   // Determine which items should be shown in the toolbar
   const hasCompetitors = competitorCarousel.visible && competitorCarousel.minimized
   const hasInsights = insightsCarousel.visible && insightsCarousel.minimized
-  const hasAnyItems = hasCompetitors || hasInsights
+  const hasGraphs = graphsCarousel.visible && graphsCarousel.minimized
+  const hasAnyItems = hasCompetitors || hasInsights || hasGraphs
 
   if (!hasAnyItems) {
     return null
@@ -121,14 +125,19 @@ export function AgentToolbar() {
                   />
                 )}
 
-                {/* Placeholder: Graphs - Future feature */}
-                {/* <ToolbarItem
-                  key="graphs"
-                  icon={<BarChart3 className="w-4 h-4 text-blue-400" />}
-                  label="Graphs"
-                  badge={0}
-                  onClick={() => {}}
-                /> */}
+                {/* Graphs Item */}
+                {hasGraphs && (
+                  <ToolbarItem
+                    key="graphs"
+                    icon={<BarChart3 className="w-4 h-4 text-purple-400" />}
+                    label="Graphs"
+                    badge={graphsCarousel.graphs.length}
+                    onClick={() => expandGraphsCarousel()}
+                    onClose={hideGraphsCarousel}
+                    isActive={false}
+                    isHighlighted={highlightedToolbarItems.has('graphs')}
+                  />
+                )}
               </AnimatePresence>
             </div>
           </div>

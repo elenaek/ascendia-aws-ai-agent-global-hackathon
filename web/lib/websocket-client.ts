@@ -45,9 +45,6 @@ export class WebSocketClient {
         throw new Error('No AWS credentials available')
       }
 
-      // Parse the WebSocket URL
-      const wsUrl = new URL(WEBSOCKET_URL)
-
       // Convert wss:// to https:// for signing (required by SigV4)
       const signingUrl = WEBSOCKET_URL.replace('wss://', 'https://')
       const parsedUrl = new URL(signingUrl)
