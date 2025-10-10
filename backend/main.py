@@ -452,7 +452,7 @@ def send_ui_update(
         return f"Error sending UI update: {str(e)}"
 
 @tool
-def get_competitors_overview(company_information: str, competitor_name: str, competitor_url: str) -> str:
+def get_competitors_overview(company_information: str, competitor_name: str, competitor_url: str) -> dict:
     f"""
     Get a detailed overview of a competitor's company and products.
 
@@ -470,8 +470,8 @@ def get_competitors_overview(company_information: str, competitor_name: str, com
             system_prompt=search_for_overview_system_prompt.format(company_information=company_information),
             tools=[tavily_search, tavily_crawl, tavily_extract]
         )
-        response = agent_instance.structured_output(prompt=get_search_for_overview_prompt(competitor_name, competitor_url), output_model=CompetitorOverview)
-        return response.model_dump_json()
+        response = agent_instance.structured_output(CompetitorOverview, get_search_for_overview_prompt(competitor_name, competitor_url))
+        return response.model_dump()
     except Exception as e:
         app.logger.error(f"Error getting competitors overview: {str(e)}")
         return f"Error getting competitors overview: {str(e)}"
@@ -546,7 +546,7 @@ async def invoke(payload):
             company_information=company_info,
             memory_context=memory_context_text
         ),
-        tools=[tavily_search, tavily_crawl, tavily_extract, send_ui_update, get_competitors_overview]
+        tools=[tavily_search, send_ui_update, get_competitors_overview]
     )
 
     user_message = payload.get("prompt", "Hello")
