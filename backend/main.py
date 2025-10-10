@@ -9,13 +9,14 @@ load_dotenv()
 from strands import Agent, tool
 from strands.models import BedrockModel
 from strands_tools import think
-from strands_tools.tavily import tavily_search
+from strands_tools.tavily import tavily_search, tavily_crawl
 
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
 from bedrock_agentcore.identity.auth import requires_api_key
 
 from websocket_helper import send_ui_update_to_identity
 from memory_session import create_or_get_session, AgentMemorySession
+from prompts.competitor_research import CompetitorOverview, get_search_for_overview_prompt
 
 COGNITO_USER_POOL_ID=os.getenv("COGNITO_USER_POOL_ID")
 COGNITO_IDENTITY_POOL_ID=os.getenv("COGNITO_IDENTITY_POOL_ID")
@@ -439,6 +440,25 @@ def send_ui_update(
     except Exception as e:
         return f"Error sending UI update: {str(e)}"
 
+@tool
+def get_competitors_overview(competitor_name: str, competitor_url: str) -> str:
+    """
+    Get a detailed overview of a competitor's company and products.
+
+    Use this tool when you need to get a detailed overview of a competitor's company.
+    Args:
+        competitor_name: The name of the competitor
+        competitor_url: The URL of the competitor's product
+    Returns:
+        str: The detailed overview of the competitor's company and products
+    """
+    agent_instance = Agent(
+        model=model,
+        tools=[tavily_search, tavily_crawl, think]
+    )
+    response = agent_instance.structured_output(prompt=get_search_for_overview_prompt(competitor_name, competitor_url), output_model=CompetitorOverview)
+    return response
+
 @app.entrypoint
 async def invoke(payload):
     """Process user input and return a streaming response"""
@@ -509,7 +529,7 @@ async def invoke(payload):
             company_information=company_info,
             memory_context=memory_context_text
         ),
-        tools=[tavily_search, think, send_ui_update]
+        tools=[tavily_search, think, send_ui_update, get_competitors_overview]
     )
 
     user_message = payload.get("prompt", "Hello")
