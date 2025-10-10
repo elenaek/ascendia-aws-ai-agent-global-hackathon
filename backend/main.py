@@ -15,8 +15,8 @@ from bedrock_agentcore.runtime import BedrockAgentCoreApp
 from bedrock_agentcore.identity.auth import requires_api_key
 
 from websocket_helper import send_ui_update_to_identity
-from memory_session import create_or_get_session, AgentMemorySession
-from prompts.competitor_research import CompetitorOverview, search_for_overview_system_prompt, get_search_for_overview_prompt
+from memory_session import create_or_get_session
+from tools.competitive_research_agent import CompetitiveResearchAgent
 
 COGNITO_USER_POOL_ID=os.getenv("COGNITO_USER_POOL_ID")
 COGNITO_IDENTITY_POOL_ID=os.getenv("COGNITO_IDENTITY_POOL_ID")
@@ -29,6 +29,17 @@ model = BedrockModel(model_id="us.amazon.nova-pro-v1:0")
 # model = BedrockModel(model_id="us.amazon.nova-premier-v1:0")
 
 # Prompt Templates
+new_agent_system_prompt = """
+You work as a consultant for a full-service market intelligence firm that performs quantitative and qualitative market research, benchmarking, consumer behavior analysis, and competitive analysis. 
+For each company you work with, you analyze their products, features, and services. 
+You review the company's market positioning and target customer segment in order to search for competitors.
+You use the tools provided to you to perform your tasks.
+
+# Your Company Information
+{company_information}
+"""
+
+
 agent_system_prompt = """You are an expert market research analyst working for a company to help them analyze the market they operate in and analyze their competitors in order to strategize on the direction they should take.
 You use the tools provided to you to perform your duties. If you need to ask the user for input, ask your question naturally in your response. The user will provide their answer in their next message, and you can continue the conversation from there.
 
@@ -41,6 +52,7 @@ You use the tools provided to you to perform your duties. If you need to ask the
 - When presenting multiple related insights (e.g., from a SWOT analysis or market research), send them together as a group using the insights array format
 - Highlight relevant panels (competitors-panel, insights-panel) before presenting new content to draw user attention
 - Ensure the competitor's website URL is correct by visiting it and verifying it.
+- When the user asks about competitor(s), you should use the detailed competitor overview tool to get the information about the competitor(s).
 
 # User's Company Information
 {company_information}
@@ -451,31 +463,6 @@ def send_ui_update(
     except Exception as e:
         return f"Error sending UI update: {str(e)}"
 
-@tool
-def get_competitors_overview(company_information: str, competitor_name: str, competitor_url: str) -> dict:
-    f"""
-    Get a detailed overview of a competitor's company and products.
-
-    Use this tool when you need to get a detailed overview of a competitor's company.
-    Args:
-        company_information: The company you're doing research for's information
-        competitor_name: The name of the company's competitor
-        competitor_url: The URL of the company's competitor's product
-    Returns:
-        {CompetitorOverview.model_json_schema()['properties']}
-    """
-    try:
-        agent_instance = Agent(
-            model=BedrockModel(model_id="us.amazon.nova-premier-v1:0"),
-            system_prompt=search_for_overview_system_prompt.format(company_information=company_information),
-            tools=[tavily_search, tavily_crawl, tavily_extract]
-        )
-        response = agent_instance.structured_output(CompetitorOverview, get_search_for_overview_prompt(competitor_name, competitor_url))
-        return response.model_dump()
-    except Exception as e:
-        app.logger.error(f"Error getting competitors overview: {str(e)}")
-        return f"Error getting competitors overview: {str(e)}"
-
 @app.entrypoint
 async def invoke(payload):
     """Process user input and return a streaming response"""
@@ -540,13 +527,20 @@ async def invoke(payload):
         app.logger.error(f"Memory initialization failed (continuing without memory): {str(e)}")
         memory_context_text = "Memory service temporarily unavailable."
 
+    competitive_research_agent = CompetitiveResearchAgent(company_information=company_info, logger=app.logger)
+
     agent_instance = Agent(
         model=model,
         system_prompt=agent_system_prompt.format(
             company_information=company_info,
             memory_context=memory_context_text
         ),
-        tools=[tavily_search, send_ui_update, get_competitors_overview]
+        tools=[
+            tavily_search, 
+            send_ui_update, 
+            competitive_research_agent.get_detailed_competitor_overview, 
+            competitive_research_agent.search_for_pricing 
+        ]
     )
 
     user_message = payload.get("prompt", "Hello")
