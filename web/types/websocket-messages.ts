@@ -11,12 +11,32 @@ export type MessageType =
   | 'highlight_element'
   | 'show_graph'
 
+export interface CompetitorProduct {
+  product_name?: string
+  product_url?: string
+  product_description?: string
+}
+
 export interface CompetitorContextPayload {
+  // Core fields (backward compatible)
   company_name: string
-  product_name: string
+  product_name?: string
   website?: string
   description?: string
   category?: 'Direct Competitors' | 'Indirect Competitors' | 'Potential Competitors'
+
+  // Extended CompetitorOverview fields
+  website_url?: string
+  company_headquarters_location?: string
+  number_of_employees?: number
+  founding_or_established_date?: string
+  mission_statement?: string
+  vision_statement?: string
+  company_culture_and_values?: string
+  additional_office_locations?: string[]
+  products?: CompetitorProduct[]
+  notes?: string
+  sources?: string[]
 }
 
 // For multiple competitors displayed in carousel

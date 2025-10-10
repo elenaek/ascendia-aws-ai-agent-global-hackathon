@@ -9,7 +9,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Building2, ExternalLink, X, Plus, Minimize2, Check, Trash2 } from 'lucide-react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Building2, ExternalLink, X, Plus, Minimize2, Check, Trash2, MapPin, Users, Calendar, Target, Lightbulb, Globe } from 'lucide-react'
 import { IconArrowNarrowRight } from '@tabler/icons-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useUIStore } from '@/stores/ui-store'
@@ -164,32 +165,201 @@ const CompetitorSlide = ({
               </div>
             </div>
 
-            {/* Description */}
+            {/* Content Tabs */}
             <div className="flex-1 overflow-auto mb-6">
-              {competitor.description && (
-                <div className="text-left">
-                  <h4 className="text-sm font-semibold text-foreground mb-2">Description</h4>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {competitor.description}
-                  </p>
-                </div>
-              )}
+              <Tabs defaultValue="overview" className="w-full">
+                <TabsList className="grid w-full grid-cols-3 mb-4">
+                  <TabsTrigger value="overview">Overview</TabsTrigger>
+                  <TabsTrigger value="products">Products</TabsTrigger>
+                  <TabsTrigger value="details">Details</TabsTrigger>
+                </TabsList>
 
-              {competitor.website && (
-                <div className="mt-4 text-left">
-                  <h4 className="text-sm font-semibold text-foreground mb-2">Website</h4>
-                  <a
-                    href={`https://${competitor.website.replace(/^https?:\/\//, '')}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-sm text-primary hover:text-primary/80 transition-colors group"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <ExternalLink className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-                    <span className="underline underline-offset-2">{competitor.website}</span>
-                  </a>
-                </div>
-              )}
+                {/* Overview Tab */}
+                <TabsContent value="overview" className="space-y-4">
+                  {competitor.description && (
+                    <div className="text-left">
+                      <h4 className="text-sm font-semibold text-foreground mb-2">Description</h4>
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        {competitor.description}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-4 text-left">
+                    {competitor.company_headquarters_location && (
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <MapPin className="w-4 h-4 text-primary" />
+                          <h4 className="text-xs font-semibold text-foreground">Headquarters</h4>
+                        </div>
+                        <p className="text-xs text-muted-foreground">{competitor.company_headquarters_location}</p>
+                      </div>
+                    )}
+
+                    {competitor.number_of_employees !== undefined && (
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <Users className="w-4 h-4 text-primary" />
+                          <h4 className="text-xs font-semibold text-foreground">Employees</h4>
+                        </div>
+                        <p className="text-xs text-muted-foreground">{competitor.number_of_employees.toLocaleString()}</p>
+                      </div>
+                    )}
+
+                    {competitor.founding_or_established_date && (
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <Calendar className="w-4 h-4 text-primary" />
+                          <h4 className="text-xs font-semibold text-foreground">Founded</h4>
+                        </div>
+                        <p className="text-xs text-muted-foreground">{competitor.founding_or_established_date}</p>
+                      </div>
+                    )}
+
+                    {(competitor.website_url || competitor.website) && (
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <Globe className="w-4 h-4 text-primary" />
+                          <h4 className="text-xs font-semibold text-foreground">Website</h4>
+                        </div>
+                        <a
+                          href={`https://${(competitor.website_url || competitor.website)!.replace(/^https?:\/\//, '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors group"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <span className="underline underline-offset-2">{competitor.website_url || competitor.website}</span>
+                          <ExternalLink className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                        </a>
+                      </div>
+                    )}
+                  </div>
+
+                  {competitor.additional_office_locations && competitor.additional_office_locations.length > 0 && (
+                    <div className="text-left">
+                      <h4 className="text-sm font-semibold text-foreground mb-2">Additional Locations</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {competitor.additional_office_locations.map((location, idx) => (
+                          <Badge key={idx} variant="outline" className="text-xs">
+                            {location}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </TabsContent>
+
+                {/* Products Tab */}
+                <TabsContent value="products" className="space-y-3">
+                  {competitor.products && competitor.products.length > 0 ? (
+                    competitor.products.map((product, idx) => (
+                      <div key={idx} className="text-left p-3 rounded-lg bg-primary/5 border border-primary/20">
+                        {product.product_name && (
+                          <h4 className="text-sm font-semibold text-foreground mb-1">{product.product_name}</h4>
+                        )}
+                        {product.product_description && (
+                          <p className="text-xs text-muted-foreground mb-2">{product.product_description}</p>
+                        )}
+                        {product.product_url && (
+                          <a
+                            href={`https://${product.product_url.replace(/^https?:\/\//, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors group"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <ExternalLink className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                            <span className="underline underline-offset-2">{product.product_url}</span>
+                          </a>
+                        )}
+                        {!product.product_name && !product.product_description && !product.product_url && (
+                          <p className="text-xs text-muted-foreground italic">Product details unavailable</p>
+                        )}
+                      </div>
+                    ))
+                  ) : competitor.product_name ? (
+                    <div className="text-left p-3 rounded-lg bg-primary/5 border border-primary/20">
+                      <h4 className="text-sm font-semibold text-foreground mb-1">{competitor.product_name}</h4>
+                      {competitor.description && (
+                        <p className="text-xs text-muted-foreground mb-2">{competitor.description}</p>
+                      )}
+                      {competitor.website && (
+                        <a
+                          href={`https://${competitor.website.replace(/^https?:\/\//, '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors group"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <ExternalLink className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                          <span className="underline underline-offset-2">{competitor.website}</span>
+                        </a>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center">No product information available</p>
+                  )}
+                </TabsContent>
+
+                {/* Details Tab */}
+                <TabsContent value="details" className="space-y-4">
+                  {competitor.mission_statement && (
+                    <div className="text-left">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Target className="w-4 h-4 text-primary" />
+                        <h4 className="text-sm font-semibold text-foreground">Mission</h4>
+                      </div>
+                      <p className="text-xs text-muted-foreground leading-relaxed">{competitor.mission_statement}</p>
+                    </div>
+                  )}
+
+                  {competitor.vision_statement && (
+                    <div className="text-left">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Lightbulb className="w-4 h-4 text-primary" />
+                        <h4 className="text-sm font-semibold text-foreground">Vision</h4>
+                      </div>
+                      <p className="text-xs text-muted-foreground leading-relaxed">{competitor.vision_statement}</p>
+                    </div>
+                  )}
+
+                  {competitor.company_culture_and_values && (
+                    <div className="text-left">
+                      <h4 className="text-sm font-semibold text-foreground mb-2">Culture & Values</h4>
+                      <p className="text-xs text-muted-foreground leading-relaxed">{competitor.company_culture_and_values}</p>
+                    </div>
+                  )}
+
+                  {competitor.notes && (
+                    <div className="text-left">
+                      <h4 className="text-sm font-semibold text-foreground mb-2">Notes</h4>
+                      <p className="text-xs text-muted-foreground leading-relaxed italic">{competitor.notes}</p>
+                    </div>
+                  )}
+
+                  {competitor.sources && competitor.sources.length > 0 && (
+                    <div className="text-left">
+                      <h4 className="text-sm font-semibold text-foreground mb-2">Sources</h4>
+                      <div className="space-y-1">
+                        {competitor.sources.map((source, idx) => (
+                          <a
+                            key={idx}
+                            href={source}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 text-xs text-primary hover:text-primary/80 transition-colors group"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <ExternalLink className="w-3 h-3 flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
+                            <span className="underline underline-offset-2 truncate">{source}</span>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
             </div>
 
             {/* Add Button - Only show on active slide */}
@@ -354,6 +524,18 @@ export function CompetitorCarousel() {
           website: currentCompetitor.website,
           description: currentCompetitor.description,
           category: currentCompetitor.category,
+          // Extended CompetitorOverview fields
+          website_url: currentCompetitor.website_url,
+          company_headquarters_location: currentCompetitor.company_headquarters_location,
+          number_of_employees: currentCompetitor.number_of_employees,
+          founding_or_established_date: currentCompetitor.founding_or_established_date,
+          mission_statement: currentCompetitor.mission_statement,
+          vision_statement: currentCompetitor.vision_statement,
+          company_culture_and_values: currentCompetitor.company_culture_and_values,
+          additional_office_locations: currentCompetitor.additional_office_locations,
+          products: currentCompetitor.products,
+          notes: currentCompetitor.notes,
+          sources: currentCompetitor.sources,
         }),
       })
 

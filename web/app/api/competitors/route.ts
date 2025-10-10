@@ -60,6 +60,18 @@ export async function GET(request: NextRequest) {
             category: item.category || 'Direct Competitors',
             website: competitor.product_url || competitor.website || '',
             description: competitor.product_description || competitor.description || '',
+            // Extended CompetitorOverview fields
+            website_url: competitor.website_url,
+            company_headquarters_location: competitor.company_headquarters_location,
+            number_of_employees: competitor.number_of_employees,
+            founding_or_established_date: competitor.founding_or_established_date,
+            mission_statement: competitor.mission_statement,
+            vision_statement: competitor.vision_statement,
+            company_culture_and_values: competitor.company_culture_and_values,
+            additional_office_locations: competitor.additional_office_locations,
+            products: competitor.products,
+            notes: competitor.notes,
+            sources: competitor.sources,
           })
         }
       } catch (error) {
@@ -101,13 +113,25 @@ export async function POST(request: NextRequest) {
       product_name,
       website,
       description,
-      category
+      category,
+      // Extended CompetitorOverview fields
+      website_url,
+      company_headquarters_location,
+      number_of_employees,
+      founding_or_established_date,
+      mission_statement,
+      vision_statement,
+      company_culture_and_values,
+      additional_office_locations,
+      products,
+      notes,
+      sources,
     } = body
 
     // Validate required fields
-    if (!company_name || !product_name) {
+    if (!company_name) {
       return NextResponse.json(
-        { error: 'Missing required fields: company_name and product_name are required' },
+        { error: 'Missing required field: company_name is required' },
         { status: 400 }
       )
     }
@@ -121,17 +145,36 @@ export async function POST(request: NextRequest) {
     // Generate competitor ID
     const competitorId = `${Date.now()}-${Math.random().toString(36).substring(7)}`
 
-    // Create competitor record
-    const competitorData = {
+    // Create competitor record with all fields
+    const competitorData: Record<string, unknown> = {
       competitor_id: competitorId,
       company_name,
-      product_name,
-      product_url: website || '',
-      website: website || '',
-      product_description: description || '',
-      description: description || '',
       created_at: new Date().toISOString(),
     }
+
+    // Add optional core fields
+    if (product_name) competitorData.product_name = product_name
+    if (website) {
+      competitorData.product_url = website
+      competitorData.website = website
+    }
+    if (description) {
+      competitorData.product_description = description
+      competitorData.description = description
+    }
+
+    // Add extended CompetitorOverview fields
+    if (website_url) competitorData.website_url = website_url
+    if (company_headquarters_location) competitorData.company_headquarters_location = company_headquarters_location
+    if (number_of_employees !== undefined) competitorData.number_of_employees = number_of_employees
+    if (founding_or_established_date) competitorData.founding_or_established_date = founding_or_established_date
+    if (mission_statement) competitorData.mission_statement = mission_statement
+    if (vision_statement) competitorData.vision_statement = vision_statement
+    if (company_culture_and_values) competitorData.company_culture_and_values = company_culture_and_values
+    if (additional_office_locations) competitorData.additional_office_locations = additional_office_locations
+    if (products) competitorData.products = products
+    if (notes) competitorData.notes = notes
+    if (sources) competitorData.sources = sources
 
     await docClient.send(new PutCommand({
       TableName: COMPETITORS_TABLE,

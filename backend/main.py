@@ -16,7 +16,7 @@ from bedrock_agentcore.identity.auth import requires_api_key
 
 from websocket_helper import send_ui_update_to_identity
 from memory_session import create_or_get_session, AgentMemorySession
-from prompts.competitor_research import CompetitorOverview, get_search_for_overview_prompt
+from prompts.competitor_research import CompetitorOverview, search_for_overview_system_prompt, get_search_for_overview_prompt
 
 COGNITO_USER_POOL_ID=os.getenv("COGNITO_USER_POOL_ID")
 COGNITO_IDENTITY_POOL_ID=os.getenv("COGNITO_IDENTITY_POOL_ID")
@@ -27,38 +27,6 @@ app = BedrockAgentCoreApp()
 model = BedrockModel(model_id="us.amazon.nova-pro-v1:0")
 # model = BedrockModel(model_id="openai.gpt-oss-120b-1:0")
 # model = BedrockModel(model_id="us.amazon.nova-premier-v1:0")
-
-find_competitors_prompt = """# Your Task
-- Think about your company's information and products/services they offer and the market they operate in
-- Research and find 10 of the most relevant competitors for your company
-- Categorize them into: Direct Competitors, Indirect Competitors, and Potential Competitors
-- Save them to the database using the save_competitors_to_db tool
-
-# Category Descriptions
-- Direct Competitors: Companies offering the same/similar products to the same target audience
-- Indirect Competitors: Companies offering different but related products, or similar products to different audiences
-- Potential Competitors: Companies that could potentially enter your market or replace your products
-
-# IMPORTANT: Tool Usage Instructions
-Use the save_competitors_to_db tool with this EXACT format:
-- company_id: Use the _id from your company information (provided in your system prompt)
-- direct_competitors: List of dictionaries with keys: company_name, product_name, product_url, product_description, category
-- indirect_competitors: List of dictionaries with same structure
-- potential_competitors: List of dictionaries with same structure
-
-Example competitor dictionary:
-{
-    "company_name": "Anki",
-    "product_name": "Anki App",
-    "product_url": "ankiapp.com",
-    "product_description": "Spaced repetition flashcard app for learning",
-    "category": "Direct Competitors"
-}
-
-Remember to:
-1. First search for competitors using tavily_search
-2. Organize them into the three categories
-3. Call save_competitors_to_db with the company _id from your system prompt and all three lists"""
 
 # Prompt Templates
 agent_system_prompt = """You are an expert market research analyst working for a company to help them analyze the market they operate in and analyze their competitors in order to strategize on the direction they should take.
@@ -76,7 +44,6 @@ You use the tools provided to you to perform your duties. If you need to ask the
 # User's Company Information
 {company_information}
 
-# Memory Context
 {memory_context}
 """
 
@@ -134,8 +101,15 @@ def send_ui_update(
     Args:
         type: Type of UI update to send:
             - "show_competitor_context": Display competitor information
-                Single competitor: {company_name, product_name, website?, description?, category?}
-                Multiple competitors (carousel): {competitors: [{company_name, product_name, website?, description?, category?}, ...]}
+                Core fields (backward compatible):
+                  - company_name (required), product_name, website, description, category
+                Extended CompetitorOverview fields (required):
+                  - website_url, company_headquarters_location, number_of_employees, founding_or_established_date
+                  - mission_statement, vision_statement, company_culture_and_values
+                  - additional_office_locations (list), products (list of {product_name, product_url, product_description})
+                  - notes, sources (list of URLs)
+                Single competitor: {company_name, category?, ...other fields}
+                Multiple competitors (carousel): {competitors: [{company_name, category?, ...}, ...]}
                 Use one of the following categories: Direct Competitors, Indirect Competitors, Potential Competitors
                 Note: When sending multiple competitors, they will be displayed in an interactive carousel
                       that allows users to browse and save competitors to their database.
@@ -236,11 +210,34 @@ def send_ui_update(
         send_ui_update(
             type="show_competitor_context",
             payload={
-                "company_name": "Anki",
-                "product_name": "Anki App",
-                "website": "https://www.ankiapp.com",
-                "description": "Spaced repetition flashcard app for learning",
-                "category": "Direct Competitors"
+                "company_name": "Duolingo",
+                "category": "Direct Competitors",
+                "description": "Language learning platform with gamification",
+                "website_url": "https://www.duolingo.com",
+                "company_headquarters_location": "Pittsburgh, Pennsylvania, United States",
+                "number_of_employees": 700,
+                "founding_or_established_date": "2011-11-18",
+                "mission_statement": "To develop the best education in the world and make it universally available",
+                "vision_statement": "A world where everyone has access to free, high-quality education",
+                "company_culture_and_values": "Innovation, inclusivity, and continuous learning",
+                "additional_office_locations": ["Berlin, Germany", "Beijing, China"],
+                "products": [
+                    {
+                        "product_name": "Duolingo",
+                        "product_url": "https://www.duolingo.com",
+                        "product_description": "Free language learning platform"
+                    },
+                    {
+                        "product_name": "Duolingo for Schools",
+                        "product_url": "https://schools.duolingo.com",
+                        "product_description": "Educational platform for teachers"
+                    }
+                ],
+                "notes": "Strong focus on gamification and mobile-first approach",
+                "sources": [
+                    "https://www.duolingo.com/about",
+                    "https://investors.duolingo.com"
+                ]
             }
         )
 
@@ -250,19 +247,70 @@ def send_ui_update(
             payload={
                 "competitors": [
                     {
-                        "company_name": "Anki",
-                        "product_name": "Anki App",
-                        "website": "https://www.ankiapp.com",
-                        "description": "Spaced repetition flashcard app...",
-                        "category": "Direct Competitors"
+                        "company_name": "Duolingo",
+                        "category": "Direct Competitors",
+                        "description": "Language learning platform with gamification",
+                        "website_url": "https://www.duolingo.com",
+                        "company_headquarters_location": "Pittsburgh, Pennsylvania, United States",
+                        "number_of_employees": 700,
+                        "founding_or_established_date": "2011-11-18",
+                        "mission_statement": "To develop the best education in the world and make it universally available",
+                        "vision_statement": "A world where everyone has access to free, high-quality education",
+                        "company_culture_and_values": "Innovation, inclusivity, and continuous learning",
+                        "additional_office_locations": ["Berlin, Germany", "Beijing, China"],
+                        "products": [
+                            {
+                                "product_name": "Duolingo",
+                                "product_url": "https://www.duolingo.com",
+                                "product_description": "Free language learning platform"
+                            },
+                            {
+                                "product_name": "Duolingo for Schools",
+                                "product_url": "https://schools.duolingo.com",
+                                "product_description": "Educational platform for teachers"
+                            }
+                        ],
+                        "notes": "Strong focus on gamification and mobile-first approach",
+                        "sources": [
+                            "https://www.duolingo.com/about",
+                            "https://investors.duolingo.com"
+                        ]
+                    },
+                    {other_competitor...}
+                ]
+            }
+        )
+
+        # Show competitor with full CompetitorOverview data
+        send_ui_update(
+            type="show_competitor_context",
+            payload={
+                "company_name": "Duolingo",
+                "category": "Direct Competitors",
+                "description": "Language learning platform with gamification",
+                "company_headquarters_location": "Pittsburgh, Pennsylvania, United States",
+                "number_of_employees": 700,
+                "founding_or_established_date": "2011-11-18",
+                "mission_statement": "To develop the best education in the world and make it universally available",
+                "vision_statement": "A world where everyone has access to free, high-quality education",
+                "company_culture_and_values": "Innovation, inclusivity, and continuous learning",
+                "additional_office_locations": ["Berlin, Germany", "Beijing, China"],
+                "products": [
+                    {
+                        "product_name": "Duolingo",
+                        "product_url": "https://www.duolingo.com",
+                        "product_description": "Free language learning platform"
                     },
                     {
-                        "company_name": "Quizlet",
-                        "product_name": "Quizlet",
-                        "website": "https://www.quizlet.com",
-                        "description": "Study tools and flashcards...",
-                        "category": "Direct Competitors"
+                        "product_name": "Duolingo for Schools",
+                        "product_url": "https://schools.duolingo.com",
+                        "product_description": "Educational platform for teachers"
                     }
+                ],
+                "notes": "Strong focus on gamification and mobile-first approach",
+                "sources": [
+                    "https://www.duolingo.com/about",
+                    "https://investors.duolingo.com"
                 ]
             }
         )
@@ -441,19 +489,21 @@ def send_ui_update(
         return f"Error sending UI update: {str(e)}"
 
 @tool
-def get_competitors_overview(competitor_name: str, competitor_url: str) -> str:
+def get_competitors_overview(company_information: str, competitor_name: str, competitor_url: str) -> str:
     """
     Get a detailed overview of a competitor's company and products.
 
     Use this tool when you need to get a detailed overview of a competitor's company.
     Args:
-        competitor_name: The name of the competitor
-        competitor_url: The URL of the competitor's product
+        company_information: The company you're doing research for's information
+        competitor_name: The name of the company's competitor
+        competitor_url: The URL of the company's competitor's product
     Returns:
-        str: The detailed overview of the competitor's company and products
+        str: The detailed overview of the company's competitor and its products
     """
     agent_instance = Agent(
-        model=model,
+        model=BedrockModel(model_id="us.amazon.nova-premier-v1:0"),
+        system_prompt=search_for_overview_system_prompt.format(company_information=company_information),
         tools=[tavily_search, tavily_crawl, think]
     )
     response = agent_instance.structured_output(prompt=get_search_for_overview_prompt(competitor_name, competitor_url), output_model=CompetitorOverview)
@@ -465,13 +515,13 @@ async def invoke(payload):
     global _current_identity_id
 
     company_info = payload.get("company_information")
-    app.logger.info(f"Company Info: {company_info}")
+    # app.logger.info(f"Company Info: {company_info}")
     set_tavily_api_key(api_key=payload.get("tavily_api_key"))
 
     # Set identity_id for WebSocket updates (from company_info which contains _id/identity_id)
     if company_info and '_id' in company_info:
         _current_identity_id = company_info['_id']
-        app.logger.info(f"Set identity_id for WebSocket updates: {_current_identity_id}")
+        # app.logger.info(f"Set identity_id for WebSocket updates: {_current_identity_id}")
 
 
     # Create or get memory session for this user
@@ -490,7 +540,7 @@ async def invoke(payload):
             sanitized_identity = _current_identity_id.replace(":", "-")
             session_id = f"{sanitized_identity}_{today}"
 
-        app.logger.info(f"Memory session initialized | Source: {session_source} | Session ID: {session_id} | Actor: {_current_identity_id}")
+        # app.logger.info(f"Memory session initialized | Source: {session_source} | Session ID: {session_id} | Actor: {_current_identity_id}")
 
         # Create/get memory session
         memory_session = create_or_get_session(
@@ -504,11 +554,11 @@ async def invoke(payload):
         memory_context_text = memory_session.format_memory_for_prompt(recent_turns_k=max_recent_turns)
 
         recent_turns_count = len(memory_summary.get("recent_context", []))
-        app.logger.info(
-            f"Memory retrieved | Session: {session_id} | "
-            f"Recent turns: {recent_turns_count}/{max_recent_turns} | "
-            f"Context size: {len(memory_context_text)} chars"
-        )
+        # app.logger.info(
+        #     f"Memory retrieved | Session: {session_id} | "
+        #     f"Recent turns: {recent_turns_count}/{max_recent_turns} | "
+        #     f"Context size: {len(memory_context_text)} chars"
+        # )
 
         if recent_turns_count > 0:
             # Log a preview of recent memory
@@ -590,10 +640,12 @@ async def invoke(payload):
         # Each event contains a chunk of the response
         yield event
 
-    app.logger.info(agent_system_prompt.format(
-        company_information=company_info,
-        memory_context=memory_context_text
-    ))
+    # app.logger.info(agent_system_prompt.format(
+    #     company_information=company_info,
+    #     memory_context=memory_context_text
+    # ))
+
+    # app.logger.info(f"Conversation history: {memory_context_text}")
 
     # Store the conversation turn in memory
     if memory_session:
@@ -606,11 +658,11 @@ async def invoke(payload):
                     user_message=user_message,
                     assistant_message=full_assistant_response
                 )
-                app.logger.info(
-                    f"Conversation turn stored successfully | Session: {session_id} | "
-                    f"User message: {len(user_message)} chars | Assistant response: {len(full_assistant_response)} chars | "
-                    f"User preview: '{user_message[:50]}...'"
-                )
+                # app.logger.info(
+                #     f"Conversation turn stored successfully | Session: {session_id} | "
+                #     f"User message: {len(user_message)} chars | Assistant response: {len(full_assistant_response)} chars | "
+                #     f"User preview: '{user_message[:50]}...'"
+                # )
             else:
                 app.logger.warning(f"Assistant response was empty, skipping memory storage | Session: {session_id}")
 

@@ -301,9 +301,9 @@ class AgentMemorySession:
         # Add recent conversation context
         if summary["recent_context"]:
             lines.append("## Recent Conversation History")
-            lines.append(f"The following are the last {len(summary['recent_context'])} messages from this conversation:")
+            lines.append(f"The following are the last {len(summary['recent_context'])} messages from this conversation (displayed in order of oldest to newest):")
             lines.append("")  # blank line
-            for idx, turn in enumerate(summary["recent_context"], 1):
+            for idx, turn in enumerate(summary["recent_context"][::-1], 1):
                 role = turn["role"].upper()
                 content = turn["content"]
                 lines.append(f"**{idx} - {role}**: {content}")
