@@ -248,22 +248,33 @@ export const useUIStore = create<UIState>()(
 
   showCompetitorCarousel: (competitors) => {
     set((state) => {
-      // If carousel is already visible, append new competitors (avoiding duplicates by company_name)
+      // If carousel is already visible, merge/replace competitors
       if (state.competitorCarousel.visible) {
         const existingCompetitors = state.competitorCarousel.competitors
-        const existingNames = new Set(
-          existingCompetitors.map((c) => c.company_name.toLowerCase())
+
+        // Create a map of incoming competitors by company name (lowercase)
+        const incomingCompetitorsMap = new Map(
+          competitors.map((c) => [c.company_name.toLowerCase(), c])
         )
 
-        // Only add competitors that don't already exist
-        const newCompetitors = competitors.filter(
-          (c) => !existingNames.has(c.company_name.toLowerCase())
-        )
+        // Replace existing competitors with newer versions if they exist in incoming data
+        const updatedCompetitors = existingCompetitors.map((existing) => {
+          const incomingCompetitor = incomingCompetitorsMap.get(existing.company_name.toLowerCase())
+          if (incomingCompetitor) {
+            // Remove from map so we don't add it again later
+            incomingCompetitorsMap.delete(existing.company_name.toLowerCase())
+            return incomingCompetitor
+          }
+          return existing
+        })
+
+        // Add any completely new competitors that weren't replacements
+        const newCompetitors = Array.from(incomingCompetitorsMap.values())
 
         return {
           competitorCarousel: {
             ...state.competitorCarousel,
-            competitors: [...existingCompetitors, ...newCompetitors],
+            competitors: [...updatedCompetitors, ...newCompetitors],
           },
         }
       }

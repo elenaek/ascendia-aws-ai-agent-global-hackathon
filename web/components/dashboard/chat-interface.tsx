@@ -176,6 +176,11 @@ export function ChatInterface() {
         onError: (error) => {
           console.error('Streaming error:', error)
           appendToMessage(assistantMessageId, '\n\nSorry, I encountered an error while processing your request.')
+          // Clean up state to re-enable chat input
+          saveToolUsesToMessage(assistantMessageId)
+          setLoading(false)
+          setThinking(false)
+          setStreamingId(null)
         },
         onComplete: () => {
           // Save tool uses to the message before clearing

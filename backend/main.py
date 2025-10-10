@@ -9,7 +9,7 @@ load_dotenv()
 from strands import Agent, tool
 from strands.models import BedrockModel
 from strands_tools import think
-from strands_tools.tavily import tavily_search, tavily_crawl
+from strands_tools.tavily import tavily_search, tavily_crawl, tavily_extract
 
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
 from bedrock_agentcore.identity.auth import requires_api_key
@@ -40,15 +40,13 @@ You use the tools provided to you to perform your duties. If you need to ask the
   * Both carousels persist across page refreshes and can be minimized to the agent toolbar for easy access
 - When presenting multiple related insights (e.g., from a SWOT analysis or market research), send them together as a group using the insights array format
 - Highlight relevant panels (competitors-panel, insights-panel) before presenting new content to draw user attention
+- Ensure the competitor's website URL is correct by visiting it and verifying it.
 
 # User's Company Information
 {company_information}
 
 {memory_context}
 """
-
-
-
 
 # Tools
 def get_company_info(identity_id: str) -> dict:
@@ -101,9 +99,8 @@ def send_ui_update(
     Args:
         type: Type of UI update to send:
             - "show_competitor_context": Display competitor information
-                Core fields (backward compatible):
+                Core fields:
                   - company_name (required), product_name, website, description, category
-                Extended CompetitorOverview fields (required):
                   - website_url, company_headquarters_location, number_of_employees, founding_or_established_date
                   - mission_statement, vision_statement, company_culture_and_values
                   - additional_office_locations (list), products (list of {product_name, product_url, product_description})
@@ -277,40 +274,6 @@ def send_ui_update(
                         ]
                     },
                     {other_competitor...}
-                ]
-            }
-        )
-
-        # Show competitor with full CompetitorOverview data
-        send_ui_update(
-            type="show_competitor_context",
-            payload={
-                "company_name": "Duolingo",
-                "category": "Direct Competitors",
-                "description": "Language learning platform with gamification",
-                "company_headquarters_location": "Pittsburgh, Pennsylvania, United States",
-                "number_of_employees": 700,
-                "founding_or_established_date": "2011-11-18",
-                "mission_statement": "To develop the best education in the world and make it universally available",
-                "vision_statement": "A world where everyone has access to free, high-quality education",
-                "company_culture_and_values": "Innovation, inclusivity, and continuous learning",
-                "additional_office_locations": ["Berlin, Germany", "Beijing, China"],
-                "products": [
-                    {
-                        "product_name": "Duolingo",
-                        "product_url": "https://www.duolingo.com",
-                        "product_description": "Free language learning platform"
-                    },
-                    {
-                        "product_name": "Duolingo for Schools",
-                        "product_url": "https://schools.duolingo.com",
-                        "product_description": "Educational platform for teachers"
-                    }
-                ],
-                "notes": "Strong focus on gamification and mobile-first approach",
-                "sources": [
-                    "https://www.duolingo.com/about",
-                    "https://investors.duolingo.com"
                 ]
             }
         )
@@ -490,7 +453,7 @@ def send_ui_update(
 
 @tool
 def get_competitors_overview(company_information: str, competitor_name: str, competitor_url: str) -> str:
-    """
+    f"""
     Get a detailed overview of a competitor's company and products.
 
     Use this tool when you need to get a detailed overview of a competitor's company.
@@ -499,15 +462,19 @@ def get_competitors_overview(company_information: str, competitor_name: str, com
         competitor_name: The name of the company's competitor
         competitor_url: The URL of the company's competitor's product
     Returns:
-        str: The detailed overview of the company's competitor and its products
+        {CompetitorOverview.model_json_schema()['properties']}
     """
-    agent_instance = Agent(
-        model=BedrockModel(model_id="us.amazon.nova-premier-v1:0"),
-        system_prompt=search_for_overview_system_prompt.format(company_information=company_information),
-        tools=[tavily_search, tavily_crawl, think]
-    )
-    response = agent_instance.structured_output(prompt=get_search_for_overview_prompt(competitor_name, competitor_url), output_model=CompetitorOverview)
-    return response
+    try:
+        agent_instance = Agent(
+            model=BedrockModel(model_id="us.amazon.nova-premier-v1:0"),
+            system_prompt=search_for_overview_system_prompt.format(company_information=company_information),
+            tools=[tavily_search, tavily_crawl, tavily_extract]
+        )
+        response = agent_instance.structured_output(prompt=get_search_for_overview_prompt(competitor_name, competitor_url), output_model=CompetitorOverview)
+        return response.model_dump_json()
+    except Exception as e:
+        app.logger.error(f"Error getting competitors overview: {str(e)}")
+        return f"Error getting competitors overview: {str(e)}"
 
 @app.entrypoint
 async def invoke(payload):
@@ -579,7 +546,7 @@ async def invoke(payload):
             company_information=company_info,
             memory_context=memory_context_text
         ),
-        tools=[tavily_search, think, send_ui_update, get_competitors_overview]
+        tools=[tavily_search, tavily_crawl, tavily_extract, send_ui_update, get_competitors_overview]
     )
 
     user_message = payload.get("prompt", "Hello")
