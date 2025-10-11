@@ -537,10 +537,9 @@ async def invoke(payload):
             memory_context=memory_context_text
         ),
         tools=[
-            tavily_search, 
             send_ui_update, 
-            competitive_research_agent.get_detailed_competitor_overview, 
-            competitive_research_agent.search_for_pricing 
+            competitive_research_agent.find_competitors,
+            competitive_research_agent.competitor_analysis
         ]
     )
 
