@@ -59,8 +59,27 @@ interface Product {
   product_name: string
   product_url: string
   product_description: string
-  // Extended CompetitorAnalysis fields
-  pricing?: CompetitorPricing[]
+  // Extended fields to match competitor analysis
+  pricing?: string
+  pricing_model?: string
+  distribution_model?: '' | 'Direct to Customer' | 'Business to Business' | 'Business to Consumer' | 'Retail or Wholesale Partners' | 'Other or Hybrid Models'
+  distribution_model_justification?: string
+  target_channels?: Array<
+    | 'Company Website or Online Store'
+    | 'Retail Stores or Physical Locations'
+    | 'Distributor or Reseller Networks'
+    | 'Sales Representatives or Account Managers'
+    | 'Marketplaces'
+    | 'Partner Integrations or APIs'
+    | 'Social Media or Content Marketing'
+    | 'Trade Shows or Events'
+  >
+  target_audience_description?: string
+  target_sectors?: string[]
+  typical_segment_size?: '' | 'SMB' | 'Enterprise' | 'Startups'
+  key_decision_makers?: string[]
+  // Competitor-specific fields (not applicable for own company)
+  pricing_array?: CompetitorPricing[]
   distribution_channel?: DistributionChannel
   target_audience?: TargetAudience
   customer_sentiment?: CompetitorProductCustomerSentiment

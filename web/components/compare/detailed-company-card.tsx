@@ -49,8 +49,27 @@ interface Product {
   product_name: string
   product_url?: string
   product_description?: string
-  // Extended CompetitorAnalysis fields
-  pricing?: CompetitorPricing[]
+  // User company fields (simple format)
+  pricing?: string
+  pricing_model?: string
+  distribution_model?: '' | 'Direct to Customer' | 'Business to Business' | 'Business to Consumer' | 'Retail or Wholesale Partners' | 'Other or Hybrid Models'
+  distribution_model_justification?: string
+  target_channels?: Array<
+    | 'Company Website or Online Store'
+    | 'Retail Stores or Physical Locations'
+    | 'Distributor or Reseller Networks'
+    | 'Sales Representatives or Account Managers'
+    | 'Marketplaces'
+    | 'Partner Integrations or APIs'
+    | 'Social Media or Content Marketing'
+    | 'Trade Shows or Events'
+  >
+  target_audience_description?: string
+  target_sectors?: string[]
+  typical_segment_size?: '' | 'SMB' | 'Enterprise' | 'Startups'
+  key_decision_makers?: string[]
+  // Competitor fields (complex format)
+  pricing_array?: CompetitorPricing[]
   distribution_channel?: DistributionChannel
   target_audience?: TargetAudience
   customer_sentiment?: CompetitorProductCustomerSentiment
@@ -316,14 +335,24 @@ export function DetailedCompanyCard({ data, isUserCompany = false, className }: 
                       </div>
                     )}
 
-                    {/* Pricing Information */}
-                    {product.pricing && product.pricing.length > 0 && (
+                    {/* Pricing Information - Both formats */}
+                    {((product.pricing && typeof product.pricing === 'string') || product.pricing_array) && (
                       <div className="pt-2 border-t border-primary/10">
                         <div className="flex items-center gap-1.5 mb-1.5">
                           <DollarSign className="w-3.5 h-3.5 text-green-400" />
                           <h5 className="text-sm font-semibold text-foreground">Pricing</h5>
                         </div>
-                        {product.pricing.map((priceInfo, pidx) => (
+                        {/* Simple format for user company */}
+                        {product.pricing && typeof product.pricing === 'string' && (
+                          <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground">{product.pricing}</p>
+                            {product.pricing_model && (
+                              <p className="text-xs text-muted-foreground italic">{product.pricing_model}</p>
+                            )}
+                          </div>
+                        )}
+                        {/* Array format for competitors */}
+                        {product.pricing_array && product.pricing_array.map((priceInfo, pidx) => (
                           <div key={pidx} className="space-y-1">
                             <p className="text-xs text-muted-foreground">{priceInfo.pricing}</p>
                             <p className="text-xs text-muted-foreground italic">{priceInfo.pricing_model}</p>
@@ -332,69 +361,139 @@ export function DetailedCompanyCard({ data, isUserCompany = false, className }: 
                       </div>
                     )}
 
-                    {/* Distribution Channel */}
-                    {product.distribution_channel && (
+                    {/* Distribution Channel - Both formats */}
+                    {(product.distribution_channel || product.distribution_model) && (
                       <div className="pt-2 border-t border-primary/10">
                         <div className="flex items-center gap-1.5 mb-1.5">
                           <Truck className="w-3.5 h-3.5 text-blue-400" />
                           <h5 className="text-sm font-semibold text-foreground">Distribution</h5>
                         </div>
                         <div className="space-y-1.5">
-                          <Badge variant="outline" className="text-xs px-2 py-0.5 bg-blue-500/10 text-blue-400 border-blue-500/20">
-                            {product.distribution_channel.distribution_model}
-                          </Badge>
-                          <p className="text-xs text-muted-foreground">{product.distribution_channel.distribution_model_justification}</p>
-                          {product.distribution_channel.target_channels && product.distribution_channel.target_channels.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {product.distribution_channel.target_channels.map((channel, cidx) => (
-                                <Badge key={cidx} variant="outline" className="text-[10px] px-1.5 py-0.5">
-                                  {channel}
-                                </Badge>
-                              ))}
-                            </div>
+                          {/* Complex format for competitors */}
+                          {product.distribution_channel && (
+                            <>
+                              <Badge variant="outline" className="text-xs px-2 py-0.5 bg-blue-500/10 text-blue-400 border-blue-500/20">
+                                {product.distribution_channel.distribution_model}
+                              </Badge>
+                              <p className="text-xs text-muted-foreground">{product.distribution_channel.distribution_model_justification}</p>
+                              {product.distribution_channel.target_channels && product.distribution_channel.target_channels.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {product.distribution_channel.target_channels.map((channel, cidx) => (
+                                    <Badge key={cidx} variant="outline" className="text-[10px] px-1.5 py-0.5">
+                                      {channel}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              )}
+                            </>
+                          )}
+                          {/* Simple format for user company */}
+                          {!product.distribution_channel && product.distribution_model && (
+                            <>
+                              <Badge variant="outline" className="text-xs px-2 py-0.5 bg-blue-500/10 text-blue-400 border-blue-500/20">
+                                {product.distribution_model}
+                              </Badge>
+                              {product.distribution_model_justification && (
+                                <p className="text-xs text-muted-foreground">{product.distribution_model_justification}</p>
+                              )}
+                              {product.target_channels && product.target_channels.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {product.target_channels.map((channel, cidx) => (
+                                    <Badge key={cidx} variant="outline" className="text-[10px] px-1.5 py-0.5">
+                                      {channel}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              )}
+                            </>
                           )}
                         </div>
                       </div>
                     )}
 
-                    {/* Target Audience */}
-                    {product.target_audience && (
+                    {/* Target Audience - Both formats */}
+                    {(product.target_audience || product.target_audience_description || product.typical_segment_size) && (
                       <div className="pt-2 border-t border-primary/10">
                         <div className="flex items-center gap-1.5 mb-1.5">
                           <UserCheck className="w-3.5 h-3.5 text-purple-400" />
                           <h5 className="text-sm font-semibold text-foreground">Target Audience</h5>
                         </div>
                         <div className="space-y-1.5">
-                          <p className="text-xs text-muted-foreground">{product.target_audience.target_audience_description}</p>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] text-muted-foreground">Segment:</span>
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-purple-500/10 text-purple-400 border-purple-500/20">
-                              {product.target_audience.typical_segment_size}
-                            </Badge>
-                          </div>
-                          {product.target_audience.target_sectors && product.target_audience.target_sectors.length > 0 && (
-                            <div className="space-y-1">
-                              <span className="text-[10px] text-muted-foreground">Sectors:</span>
-                              <div className="flex flex-wrap gap-1">
-                                {product.target_audience.target_sectors.map((sector, sidx) => (
-                                  <Badge key={sidx} variant="outline" className="text-[10px] px-1.5 py-0.5">
-                                    {sector}
-                                  </Badge>
-                                ))}
+                          {/* Complex format for competitors */}
+                          {product.target_audience && (
+                            <>
+                              <p className="text-xs text-muted-foreground">{product.target_audience.target_audience_description}</p>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] text-muted-foreground">Segment:</span>
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-purple-500/10 text-purple-400 border-purple-500/20">
+                                  {product.target_audience.typical_segment_size}
+                                </Badge>
                               </div>
-                            </div>
+                              {product.target_audience.target_sectors && product.target_audience.target_sectors.length > 0 && (
+                                <div className="space-y-1">
+                                  <span className="text-[10px] text-muted-foreground">Sectors:</span>
+                                  <div className="flex flex-wrap gap-1">
+                                    {product.target_audience.target_sectors.map((sector, sidx) => (
+                                      <Badge key={sidx} variant="outline" className="text-[10px] px-1.5 py-0.5">
+                                        {sector}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              {product.target_audience.key_decision_makers && product.target_audience.key_decision_makers.length > 0 && (
+                                <div className="space-y-1">
+                                  <span className="text-[10px] text-muted-foreground">Decision Makers:</span>
+                                  <div className="flex flex-wrap gap-1">
+                                    {product.target_audience.key_decision_makers.map((dm, didx) => (
+                                      <Badge key={didx} variant="outline" className="text-[10px] px-1.5 py-0.5">
+                                        {dm}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </>
                           )}
-                          {product.target_audience.key_decision_makers && product.target_audience.key_decision_makers.length > 0 && (
-                            <div className="space-y-1">
-                              <span className="text-[10px] text-muted-foreground">Decision Makers:</span>
-                              <div className="flex flex-wrap gap-1">
-                                {product.target_audience.key_decision_makers.map((dm, didx) => (
-                                  <Badge key={didx} variant="outline" className="text-[10px] px-1.5 py-0.5">
-                                    {dm}
+                          {/* Simple format for user company */}
+                          {!product.target_audience && (
+                            <>
+                              {product.target_audience_description && (
+                                <p className="text-xs text-muted-foreground">{product.target_audience_description}</p>
+                              )}
+                              {product.typical_segment_size && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] text-muted-foreground">Segment:</span>
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-purple-500/10 text-purple-400 border-purple-500/20">
+                                    {product.typical_segment_size}
                                   </Badge>
-                                ))}
-                              </div>
-                            </div>
+                                </div>
+                              )}
+                              {product.target_sectors && product.target_sectors.length > 0 && (
+                                <div className="space-y-1">
+                                  <span className="text-[10px] text-muted-foreground">Sectors:</span>
+                                  <div className="flex flex-wrap gap-1">
+                                    {product.target_sectors.map((sector, sidx) => (
+                                      <Badge key={sidx} variant="outline" className="text-[10px] px-1.5 py-0.5">
+                                        {sector}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              {product.key_decision_makers && product.key_decision_makers.length > 0 && (
+                                <div className="space-y-1">
+                                  <span className="text-[10px] text-muted-foreground">Decision Makers:</span>
+                                  <div className="flex flex-wrap gap-1">
+                                    {product.key_decision_makers.map((dm, didx) => (
+                                      <Badge key={didx} variant="outline" className="text-[10px] px-1.5 py-0.5">
+                                        {dm}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </>
                           )}
                         </div>
                       </div>

@@ -8,11 +8,25 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Plus, Trash2, Loader2, Save } from 'lucide-react'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Badge } from '@/components/ui/badge'
+import { Plus, Trash2, Loader2, Save, ChevronDown, X } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
 import { useAnalyticsStore } from '@/stores/analytics-store'
 import { Header } from '@/components/dashboard/header'
 import { toast } from 'sonner'
+
+const TARGET_CHANNEL_OPTIONS = [
+  'Company Website or Online Store',
+  'Retail Stores or Physical Locations',
+  'Distributor or Reseller Networks',
+  'Sales Representatives or Account Managers',
+  'Marketplaces',
+  'Partner Integrations or APIs',
+  'Social Media or Content Marketing',
+  'Trade Shows or Events'
+] as const
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -32,7 +46,16 @@ export default function ProfilePage() {
     types_of_products: [{
       product_name: '',
       product_url: '',
-      product_description: ''
+      product_description: '',
+      pricing: '',
+      pricing_model: '',
+      distribution_model: '',
+      distribution_model_justification: '',
+      target_channels: [],
+      target_audience_description: '',
+      target_sectors: [],
+      typical_segment_size: '',
+      key_decision_makers: []
     }]
   })
 
@@ -82,12 +105,54 @@ export default function ProfilePage() {
           number_of_employees: companyData.number_of_employees || '',
           pricing_model: companyData.pricing_model || '',
           target_customers: companyData.target_customers || '',
-          types_of_products: companyData.types_of_products || [{
-            product_name: '',
-            product_url: '',
-            product_description: ''
-          }]
+          types_of_products: (companyData.types_of_products || []).map((product: {
+            product_name?: string;
+            product_url?: string;
+            product_description?: string;
+            pricing?: string;
+            pricing_model?: string;
+            distribution_model?: string;
+            distribution_model_justification?: string;
+            target_channels?: string[];
+            target_audience_description?: string;
+            target_sectors?: string[];
+            typical_segment_size?: string;
+            key_decision_makers?: string[];
+          }) => ({
+            product_name: product.product_name || '',
+            product_url: product.product_url || '',
+            product_description: product.product_description || '',
+            pricing: product.pricing || '',
+            pricing_model: product.pricing_model || '',
+            distribution_model: product.distribution_model || '',
+            distribution_model_justification: product.distribution_model_justification || '',
+            target_channels: product.target_channels || [],
+            target_audience_description: product.target_audience_description || '',
+            target_sectors: product.target_sectors || [],
+            typical_segment_size: product.typical_segment_size || '',
+            key_decision_makers: product.key_decision_makers || []
+          }))
         })
+
+        if (companyData.types_of_products?.length === 0) {
+          setFormData(prev => ({
+            ...prev,
+            types_of_products: [{
+              product_name: '',
+              product_url: '',
+              product_description: '',
+              pricing: '',
+              pricing_model: '',
+              distribution_model: '',
+              distribution_model_justification: '',
+              target_channels: [],
+              target_audience_description: '',
+              target_sectors: [],
+              typical_segment_size: '',
+              key_decision_makers: []
+            }]
+          }))
+        }
 
       } catch (error) {
         console.error('Error fetching company data:', error)
@@ -110,7 +175,16 @@ export default function ProfilePage() {
         {
           product_name: '',
           product_url: '',
-          product_description: ''
+          product_description: '',
+          pricing: '',
+          pricing_model: '',
+          distribution_model: '',
+          distribution_model_justification: '',
+          target_channels: [],
+          target_audience_description: '',
+          target_sectors: [],
+          typical_segment_size: '',
+          key_decision_makers: []
         }
       ]
     })
@@ -123,7 +197,7 @@ export default function ProfilePage() {
     })
   }
 
-  const updateProduct = (index: number, field: string, value: string) => {
+  const updateProduct = (index: number, field: string, value: string | string[]) => {
     const updatedProducts = [...formData.types_of_products]
     updatedProducts[index] = {
       ...updatedProducts[index],
@@ -162,7 +236,7 @@ export default function ProfilePage() {
       const updatedCompany = {
         id: result.data.company_id,
         ...formData
-      }
+      } as Parameters<typeof setCompany>[0]
       setCompany(updatedCompany)
 
       toast.success('Profile updated successfully!')
@@ -444,6 +518,236 @@ export default function ProfilePage() {
                             required
                             className="bg-background border-primary/30 focus:border-primary min-h-[60px]"
                           />
+                        </div>
+
+                        {/* Pricing Information */}
+                        <div className="pt-4 border-t border-primary/10">
+                          <Label className="text-sm font-medium text-foreground mb-3 block">
+                            Pricing Information (Optional)
+                          </Label>
+                          <div className="grid md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label className="text-xs text-muted-foreground">
+                                Pricing
+                              </Label>
+                              <Input
+                                type="text"
+                                placeholder="e.g., $99/month, Free"
+                                value={product.pricing || ''}
+                                onChange={(e) =>
+                                  updateProduct(index, 'pricing', e.target.value)
+                                }
+                                className="bg-background border-primary/30 focus:border-primary"
+                              />
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label className="text-xs text-muted-foreground">
+                                Pricing Model
+                              </Label>
+                              <Input
+                                type="text"
+                                placeholder="e.g., Subscription, Freemium"
+                                value={product.pricing_model || ''}
+                                onChange={(e) =>
+                                  updateProduct(index, 'pricing_model', e.target.value)
+                                }
+                                className="bg-background border-primary/30 focus:border-primary"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Distribution Channel */}
+                        <div className="pt-4 border-t border-primary/10">
+                          <Label className="text-sm font-medium text-foreground mb-3 block">
+                            Distribution Channel (Optional)
+                          </Label>
+                          <div className="space-y-4">
+                            <div className="space-y-2">
+                              <Label className="text-xs text-muted-foreground">
+                                Distribution Model
+                              </Label>
+                              <Select
+                                value={product.distribution_model || ''}
+                                onValueChange={(value) =>
+                                  updateProduct(index, 'distribution_model', value)
+                                }
+                              >
+                                <SelectTrigger className="bg-background border-primary/30 focus:border-primary">
+                                  <SelectValue placeholder="Select distribution model" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Direct to Customer">Direct to Customer</SelectItem>
+                                  <SelectItem value="Business to Business">Business to Business</SelectItem>
+                                  <SelectItem value="Business to Consumer">Business to Consumer</SelectItem>
+                                  <SelectItem value="Retail or Wholesale Partners">Retail or Wholesale Partners</SelectItem>
+                                  <SelectItem value="Other or Hybrid Models">Other or Hybrid Models</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label className="text-xs text-muted-foreground">
+                                Distribution Model Justification
+                              </Label>
+                              <Textarea
+                                placeholder="Why did you choose this distribution model?"
+                                value={product.distribution_model_justification || ''}
+                                onChange={(e) =>
+                                  updateProduct(index, 'distribution_model_justification', e.target.value)
+                                }
+                                className="bg-background border-primary/30 focus:border-primary min-h-[60px]"
+                              />
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label className="text-xs text-muted-foreground">
+                                Target Channels
+                              </Label>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    className="w-full justify-between bg-background border-primary/30 hover:bg-primary/5"
+                                  >
+                                    <span className="text-sm">
+                                      {product.target_channels && product.target_channels.length > 0
+                                        ? `${product.target_channels.length} selected`
+                                        : 'Select channels'}
+                                    </span>
+                                    <ChevronDown className="h-4 w-4 opacity-50" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[400px] p-0" align="start">
+                                  <div className="max-h-[300px] overflow-y-auto p-4 space-y-2">
+                                    {TARGET_CHANNEL_OPTIONS.map((channel) => {
+                                      const isChecked = (product.target_channels as string[] | undefined)?.includes(channel) || false
+                                      return (
+                                        <div key={channel} className="flex items-center space-x-2">
+                                          <Checkbox
+                                            id={`channel-${index}-${channel}`}
+                                            checked={isChecked}
+                                            onCheckedChange={(checked) => {
+                                              const currentChannels = product.target_channels || []
+                                              const newChannels = checked
+                                                ? [...currentChannels, channel]
+                                                : currentChannels.filter(c => c !== channel)
+                                              updateProduct(index, 'target_channels', newChannels)
+                                            }}
+                                          />
+                                          <label
+                                            htmlFor={`channel-${index}-${channel}`}
+                                            className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                                          >
+                                            {channel}
+                                          </label>
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
+                              {product.target_channels && product.target_channels.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5 mt-2">
+                                  {product.target_channels.map((channel) => (
+                                    <Badge
+                                      key={channel}
+                                      variant="outline"
+                                      className="text-xs px-2 py-0.5 border-primary/30"
+                                    >
+                                      {channel}
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const newChannels = product.target_channels?.filter(c => c !== channel) || []
+                                          updateProduct(index, 'target_channels', newChannels)
+                                        }}
+                                        className="ml-1 hover:text-destructive"
+                                      >
+                                        <X className="h-3 w-3" />
+                                      </button>
+                                    </Badge>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Target Audience */}
+                        <div className="pt-4 border-t border-primary/10">
+                          <Label className="text-sm font-medium text-foreground mb-3 block">
+                            Target Audience (Optional)
+                          </Label>
+                          <div className="space-y-4">
+                            <div className="space-y-2">
+                              <Label className="text-xs text-muted-foreground">
+                                Target Audience Description
+                              </Label>
+                              <Textarea
+                                placeholder="Who are your target users for this product?"
+                                value={product.target_audience_description || ''}
+                                onChange={(e) =>
+                                  updateProduct(index, 'target_audience_description', e.target.value)
+                                }
+                                className="bg-background border-primary/30 focus:border-primary min-h-[60px]"
+                              />
+                            </div>
+
+                            <div className="grid md:grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <Label className="text-xs text-muted-foreground">
+                                  Target Sectors (comma-separated)
+                                </Label>
+                                <Input
+                                  type="text"
+                                  placeholder="e.g., Healthcare, Finance, Tech"
+                                  value={Array.isArray(product.target_sectors) ? product.target_sectors.join(', ') : ''}
+                                  onChange={(e) =>
+                                    updateProduct(index, 'target_sectors', e.target.value.split(',').map(s => s.trim()).filter(Boolean))
+                                  }
+                                  className="bg-background border-primary/30 focus:border-primary"
+                                />
+                              </div>
+
+                              <div className="space-y-2">
+                                <Label className="text-xs text-muted-foreground">
+                                  Typical Segment Size
+                                </Label>
+                                <Select
+                                  value={product.typical_segment_size || ''}
+                                  onValueChange={(value) =>
+                                    updateProduct(index, 'typical_segment_size', value)
+                                  }
+                                >
+                                  <SelectTrigger className="bg-background border-primary/30 focus:border-primary">
+                                    <SelectValue placeholder="Select segment size" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="SMB">SMB (Small/Medium Business)</SelectItem>
+                                    <SelectItem value="Enterprise">Enterprise</SelectItem>
+                                    <SelectItem value="Startups">Startups</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label className="text-xs text-muted-foreground">
+                                Key Decision Makers (comma-separated)
+                              </Label>
+                              <Input
+                                type="text"
+                                placeholder="e.g., CTOs, IT Managers, Procurement Teams"
+                                value={Array.isArray(product.key_decision_makers) ? product.key_decision_makers.join(', ') : ''}
+                                onChange={(e) =>
+                                  updateProduct(index, 'key_decision_makers', e.target.value.split(',').map(s => s.trim()).filter(Boolean))
+                                }
+                                className="bg-background border-primary/30 focus:border-primary"
+                              />
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </Card>
