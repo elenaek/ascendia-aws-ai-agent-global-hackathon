@@ -2,8 +2,9 @@
 from pydantic import BaseModel, Field
 from enum import Enum
 from typing import Optional, Literal
-from strands import Agent,tool
+from strands import Agent, tool
 from strands.models import BedrockModel
+from strands_tools import think
 from strands_tools.tavily import tavily_search, tavily_crawl, tavily_extract
 from .prompts import (
     system_prompt, 
@@ -14,7 +15,9 @@ from .prompts import (
     search_for_publicity_prompt,
     competitor_analysis_prompt,
 )
-from logging import Logger
+from logging import Logger, getLogger, WARNING
+tavily_logger = getLogger("strands_agents.tools.tavily")
+tavily_logger.setLevel(WARNING)
 
 class DistributionModelEnum(str, Enum):
     DIRECT_TO_CUSTOMER = "Direct to Customer"
@@ -94,7 +97,7 @@ class CompetitiveResearchAgent:
         """
         try:
             agent_instance = Agent(
-                model=BedrockModel(model_id="us.amazon.nova-pro-v1:0"),
+                model=BedrockModel(model_id="us.amazon.nova-pro-v1:0", max_tokens=10000),
                 system_prompt=system_prompt.format(company_information=self.company_information),
                 tools=[tavily_search, tavily_crawl, tavily_extract]
             )
@@ -138,7 +141,7 @@ class CompetitiveResearchAgent:
         """
         try:
             agent_instance = Agent(
-                model=BedrockModel(model_id="us.amazon.nova-pro-v1:0"),
+                model=BedrockModel(model_id="us.amazon.nova-pro-v1:0", max_tokens=10000),
                 system_prompt=system_prompt.format(company_information=self.company_information),
                 tools=[tavily_search, tavily_crawl, tavily_extract]
             )
@@ -158,7 +161,7 @@ class CompetitiveResearchAgent:
         """
         try:
             agent_instance = Agent(
-                model=BedrockModel(model_id="us.amazon.nova-pro-v1:0"),
+                model=BedrockModel(model_id="us.amazon.nova-pro-v1:0", max_tokens=10000),
                 system_prompt=system_prompt.format(company_information=self.company_information),
                 tools=[tavily_search, tavily_crawl, tavily_extract]
             )
@@ -178,7 +181,7 @@ class CompetitiveResearchAgent:
         """
         try:
             agent_instance = Agent(
-                model=BedrockModel(model_id="us.amazon.nova-pro-v1:0"),
+                model=BedrockModel(model_id="us.amazon.nova-pro-v1:0", max_tokens=10000),
                 system_prompt=system_prompt.format(company_information=self.company_information),
                 tools=[tavily_search, tavily_crawl, tavily_extract]
             )
@@ -198,9 +201,10 @@ class CompetitiveResearchAgent:
         """
         try:
             agent_instance = Agent(
-                model=BedrockModel(model_id="us.amazon.nova-pro-v1:0"),
+                model=BedrockModel(model_id="us.amazon.nova-pro-v1:0", max_tokens=10000),
                 system_prompt=system_prompt.format(company_information=self.company_information),
                 tools=[
+                    think,
                     tavily_search, 
                     tavily_crawl, 
                     tavily_extract, 

@@ -152,7 +152,7 @@ export default function ComparePage() {
             {/* Single View Tab */}
             <TabsContent value="single" className="space-y-6">
               {company ? (
-                <div className="max-w-4xl mx-auto">
+                <div className="max-w-5xl mx-auto">
                   <DetailedCompanyCard
                     data={{
                       id: company.id,
@@ -211,9 +211,9 @@ export default function ComparePage() {
 
               {/* Comparison Grid */}
               {comparisonItems.length > 0 ? (
-                <div className={`grid gap-6 ${
+                <div className={`grid gap-8 ${
                   comparisonItems.length === 1
-                    ? 'grid-cols-1 max-w-4xl mx-auto'
+                    ? 'grid-cols-1 max-w-5xl mx-auto'
                     : comparisonItems.length === 2
                     ? 'grid-cols-1 lg:grid-cols-2'
                     : 'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3'

@@ -3,6 +3,7 @@ import boto3
 import os
 from typing import Literal, Dict, Any
 from datetime import datetime
+import logging
 
 load_dotenv()
 
@@ -23,8 +24,11 @@ COGNITO_IDENTITY_POOL_ID=os.getenv("COGNITO_IDENTITY_POOL_ID")
 AWS_REGION=os.getenv("AWS_REGION")
 AWS_ACCOUNT_ID = os.getenv("AWS_ACCOUNT_ID")
 
+tavily_logger = logging.getLogger("strands_agents.tools.tavily")
+tavily_logger.setLevel(logging.WARNING)
+
 app = BedrockAgentCoreApp()
-model = BedrockModel(model_id="us.amazon.nova-pro-v1:0")
+model = BedrockModel(model_id="us.amazon.nova-pro-v1:0", max_tokens=10000)
 # model = BedrockModel(model_id="openai.gpt-oss-120b-1:0")
 # model = BedrockModel(model_id="us.amazon.nova-premier-v1:0")
 
@@ -610,6 +614,7 @@ async def invoke(payload):
             memory_context=memory_context_text
         ),
         tools=[
+            think,
             send_ui_update, 
             competitive_research_agent.find_competitors,
             competitive_research_agent.competitor_analysis
