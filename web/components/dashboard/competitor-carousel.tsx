@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Building2, ExternalLink, X, Plus, Minimize2, Check, Trash2, MapPin, Users, Calendar, Target, Lightbulb, Globe } from 'lucide-react'
+import { Building2, ExternalLink, X, Plus, Minimize2, Check, Trash2, MapPin, Users, Calendar, Target, Lightbulb, Globe, DollarSign, Truck, ThumbsUp, ThumbsDown, UserCheck, TrendingUp, Package } from 'lucide-react'
 import { IconArrowNarrowRight } from '@tabler/icons-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useUIStore } from '@/stores/ui-store'
@@ -251,28 +251,173 @@ const CompetitorSlide = ({
                 </TabsContent>
 
                 {/* Products Tab */}
-                <TabsContent value="products" className="space-y-3">
+                <TabsContent value="products" className="space-y-3 max-h-[350px] overflow-y-auto">
                   {competitor.products && competitor.products.length > 0 ? (
                     competitor.products.map((product, idx) => (
-                      <div key={idx} className="text-left p-3 rounded-lg bg-primary/5 border border-primary/20">
-                        {product.product_name && (
-                          <h4 className="text-sm font-semibold text-foreground mb-1">{product.product_name}</h4>
+                      <div key={idx} className="text-left p-4 rounded-lg bg-primary/5 border border-primary/20 space-y-3">
+                        {/* Product Header */}
+                        <div>
+                          {product.product_name && (
+                            <h4 className="text-sm font-semibold text-foreground mb-1 flex items-center gap-2">
+                              <Package className="w-4 h-4 text-primary" />
+                              {product.product_name}
+                            </h4>
+                          )}
+                          {product.product_description && (
+                            <p className="text-xs text-muted-foreground mb-2">{product.product_description}</p>
+                          )}
+                          {product.product_url && (
+                            <a
+                              href={`https://${product.product_url.replace(/^https?:\/\//, '')}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors group"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <ExternalLink className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                              <span className="underline underline-offset-2">{product.product_url}</span>
+                            </a>
+                          )}
+                        </div>
+
+                        {/* Pricing Information */}
+                        {product.pricing && product.pricing.length > 0 && (
+                          <div className="pt-2 border-t border-primary/10">
+                            <div className="flex items-center gap-2 mb-1">
+                              <DollarSign className="w-3 h-3 text-green-400" />
+                              <h5 className="text-xs font-semibold text-foreground">Pricing</h5>
+                            </div>
+                            {product.pricing.map((priceInfo, pidx) => (
+                              <div key={pidx} className="space-y-1">
+                                <p className="text-xs text-muted-foreground">{priceInfo.pricing}</p>
+                                <p className="text-xs text-muted-foreground italic">{priceInfo.pricing_model}</p>
+                              </div>
+                            ))}
+                          </div>
                         )}
-                        {product.product_description && (
-                          <p className="text-xs text-muted-foreground mb-2">{product.product_description}</p>
+
+                        {/* Distribution Channel */}
+                        {product.distribution_channel && (
+                          <div className="pt-2 border-t border-primary/10">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Truck className="w-3 h-3 text-blue-400" />
+                              <h5 className="text-xs font-semibold text-foreground">Distribution</h5>
+                            </div>
+                            <div className="space-y-1">
+                              <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-400 border-blue-500/20">
+                                {product.distribution_channel.distribution_model}
+                              </Badge>
+                              <p className="text-xs text-muted-foreground">{product.distribution_channel.distribution_model_justification}</p>
+                              {product.distribution_channel.target_channels && product.distribution_channel.target_channels.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-2">
+                                  {product.distribution_channel.target_channels.map((channel, cidx) => (
+                                    <Badge key={cidx} variant="outline" className="text-[10px] px-1.5 py-0">
+                                      {channel}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         )}
-                        {product.product_url && (
-                          <a
-                            href={`https://${product.product_url.replace(/^https?:\/\//, '')}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors group"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <ExternalLink className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
-                            <span className="underline underline-offset-2">{product.product_url}</span>
-                          </a>
+
+                        {/* Target Audience */}
+                        {product.target_audience && (
+                          <div className="pt-2 border-t border-primary/10">
+                            <div className="flex items-center gap-2 mb-1">
+                              <UserCheck className="w-3 h-3 text-purple-400" />
+                              <h5 className="text-xs font-semibold text-foreground">Target Audience</h5>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs text-muted-foreground">{product.target_audience.target_audience_description}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="text-[10px] text-muted-foreground">Segment:</span>
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-purple-500/10 text-purple-400 border-purple-500/20">
+                                  {product.target_audience.typical_segment_size}
+                                </Badge>
+                              </div>
+                              {product.target_audience.target_sectors && product.target_audience.target_sectors.length > 0 && (
+                                <div className="space-y-1 mt-2">
+                                  <span className="text-[10px] text-muted-foreground">Sectors:</span>
+                                  <div className="flex flex-wrap gap-1">
+                                    {product.target_audience.target_sectors.map((sector, sidx) => (
+                                      <Badge key={sidx} variant="outline" className="text-[10px] px-1.5 py-0">
+                                        {sector}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              {product.target_audience.key_decision_makers && product.target_audience.key_decision_makers.length > 0 && (
+                                <div className="space-y-1 mt-2">
+                                  <span className="text-[10px] text-muted-foreground">Decision Makers:</span>
+                                  <div className="flex flex-wrap gap-1">
+                                    {product.target_audience.key_decision_makers.map((dm, didx) => (
+                                      <Badge key={didx} variant="outline" className="text-[10px] px-1.5 py-0">
+                                        {dm}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         )}
+
+                        {/* Customer Sentiment */}
+                        {product.customer_sentiment && (
+                          <div className="pt-2 border-t border-primary/10">
+                            <div className="flex items-center gap-2 mb-1">
+                              <TrendingUp className="w-3 h-3 text-amber-400" />
+                              <h5 className="text-xs font-semibold text-foreground">Customer Sentiment</h5>
+                            </div>
+                            <div className="space-y-2">
+                              <p className="text-xs text-muted-foreground italic">{product.customer_sentiment.overall_sentiment}</p>
+
+                              {product.customer_sentiment.key_themes && product.customer_sentiment.key_themes.length > 0 && (
+                                <div className="space-y-1">
+                                  <span className="text-[10px] text-muted-foreground">Key Themes:</span>
+                                  <div className="flex flex-wrap gap-1">
+                                    {product.customer_sentiment.key_themes.map((theme, tidx) => (
+                                      <Badge key={tidx} variant="outline" className="text-[10px] px-1.5 py-0">
+                                        {theme}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {product.customer_sentiment.strengths && product.customer_sentiment.strengths.length > 0 && (
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-1">
+                                    <ThumbsUp className="w-3 h-3 text-green-400" />
+                                    <span className="text-[10px] text-muted-foreground font-medium">Strengths:</span>
+                                  </div>
+                                  <ul className="list-disc list-inside space-y-0.5 ml-2">
+                                    {product.customer_sentiment.strengths.map((strength, sidx) => (
+                                      <li key={sidx} className="text-xs text-muted-foreground">{strength}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+
+                              {product.customer_sentiment.weaknesses && product.customer_sentiment.weaknesses.length > 0 && (
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-1">
+                                    <ThumbsDown className="w-3 h-3 text-red-400" />
+                                    <span className="text-[10px] text-muted-foreground font-medium">Weaknesses:</span>
+                                  </div>
+                                  <ul className="list-disc list-inside space-y-0.5 ml-2">
+                                    {product.customer_sentiment.weaknesses.map((weakness, widx) => (
+                                      <li key={widx} className="text-xs text-muted-foreground">{weakness}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
                         {!product.product_name && !product.product_description && !product.product_url && (
                           <p className="text-xs text-muted-foreground italic">Product details unavailable</p>
                         )}

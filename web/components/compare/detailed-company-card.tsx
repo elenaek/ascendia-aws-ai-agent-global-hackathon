@@ -2,13 +2,58 @@
 
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Building2, MapPin, Users, DollarSign, Target, AlertCircle } from 'lucide-react'
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion'
+import { Building2, MapPin, Users, DollarSign, Target, AlertCircle, Truck, ThumbsUp, ThumbsDown, UserCheck, TrendingUp, Package } from 'lucide-react'
 import { cn } from '@/lib/utils'
+
+interface CompetitorPricing {
+  pricing: string
+  pricing_model: string
+}
+
+interface DistributionChannel {
+  distribution_model: 'Direct to Customer' | 'Business to Business' | 'Business to Consumer' | 'Retail or Wholesale Partners' | 'Other or Hybrid Models'
+  distribution_model_justification: string
+  target_channels: Array<
+    | 'Company Website or Online Store'
+    | 'Retail Stores or Physical Locations'
+    | 'Distributor or Reseller Networks'
+    | 'Sales Representatives or Account Managers'
+    | 'Marketplaces'
+    | 'Partner Integrations or APIs'
+    | 'Social Media or Content Marketing'
+    | 'Trade Shows or Events'
+  >
+}
+
+interface TargetAudience {
+  target_audience_description: string
+  target_sectors: string[]
+  typical_segment_size: 'SMB' | 'Enterprise' | 'Startups'
+  key_decision_makers: string[]
+}
+
+interface CompetitorProductCustomerSentiment {
+  key_themes: string[]
+  overall_sentiment: string
+  strengths: string[]
+  weaknesses: string[]
+}
 
 interface Product {
   product_name: string
   product_url?: string
   product_description?: string
+  // Extended CompetitorAnalysis fields
+  pricing?: CompetitorPricing[]
+  distribution_channel?: DistributionChannel
+  target_audience?: TargetAudience
+  customer_sentiment?: CompetitorProductCustomerSentiment
 }
 
 interface CompanyData {
@@ -202,34 +247,187 @@ export function DetailedCompanyCard({ data, isUserCompany = false, className }: 
         {/* Products */}
         {products.length > 0 && (
           <div>
-            <h3 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-2">
-              <DollarSign className="w-4 h-4 text-primary" />
-              Products
+            <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+              <Package className="w-4 h-4 text-primary" />
+              Products ({products.length})
             </h3>
-            <div className="space-y-2">
+            <Accordion type="single" collapsible className="space-y-2">
               {products.map((product, index) => (
-                <div key={index} className="p-2 bg-background/50 rounded-md border border-primary/10">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1">
-                      <h4 className="text-xs font-semibold text-foreground">{product.product_name}</h4>
-                      {product.product_description && (
-                        <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">{product.product_description}</p>
-                      )}
+                <AccordionItem
+                  key={index}
+                  value={`product-${index}`}
+                  className="border border-primary/10 rounded-lg overflow-hidden bg-background/50"
+                >
+                  <AccordionTrigger className="px-3 py-2 hover:no-underline hover:bg-primary/5 transition-colors">
+                    <div className="flex items-center gap-2 text-left">
+                      <Package className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                      <span className="text-xs font-semibold text-foreground">{product.product_name}</span>
                     </div>
-                    {product.product_url && (
-                      <a
-                        href={product.product_url.startsWith('http') ? product.product_url : `https://${product.product_url}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[10px] text-primary hover:text-primary/80 flex-shrink-0"
-                      >
-                        Visit
-                      </a>
+                  </AccordionTrigger>
+
+                  <AccordionContent className="px-3 pb-3 space-y-3">
+                    {/* Product Description */}
+                    {product.product_description && (
+                      <div>
+                        <p className="text-[10px] text-muted-foreground leading-relaxed">{product.product_description}</p>
+                      </div>
                     )}
-                  </div>
-                </div>
+
+                    {/* Product URL */}
+                    {product.product_url && (
+                      <div>
+                        <a
+                          href={product.product_url.startsWith('http') ? product.product_url : `https://${product.product_url}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[10px] text-primary hover:text-primary/80 underline underline-offset-2"
+                        >
+                          Visit Product →
+                        </a>
+                      </div>
+                    )}
+
+                    {/* Pricing Information */}
+                    {product.pricing && product.pricing.length > 0 && (
+                      <div className="pt-2 border-t border-primary/10">
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <DollarSign className="w-3 h-3 text-green-400" />
+                          <h5 className="text-[10px] font-semibold text-foreground">Pricing</h5>
+                        </div>
+                        {product.pricing.map((priceInfo, pidx) => (
+                          <div key={pidx} className="space-y-1">
+                            <p className="text-[10px] text-muted-foreground">{priceInfo.pricing}</p>
+                            <p className="text-[10px] text-muted-foreground italic">{priceInfo.pricing_model}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Distribution Channel */}
+                    {product.distribution_channel && (
+                      <div className="pt-2 border-t border-primary/10">
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <Truck className="w-3 h-3 text-blue-400" />
+                          <h5 className="text-[10px] font-semibold text-foreground">Distribution</h5>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-blue-500/10 text-blue-400 border-blue-500/20">
+                            {product.distribution_channel.distribution_model}
+                          </Badge>
+                          <p className="text-[10px] text-muted-foreground">{product.distribution_channel.distribution_model_justification}</p>
+                          {product.distribution_channel.target_channels && product.distribution_channel.target_channels.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {product.distribution_channel.target_channels.map((channel, cidx) => (
+                                <Badge key={cidx} variant="outline" className="text-[9px] px-1 py-0">
+                                  {channel}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Target Audience */}
+                    {product.target_audience && (
+                      <div className="pt-2 border-t border-primary/10">
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <UserCheck className="w-3 h-3 text-purple-400" />
+                          <h5 className="text-[10px] font-semibold text-foreground">Target Audience</h5>
+                        </div>
+                        <div className="space-y-1.5">
+                          <p className="text-[10px] text-muted-foreground">{product.target_audience.target_audience_description}</p>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[9px] text-muted-foreground">Segment:</span>
+                            <Badge variant="outline" className="text-[9px] px-1 py-0 bg-purple-500/10 text-purple-400 border-purple-500/20">
+                              {product.target_audience.typical_segment_size}
+                            </Badge>
+                          </div>
+                          {product.target_audience.target_sectors && product.target_audience.target_sectors.length > 0 && (
+                            <div className="space-y-1">
+                              <span className="text-[9px] text-muted-foreground">Sectors:</span>
+                              <div className="flex flex-wrap gap-1">
+                                {product.target_audience.target_sectors.map((sector, sidx) => (
+                                  <Badge key={sidx} variant="outline" className="text-[9px] px-1 py-0">
+                                    {sector}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {product.target_audience.key_decision_makers && product.target_audience.key_decision_makers.length > 0 && (
+                            <div className="space-y-1">
+                              <span className="text-[9px] text-muted-foreground">Decision Makers:</span>
+                              <div className="flex flex-wrap gap-1">
+                                {product.target_audience.key_decision_makers.map((dm, didx) => (
+                                  <Badge key={didx} variant="outline" className="text-[9px] px-1 py-0">
+                                    {dm}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Customer Sentiment */}
+                    {product.customer_sentiment && (
+                      <div className="pt-2 border-t border-primary/10">
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <TrendingUp className="w-3 h-3 text-amber-400" />
+                          <h5 className="text-[10px] font-semibold text-foreground">Customer Sentiment</h5>
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-[10px] text-muted-foreground italic">{product.customer_sentiment.overall_sentiment}</p>
+
+                          {product.customer_sentiment.key_themes && product.customer_sentiment.key_themes.length > 0 && (
+                            <div className="space-y-1">
+                              <span className="text-[9px] text-muted-foreground">Key Themes:</span>
+                              <div className="flex flex-wrap gap-1">
+                                {product.customer_sentiment.key_themes.map((theme, tidx) => (
+                                  <Badge key={tidx} variant="outline" className="text-[9px] px-1 py-0">
+                                    {theme}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {product.customer_sentiment.strengths && product.customer_sentiment.strengths.length > 0 && (
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-1">
+                                <ThumbsUp className="w-2.5 h-2.5 text-green-400" />
+                                <span className="text-[9px] text-muted-foreground font-medium">Strengths:</span>
+                              </div>
+                              <ul className="list-disc list-inside space-y-0.5 ml-1">
+                                {product.customer_sentiment.strengths.map((strength, sidx) => (
+                                  <li key={sidx} className="text-[10px] text-muted-foreground">{strength}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          {product.customer_sentiment.weaknesses && product.customer_sentiment.weaknesses.length > 0 && (
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-1">
+                                <ThumbsDown className="w-2.5 h-2.5 text-red-400" />
+                                <span className="text-[9px] text-muted-foreground font-medium">Weaknesses:</span>
+                              </div>
+                              <ul className="list-disc list-inside space-y-0.5 ml-1">
+                                {product.customer_sentiment.weaknesses.map((weakness, widx) => (
+                                  <li key={widx} className="text-[10px] text-muted-foreground">{weakness}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </AccordionContent>
+                </AccordionItem>
               ))}
-            </div>
+            </Accordion>
           </div>
         )}
 

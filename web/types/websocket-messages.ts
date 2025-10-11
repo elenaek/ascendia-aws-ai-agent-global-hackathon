@@ -11,10 +11,53 @@ export type MessageType =
   | 'highlight_element'
   | 'show_graph'
 
+// Pricing information for competitor products
+export interface CompetitorPricing {
+  pricing: string
+  pricing_model: string
+}
+
+// Distribution channel information
+export interface DistributionChannel {
+  distribution_model: 'Direct to Customer' | 'Business to Business' | 'Business to Consumer' | 'Retail or Wholesale Partners' | 'Other or Hybrid Models'
+  distribution_model_justification: string
+  target_channels: Array<
+    | 'Company Website or Online Store'
+    | 'Retail Stores or Physical Locations'
+    | 'Distributor or Reseller Networks'
+    | 'Sales Representatives or Account Managers'
+    | 'Marketplaces'
+    | 'Partner Integrations or APIs'
+    | 'Social Media or Content Marketing'
+    | 'Trade Shows or Events'
+  >
+}
+
+// Target audience information
+export interface TargetAudience {
+  target_audience_description: string
+  target_sectors: string[]
+  typical_segment_size: 'SMB' | 'Enterprise' | 'Startups'
+  key_decision_makers: string[]
+}
+
+// Customer sentiment about competitor products
+export interface CompetitorProductCustomerSentiment {
+  key_themes: string[]
+  overall_sentiment: string
+  strengths: string[]
+  weaknesses: string[]
+}
+
 export interface CompetitorProduct {
   product_name?: string
   product_url?: string
   product_description?: string
+  // Extended CompetitorAnalysis fields
+  pricing?: CompetitorPricing[]
+  distribution_channel?: DistributionChannel
+  target_audience?: TargetAudience
+  customer_sentiment?: CompetitorProductCustomerSentiment
 }
 
 export interface CompetitorContextPayload {

@@ -62,7 +62,7 @@ class CompetitorProduct(BaseModel):
     distribution_channel: DistributionChannel = Field(description="The distribution channel of the competitor's product")
     target_audience: TargetAudience = Field(description="The target audience of the competitor's product")
     customer_sentiment: CompetitorProductCustomerSentiment = Field(description="The customer sentiment of the competitor's product")
-    
+
 class CompetitorAnalysis(BaseModel):
     company_headquarters_location: str = Field(description="The headquarters location of the competitor")
     number_of_employees: int = Field(description="The number of employees of the competitor")
@@ -210,7 +210,7 @@ class CompetitiveResearchAgent:
                     self.search_for_publicity
                 ]
             )
-            response = agent_instance.structured_output(CompetitorAnalysis, competitor_analysis_prompt.format(competitor_name=competitor_name, competitor_url=competitor_url))
+            response = agent_instance.structured_output(CompetitorAnalysis, competitor_analysis_prompt.format(competitor_analysis_schema=CompetitorAnalysis.model_json_schema(), competitor_name=competitor_name, competitor_url=competitor_url))
             return response
         except Exception as e:
             self.logger.error(f"Error analyzing competitor: {str(e)}")

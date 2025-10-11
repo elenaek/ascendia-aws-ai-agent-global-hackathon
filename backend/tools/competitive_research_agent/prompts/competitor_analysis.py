@@ -3,6 +3,9 @@ Given competitor name and competitor url, analyze the competitor's company and p
 
 Use the tools provided to you to help perform your tasks.
 
+Output Schema:
+{competitor_analysis_schema}
+
 competitor name: {competitor_name}
 competitor url: {competitor_url}
 """

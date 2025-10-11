@@ -52,7 +52,7 @@ You use the tools provided to you to perform your duties. If you need to ask the
 - When presenting multiple related insights (e.g., from a SWOT analysis or market research), send them together as a group using the insights array format
 - Highlight relevant panels (competitors-panel, insights-panel) before presenting new content to draw user attention
 - Ensure the competitor's website URL is correct by visiting it and verifying it.
-- When the user asks about competitor(s), you should use the detailed competitor overview tool to get the information about the competitor(s).
+- When the user asks about competitor(s), you should use the competitor analysis tool to get comprehensive information about the competitor(s).
 
 # User's Company Information
 {company_information}
@@ -110,13 +110,22 @@ def send_ui_update(
 
     Args:
         type: Type of UI update to send:
-            - "show_competitor_context": Display competitor information
+            - "show_competitor_context": Display competitor information using the CompetitorAnalysis schema
                 Core fields:
-                  - company_name (required), product_name, website, description, category
-                  - website_url, company_headquarters_location, number_of_employees, founding_or_established_date
+                  - company_name (required), category, description, website_url
+                  - company_headquarters_location, number_of_employees, founding_or_established_date
                   - mission_statement, vision_statement, company_culture_and_values
-                  - additional_office_locations (list), products (list of {product_name, product_url, product_description})
+                  - additional_office_locations (list of strings)
+                  - products (list of CompetitorProduct objects with detailed information)
                   - notes, sources (list of URLs)
+
+                CompetitorProduct schema (nested within products array):
+                  - product_name, product_url, product_description
+                  - pricing (list): [{pricing, pricing_model}]
+                  - distribution_channel: {distribution_model, distribution_model_justification, target_channels (list)}
+                  - target_audience: {target_audience_description, target_sectors (list), typical_segment_size, key_decision_makers (list)}
+                  - customer_sentiment: {key_themes (list), overall_sentiment, strengths (list), weaknesses (list)}
+
                 Single competitor: {company_name, category?, ...other fields}
                 Multiple competitors (carousel): {competitors: [{company_name, category?, ...}, ...]}
                 Use one of the following categories: Direct Competitors, Indirect Competitors, Potential Competitors
@@ -235,12 +244,58 @@ def send_ui_update(
                     {
                         "product_name": "Duolingo",
                         "product_url": "https://www.duolingo.com",
-                        "product_description": "Free language learning platform"
+                        "product_description": "Free language learning platform with gamification features",
+                        "pricing": [
+                            {
+                                "pricing": "Free tier with ads, Super Duolingo at $6.99/month",
+                                "pricing_model": "Freemium subscription model with monthly and annual options"
+                            }
+                        ],
+                        "distribution_channel": {
+                            "distribution_model": "Direct to Customer",
+                            "distribution_model_justification": "Direct distribution through mobile apps and web platform",
+                            "target_channels": ["Company Website or Online Store", "Marketplaces", "Social Media or Content Marketing"]
+                        },
+                        "target_audience": {
+                            "target_audience_description": "Language learners of all ages seeking accessible, gamified education",
+                            "target_sectors": ["Education", "Consumer Learning", "K-12 Education"],
+                            "typical_segment_size": "SMB",
+                            "key_decision_makers": ["Individual consumers", "Parents", "Teachers"]
+                        },
+                        "customer_sentiment": {
+                            "key_themes": ["Easy to use", "Gamification makes learning fun", "Limited conversation practice"],
+                            "overall_sentiment": "Positive with some concerns about advanced learning",
+                            "strengths": ["Engaging gamification", "Free access", "Mobile-first design"],
+                            "weaknesses": ["Limited speaking practice", "Repetitive content", "Ads in free tier"]
+                        }
                     },
                     {
                         "product_name": "Duolingo for Schools",
                         "product_url": "https://schools.duolingo.com",
-                        "product_description": "Educational platform for teachers"
+                        "product_description": "Educational platform for teachers to track student progress",
+                        "pricing": [
+                            {
+                                "pricing": "Free for teachers and schools",
+                                "pricing_model": "Free B2B educational platform"
+                            }
+                        ],
+                        "distribution_channel": {
+                            "distribution_model": "Business to Business",
+                            "distribution_model_justification": "Targets educational institutions directly",
+                            "target_channels": ["Company Website or Online Store", "Sales Representatives or Account Managers"]
+                        },
+                        "target_audience": {
+                            "target_audience_description": "K-12 teachers and educational institutions",
+                            "target_sectors": ["Education", "K-12 Schools"],
+                            "typical_segment_size": "SMB",
+                            "key_decision_makers": ["Teachers", "School administrators", "District coordinators"]
+                        },
+                        "customer_sentiment": {
+                            "key_themes": ["Great for classroom engagement", "Good progress tracking", "Limited curriculum customization"],
+                            "overall_sentiment": "Positive among educators",
+                            "strengths": ["Free for schools", "Easy student management", "Progress tracking"],
+                            "weaknesses": ["Limited customization", "Requires student engagement outside class"]
+                        }
                     }
                 ],
                 "notes": "Strong focus on gamification and mobile-first approach",
@@ -272,12 +327,30 @@ def send_ui_update(
                             {
                                 "product_name": "Duolingo",
                                 "product_url": "https://www.duolingo.com",
-                                "product_description": "Free language learning platform"
-                            },
-                            {
-                                "product_name": "Duolingo for Schools",
-                                "product_url": "https://schools.duolingo.com",
-                                "product_description": "Educational platform for teachers"
+                                "product_description": "Free language learning platform with gamification features",
+                                "pricing": [
+                                    {
+                                        "pricing": "Free tier with ads, Super Duolingo at $6.99/month",
+                                        "pricing_model": "Freemium subscription model"
+                                    }
+                                ],
+                                "distribution_channel": {
+                                    "distribution_model": "Direct to Customer",
+                                    "distribution_model_justification": "Direct distribution through mobile apps and web",
+                                    "target_channels": ["Company Website or Online Store", "Marketplaces"]
+                                },
+                                "target_audience": {
+                                    "target_audience_description": "Language learners of all ages",
+                                    "target_sectors": ["Education", "Consumer Learning"],
+                                    "typical_segment_size": "SMB",
+                                    "key_decision_makers": ["Individual consumers", "Parents"]
+                                },
+                                "customer_sentiment": {
+                                    "key_themes": ["Easy to use", "Gamification makes learning fun"],
+                                    "overall_sentiment": "Positive",
+                                    "strengths": ["Engaging gamification", "Free access"],
+                                    "weaknesses": ["Limited speaking practice", "Ads in free tier"]
+                                }
                             }
                         ],
                         "notes": "Strong focus on gamification and mobile-first approach",
