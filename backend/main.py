@@ -201,9 +201,10 @@ def send_ui_update(
                     * Example axes: "Feature Categories" vs "Performance Score (0-10)"
                   - Use pie/doughnut for market share analysis (no axes needed)
                   - Provide descriptive, specific axis labels that explain the scale
-                  - Use consistent colors: "#00ff88" for user's company, "#ff6b6b" for competitors
+                  - Use consistent colors: "#00ff88" for user's company
                   - Include category for better organization in the Graphs panel
                   - Send multiple related graphs together in a carousel for comprehensive analysis
+                  - Use different colors for each competitor
 
                 Note: Graphs are displayed in a persistent carousel that can be minimized to the agent toolbar.
                       They are automatically shown in the Graphs panel as clickable summaries.

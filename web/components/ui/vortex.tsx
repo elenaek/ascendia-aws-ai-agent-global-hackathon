@@ -214,8 +214,31 @@ export const Vortex = (props: VortexProps) => {
   ) => {
     const { innerWidth, innerHeight } = window;
 
+    // Use document scroll height to account for all scrollable content
+    const documentHeight = document.documentElement.scrollHeight;
+    const height = Math.max(documentHeight, innerHeight);
+
+    // Save old dimensions for proportional scaling
+    const oldWidth = canvas.width;
+    const oldHeight = canvas.height;
+
+    // Only resize if dimensions actually changed
+    if (oldWidth === innerWidth && oldHeight === height) {
+      return;
+    }
+
+    // Calculate scale factors
+    const scaleX = innerWidth / oldWidth;
+    const scaleY = height / oldHeight;
+
+    // Update particle positions proportionally
+    for (let i = 0; i < particlePropsLength; i += particlePropCount) {
+      particleProps[i] *= scaleX;     // x position
+      particleProps[i + 1] *= scaleY; // y position
+    }
+
     canvas.width = innerWidth;
-    canvas.height = innerHeight;
+    canvas.height = height;
 
     center[0] = 0.5 * canvas.width;
     center[1] = 0.5 * canvas.height;
@@ -258,6 +281,31 @@ export const Vortex = (props: VortexProps) => {
   useEffect(() => {
     setup();
     window.addEventListener("resize", handleResize);
+
+    // Handle content changes that might affect height using MutationObserver
+    const mutationObserver = new MutationObserver(() => {
+      // Debounce resize calls
+      if (interactionTimeout.current) {
+        clearTimeout(interactionTimeout.current);
+      }
+      interactionTimeout.current = setTimeout(() => {
+        handleResize();
+      }, 100);
+    });
+
+    // Observe the entire document body for changes
+    mutationObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+    });
+
+    // Also observe with ResizeObserver for layout changes
+    const resizeObserver = new ResizeObserver(() => {
+      handleResize();
+    });
+
+    resizeObserver.observe(document.body);
 
     // User interaction detection - pause animation during interaction
     const handleUserInteraction = () => {
@@ -310,6 +358,9 @@ export const Vortex = (props: VortexProps) => {
       window.removeEventListener("scroll", handleUserInteraction, true);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
 
+      mutationObserver.disconnect();
+      resizeObserver.disconnect();
+
       if (interactionTimeout.current) {
         clearTimeout(interactionTimeout.current);
       }
@@ -326,14 +377,15 @@ export const Vortex = (props: VortexProps) => {
   }, []);
 
   return (
-    <div className={cn("relative h-full w-full", props.containerClassName)}>
+    <div className={cn("relative w-full", props.containerClassName)}>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         ref={containerRef}
-        className="absolute inset-0 z-0 flex h-full w-full items-center justify-center bg-transparent"
+        className="fixed inset-0 z-0 flex items-center justify-center bg-transparent"
+        style={{ pointerEvents: 'none' }}
       >
-        <canvas ref={canvasRef}></canvas>
+        <canvas ref={canvasRef} className="absolute top-0 left-0"></canvas>
       </motion.div>
 
       <div className={cn("relative z-10", props.className)}>

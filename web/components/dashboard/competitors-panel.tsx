@@ -14,10 +14,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { ExternalLink, Building2, Activity, Trash2, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ExternalLink, Building2, Activity, Trash2, AlertTriangle, ChevronLeft, ChevronRight, Scale } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 const ITEMS_PER_PAGE = 3
 
@@ -30,6 +31,7 @@ interface Competitor {
 }
 
 export function CompetitorsPanel() {
+  const router = useRouter()
   const { competitors, isLoadingCompetitors, company, removeCompetitor } = useAnalyticsStore()
   const { highlightedElements } = useUIStore()
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -67,6 +69,10 @@ export function CompetitorsPanel() {
 
   const handleCancelDelete = () => {
     setCompetitorToDelete(null)
+  }
+
+  const handleCompareClick = () => {
+    router.push('/compare')
   }
 
   const CompetitorsList = ({
@@ -183,9 +189,20 @@ export function CompetitorsPanel() {
             <Activity className="w-4 h-4 text-primary" />
             <h3 className="text-base font-semibold text-primary">My Competitors</h3>
           </div>
-          <Badge variant="outline" className="border-primary/30 text-primary text-[11px]">
-            {competitors.length} Total
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="border-primary/30 text-primary text-[11px]">
+              {competitors.length} Total
+            </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCompareClick}
+              className="h-7 px-3 text-xs border-primary/30 hover:border-primary/50 hover:bg-primary/10"
+            >
+              <Scale className="w-3.5 h-3.5 mr-1.5" />
+              Compare
+            </Button>
+          </div>
         </div>
 
         {isLoadingCompetitors ? (

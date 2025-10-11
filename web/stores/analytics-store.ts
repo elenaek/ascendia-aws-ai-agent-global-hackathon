@@ -7,6 +7,18 @@ interface Competitor {
   category: 'Direct Competitors' | 'Indirect Competitors' | 'Potential Competitors'
   website?: string
   description?: string
+  // Extended CompetitorOverview fields
+  website_url?: string
+  company_headquarters_location?: string
+  number_of_employees?: number
+  founding_or_established_date?: string
+  mission_statement?: string
+  vision_statement?: string
+  company_culture_and_values?: string
+  additional_office_locations?: string[]
+  products?: Product[]
+  notes?: string
+  sources?: string[]
 }
 
 interface Product {

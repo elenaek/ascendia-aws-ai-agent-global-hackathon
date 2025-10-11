@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Building2, LogOut, User, LayoutDashboard } from 'lucide-react'
+import { Building2, LogOut, User, LayoutDashboard, Scale } from 'lucide-react'
 
 export function Header() {
   const router = useRouter()
@@ -28,6 +28,10 @@ export function Header() {
 
   const handleDashboardClick = () => {
     router.push('/dashboard')
+  }
+
+  const handleCompareClick = () => {
+    router.push('/compare')
   }
 
   return (
@@ -75,6 +79,13 @@ export function Header() {
               >
                 <LayoutDashboard className="w-4 h-4 mr-2" />
                 Dashboard
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="cursor-pointer hover:bg-primary/10"
+                onClick={handleCompareClick}
+              >
+                <Scale className="w-4 h-4 mr-2" />
+                Compare
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="cursor-pointer hover:bg-primary/10"
