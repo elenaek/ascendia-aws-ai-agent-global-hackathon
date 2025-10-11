@@ -36,6 +36,13 @@ class TargetChannelEnum(str, Enum):
     SOCIAL_MEDIA_OR_CONTENT_MARKETING = "Social Media or Content Marketing"
     TRADE_SHOWS_OR_EVENTS = "Trade Shows or Events"
 
+class FindCompetitor(BaseModel):
+    competitor_name: str = Field(description="The name of the competitor")
+    competitor_url: str = Field(description="The URL of the competitor's verified home page. With the 'https://' or 'http://'")
+
+class FindCompetitorsOutput(BaseModel):
+    competitors: list[FindCompetitor] = Field(description="The competitors found")
+
 class CompetitorProductCustomerSentiment(BaseModel):
     key_themes: list[str] = Field(description="The key themes of the competitor's product based on customer sentiment. e.g. 'Common praises', 'Complaints', 'Frequently mentioned features or issues'")
     overall_sentiment: str = Field(description="The overall sentiment of the competitor's product based on customer sentiment")
@@ -66,6 +73,14 @@ class CompetitorProduct(BaseModel):
     target_audience: TargetAudience = Field(description="The target audience of the competitor's product")
     customer_sentiment: CompetitorProductCustomerSentiment = Field(description="The customer sentiment of the competitor's product")
 
+class CompetitorOverview(BaseModel):
+    competitor_mission_statement: str = Field(description="The mission statement of the competitor")
+    competitor_vision_statement: str = Field(description="The vision statement of the competitor")
+    competitor_company_culture_and_values: str = Field(description="The company culture and values of the competitor")
+    competitor_additional_office_locations: list[str] = Field(description="The additional office locations of the competitor")
+    competitor_notes: Optional[str] = Field(description="Notes about the competitor", default=None)
+    competitor_sources: list[str] = Field(description="The sources of the data")
+
 class CompetitorAnalysis(BaseModel):
     company_headquarters_location: str = Field(description="The headquarters location of the competitor")
     number_of_employees: int = Field(description="The number of employees of the competitor")
@@ -89,7 +104,7 @@ class CompetitiveResearchAgent:
 
 
     @tool
-    def find_competitors(self, num_competitors: int) -> str:
+    def find_competitors(self, num_competitors: int) -> FindCompetitorsOutput:
         f"""
         Find the specified number of the most relevant competitors for the company you're doing research for.
         Args:
@@ -101,14 +116,14 @@ class CompetitiveResearchAgent:
                 system_prompt=system_prompt.format(company_information=self.company_information),
                 tools=[tavily_search, tavily_crawl, tavily_extract]
             )
-            response = agent_instance(prompt=find_competitors_prompt.format(num_competitors=num_competitors))
+            response = agent_instance.structured_output(FindCompetitorsOutput, find_competitors_prompt.format(num_competitors=num_competitors))
             return response
         except Exception as e:
             self.logger.error(f"Error finding competitors: {str(e)}")
             return f"Error finding competitors: {str(e)}"
 
     @tool
-    def get_detailed_competitor_overview(self, competitor_name: str, competitor_url: str) -> str:
+    def get_detailed_competitor_overview(self, competitor_name: str, competitor_url: str) -> CompetitorOverview:
         f"""
         Get a detailed overview of a competitor's company and products relevant to the company you're doing research for.
 
@@ -123,7 +138,7 @@ class CompetitiveResearchAgent:
                 system_prompt=system_prompt.format(company_information=self.company_information),
                 tools=[tavily_search, tavily_crawl, tavily_extract]
             )
-            response = agent_instance(prompt=search_for_overview_prompt.format(competitor_name=competitor_name, competitor_url=competitor_url))
+            response = agent_instance.structured_output(CompetitorOverview, search_for_overview_prompt.format(competitor_name=competitor_name, competitor_url=competitor_url))
             return response
         except Exception as e:
             self.logger.error(f"Error getting competitors overview: {str(e)}")
@@ -215,6 +230,7 @@ class CompetitiveResearchAgent:
                 ]
             )
             response = agent_instance.structured_output(CompetitorAnalysis, competitor_analysis_prompt.format(competitor_analysis_schema=CompetitorAnalysis.model_json_schema(), competitor_name=competitor_name, competitor_url=competitor_url))
+            self.logger.info(f"Competitor analysis COMPLETED----------------------------------------------: {response}")
             return response
         except Exception as e:
             self.logger.error(f"Error analyzing competitor: {str(e)}")

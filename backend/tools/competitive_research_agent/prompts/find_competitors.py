@@ -29,5 +29,9 @@ find_competitors_prompt = """# Your Tasks
     - Gaining traction in marketed solution but not yet in direct competition to your company
     - Addresses adjacent customer segments with a solution that substitutes your company
 
+# Requirements
+- Ensure the competitor's website URL is valid and is actually the competitor's home page
+- If the competitor's website URL can not be located do not include them in the results
+
 number of competitors to find: {num_competitors}
 """
