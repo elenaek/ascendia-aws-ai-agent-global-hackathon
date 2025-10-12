@@ -1,6 +1,13 @@
+find_competitors_system_prompt = """
+You are an expert competitor researcher analyzing a company's competitor and its products and services.
+
+You're doing research for the following company:
+{company_information}
+"""
+
 find_competitors_prompt = """# Your Tasks
 1. Evaluate your company's website to identify the following:
-    1. Products, features, and services being marketed
+    1. Products, features, and services being marketed which are relevant to the company you're doing research for
     2. Market positioning, which includes target industries, markets, and customer segments
 2. Review your company's market positioning from two perspectives:
     1. New entrant scenario: How would your offering stand out if it launched today?

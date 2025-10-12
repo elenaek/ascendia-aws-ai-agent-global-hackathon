@@ -17,7 +17,7 @@ from bedrock_agentcore.identity.auth import requires_api_key
 
 from websocket_helper import send_ui_update_to_identity
 from memory_session import create_or_get_session
-from tools.competitive_research_agent import CompetitiveResearchAgent
+from tools.competitive_research import CompetitiveResearch
 
 COGNITO_USER_POOL_ID=os.getenv("COGNITO_USER_POOL_ID")
 COGNITO_IDENTITY_POOL_ID=os.getenv("COGNITO_IDENTITY_POOL_ID")
@@ -605,7 +605,7 @@ async def invoke(payload):
         app.logger.error(f"Memory initialization failed (continuing without memory): {str(e)}")
         memory_context_text = "Memory service temporarily unavailable."
 
-    competitive_research_agent = CompetitiveResearchAgent(company_information=company_info, logger=app.logger)
+    competitive_research_tools = CompetitiveResearch(company_information=company_info, logger=app.logger)
 
     agent_instance = Agent(
         model=model,
@@ -615,9 +615,10 @@ async def invoke(payload):
         ),
         tools=[
             think,
+            tavily_search,
             send_ui_update, 
-            competitive_research_agent.find_competitors,
-            competitive_research_agent.competitor_analysis
+            competitive_research_tools.find_competitors,
+            competitive_research_tools.competitor_analysis
         ]
     )
 
