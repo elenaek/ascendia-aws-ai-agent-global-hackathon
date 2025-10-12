@@ -496,12 +496,12 @@ export function ChatInterface() {
               const streamingMessage = messages.find(m => m.id === currentStreamingId)
               return streamingMessage && (
                 <div className="flex gap-3 items-start justify-start">
-                  <div className={cn(
+                  {/* <div className={cn(
                     "w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0",
                     !streamingMessage.content.trim() && "animate-pulse"
                   )}>
                     <Bot className="w-4 h-4 text-primary" />
-                  </div>
+                  </div> */}
                   <div className="flex flex-col gap-2 max-w-[80%]">
                     <div className="rounded-lg p-3 bg-muted text-foreground">
                       {!streamingMessage.content.trim() ? (

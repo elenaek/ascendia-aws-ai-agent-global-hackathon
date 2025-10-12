@@ -193,6 +193,7 @@ export interface GraphOptions {
 }
 
 export interface GraphPayload {
+  id?: string // Unique identifier (generated on frontend if not provided)
   title: string
   graphType: GraphType
   data: GraphData

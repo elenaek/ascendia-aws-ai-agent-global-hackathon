@@ -303,7 +303,7 @@ class UIUpdates:
         x_axis_label: str,
         y_axis_label: str,
         data_points: list[dict],
-        description: Optional[str] = None,
+        description: str = None,
         category: Optional[str] = None,
         x_min: int = 0,
         x_max: int = 10,
@@ -429,7 +429,7 @@ class UIUpdates:
         x_axis_label: str,
         y_axis_label: str,
         datasets: list[dict],
-        description: Optional[str] = None,
+        description: str = None,
         horizontal: bool = False
     ) -> str:
         """
@@ -489,13 +489,46 @@ class UIUpdates:
             - Use consistent scales (0-10 or 0-100)
             - Include clear axis labels with units
         """
+        # Detect if this is a simple bar chart (each dataset has exactly one data point)
+        # vs a grouped bar chart (multiple data points per dataset)
+        is_simple_bar = all(len(dataset.get("data", [])) == 1 for dataset in datasets)
+
+        if is_simple_bar and len(datasets) > 0:
+            # Transform to simple bar chart format with individual legend items:
+            # Each dataset represents a single category/bar positioned at its index
+            labels = [dataset["label"] for dataset in datasets]
+            num_categories = len(datasets)
+
+            # Position each dataset's data point at its corresponding index
+            positioned_datasets = []
+            for i, dataset in enumerate(datasets):
+                # Create data array with value at position i, null at others
+                positioned_data = [None] * num_categories
+                positioned_data[i] = dataset["data"][0]
+
+                positioned_datasets.append({
+                    "label": dataset["label"],
+                    "data": positioned_data,
+                    "backgroundColor": dataset.get("backgroundColor", "#6b8cff"),
+                    "borderColor": dataset.get("borderColor", dataset.get("backgroundColor", "#6b8cff")),
+                    "borderWidth": dataset.get("borderWidth", 1)
+                })
+
+            chart_data = {
+                "labels": labels,
+                "datasets": positioned_datasets
+            }
+        else:
+            # Keep grouped bar chart format (original behavior)
+            chart_data = {
+                "labels": [dataset["label"] for dataset in datasets],
+                "datasets": datasets
+            }
+
         payload = {
             "title": title,
             "graphType": "horizontalBar" if horizontal else "bar",
-            "data": {
-                "labels": [dataset["label"] for dataset in datasets],
-                "datasets": datasets
-            },
+            "data": chart_data,
             "options": {
                 "scales": {
                     "x": {
@@ -524,7 +557,7 @@ class UIUpdates:
         y_axis_label: str,
         time_periods: list[str],
         datasets: list[dict],
-        description: Optional[str] = None,
+        description: str = None,
         category: Optional[str] = None
     ) -> str:
         """
@@ -633,7 +666,7 @@ class UIUpdates:
         title: str,
         dimensions: list[str],
         datasets: list[dict],
-        description: Optional[str] = None,
+        description: str = None,
         category: Optional[str] = None,
         max_value: int = 10
     ) -> str:
@@ -651,8 +684,11 @@ class UIUpdates:
             datasets: List of dataset dicts for comparison. Each dataset dict should contain:
                 - label (str): Dataset name for legend (e.g., "Your Company", "Competitor A")
                 - data (list[float]): Values for each dimension (must match length of dimensions)
-                - backgroundColor (str, optional): Fill color with transparency (e.g., "rgba(0, 255, 136, 0.2)")
-                - borderColor (str, optional): Border color (e.g., "#00ff88")
+                - backgroundColor (str, REQUIRED): Fill color with transparency (e.g., "rgba(0, 255, 136, 0.2)")
+                - borderColor (str, REQUIRED): Border color (e.g., "#00ff88")
+
+            NOTE: backgroundColor and borderColor are REQUIRED for radar charts to render visibly.
+                  Always provide these properties for each dataset to ensure proper visualization.
             description: Brief explanation of what the graph shows and key insights
             category: Category for filtering (e.g., "Competitive Analysis", "Product Comparison")
             max_value: Maximum value for the scale (default: 10)
@@ -706,6 +742,33 @@ class UIUpdates:
             - Use consistent scales (typically 0-10)
             - Ensure all datasets use same scale
         """
+        # Define default color palette for fallback (edge case handling)
+        default_colors = [
+            {"bg": "rgba(0, 255, 136, 0.2)", "border": "#00ff88"},    # Green
+            {"bg": "rgba(255, 107, 107, 0.2)", "border": "#ff6b6b"},  # Red
+            {"bg": "rgba(255, 217, 61, 0.2)", "border": "#ffd93d"},   # Yellow
+            {"bg": "rgba(107, 140, 255, 0.2)", "border": "#6b8cff"},  # Blue
+        ]
+
+        # Apply color fallbacks if needed (should rarely trigger - see docstring)
+        for i, dataset in enumerate(datasets):
+            color_index = i % len(default_colors)
+            dataset_label = dataset.get("label", "unknown")
+
+            if "backgroundColor" not in dataset or not dataset["backgroundColor"]:
+                dataset["backgroundColor"] = default_colors[color_index]["bg"]
+                self.logger.warning(
+                    f"Applied fallback backgroundColor for radar dataset '{dataset_label}'. "
+                    f"backgroundColor should be provided by the caller."
+                )
+
+            if "borderColor" not in dataset or not dataset["borderColor"]:
+                dataset["borderColor"] = default_colors[color_index]["border"]
+                self.logger.warning(
+                    f"Applied fallback borderColor for radar dataset '{dataset_label}'. "
+                    f"borderColor should be provided by the caller."
+                )
+
         payload = {
             "title": title,
             "graphType": "radar",
@@ -741,7 +804,7 @@ class UIUpdates:
         labels: list[str],
         values: list[float],
         colors: Optional[list[str]] = None,
-        description: Optional[str] = None,
+        description: str = None,
         category: Optional[str] = None
     ) -> str:
         """
@@ -754,8 +817,11 @@ class UIUpdates:
             title: Graph title displayed at the top (e.g., "Market Share Distribution 2024")
             labels: List of segment labels (e.g., ["Your Company", "Competitor A", "Competitor B", "Others"])
             values: List of values for each segment (can be percentages or absolute numbers)
-            colors: Optional list of hex colors for each segment (e.g., ["#00ff88", "#ff6b6b", "#ffd93d"])
-                   If not provided, defaults to standard color palette
+            colors: Optional list of DIVERSE, CONTRASTING hex colors for each segment.
+                   IMPORTANT: Use visually distinct colors from different color families (e.g., green, red, yellow, blue).
+                   AVOID using multiple shades of the same color (e.g., multiple blues) as they become hard to distinguish.
+                   If not provided, defaults to a carefully designed color palette with maximum contrast:
+                   ["#00ff88" (green), "#ff6b6b" (red), "#ffd93d" (yellow), "#6b8cff" (blue), "#a855f7" (purple), "#ec4899" (pink), "#cccccc" (gray)]
             description: Brief explanation of what the graph shows and key insights
             category: Category for filtering (e.g., "Market Analysis", "Market Share")
 
@@ -782,8 +848,10 @@ class UIUpdates:
             - Geographic market breakdown
 
         Best Practices:
-            - Use "#00ff88" (green) for your company
-            - Use contrasting colors for clarity
+            - Use "#00ff88" (green) for your company to make it stand out
+            - Use DIVERSE, CONTRASTING colors from different color families (green, red, yellow, blue, purple)
+            - AVOID using multiple shades of the same color (e.g., #4285f4, #0078d7, #008cff are all blues - BAD)
+            - The default color palette is specifically designed for visual contrast - use it when possible
             - Limit to 5-7 segments (combine small segments into "Others")
             - Order segments by size (largest to smallest)
             - Include percentages in description
@@ -824,7 +892,7 @@ class UIUpdates:
         labels: list[str],
         values: list[float],
         colors: Optional[list[str]] = None,
-        description: Optional[str] = None,
+        description: str = None,
         category: Optional[str] = None
     ) -> str:
         """
@@ -838,8 +906,11 @@ class UIUpdates:
             title: Graph title displayed at the top (e.g., "Revenue Distribution by Product Line")
             labels: List of segment labels (e.g., ["Product A", "Product B", "Product C", "Others"])
             values: List of values for each segment (can be percentages or absolute numbers)
-            colors: Optional list of hex colors for each segment (e.g., ["#00ff88", "#ff6b6b", "#ffd93d"])
-                   If not provided, defaults to standard color palette
+            colors: Optional list of DIVERSE, CONTRASTING hex colors for each segment.
+                   IMPORTANT: Use visually distinct colors from different color families (e.g., green, red, yellow, blue).
+                   AVOID using multiple shades of the same color (e.g., multiple blues) as they become hard to distinguish.
+                   If not provided, defaults to a carefully designed color palette with maximum contrast:
+                   ["#00ff88" (green), "#ff6b6b" (red), "#ffd93d" (yellow), "#6b8cff" (blue), "#a855f7" (purple), "#ec4899" (pink), "#cccccc" (gray)]
             description: Brief explanation of what the graph shows and key insights
             category: Category for filtering (e.g., "Revenue Analysis", "Product Analysis")
 
@@ -867,9 +938,11 @@ class UIUpdates:
             - Time allocation analysis
 
         Best Practices:
+            - Use DIVERSE, CONTRASTING colors from different color families (green, red, yellow, blue, purple)
+            - AVOID using multiple shades of the same color (e.g., #4285f4, #0078d7, #008cff are all blues - BAD)
+            - The default color palette is specifically designed for visual contrast - use it when possible
             - Use for 3-7 segments (combine small segments into "Others")
             - Order segments by size (largest to smallest)
-            - Use contrasting colors for better visibility
             - Include actual values or percentages in description
             - Consider using center space to show total (handled by frontend)
             - Prefer over pie charts for modern, professional look
@@ -909,7 +982,7 @@ class UIUpdates:
         x_axis_label: str,
         y_axis_label: str,
         data_points: list[dict],
-        description: Optional[str] = None,
+        description: str = None,
         category: Optional[str] = None,
         x_min: int = 0,
         x_max: int = 10,

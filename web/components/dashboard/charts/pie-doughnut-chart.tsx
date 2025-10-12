@@ -19,11 +19,20 @@ export function PieDoughnutChart({ data, options, chartType }: PieDoughnutChartP
     onHover: getLegendHoverCallback(),
     plugins: {
       ...getBaseChartOptions().plugins,
+      legend: {
+        ...getBaseChartOptions().plugins?.legend,
+        labels: {
+          ...getBaseChartOptions().plugins?.legend?.labels,
+          // Use Chart.js default legend generation for pie/doughnut charts
+          // This shows individual slice labels instead of dataset labels
+          generateLabels: undefined,
+        },
+      },
       tooltip: {
         ...getBaseChartOptions().plugins?.tooltip,
         callbacks: {
           label: (context: any) => {
-            const label = context.dataset.label || context.label || ''
+            const label = context.label || ''
             const value = context.parsed
             return `${label}: ${value}`
           },

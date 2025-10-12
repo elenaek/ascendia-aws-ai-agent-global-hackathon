@@ -7,6 +7,37 @@ import { getBaseChartOptions, getRadialAxisConfig, getLegendHoverCallback } from
 import { mergeChartOptions } from './shared/chart-utils'
 
 export function RadarChart({ data, options }: BaseChartProps) {
+  // Default color palette for fallback (should rarely be needed - backend provides colors)
+  const defaultColors = [
+    { bg: 'rgba(0, 255, 136, 0.2)', border: '#00ff88' },    // Green
+    { bg: 'rgba(255, 107, 107, 0.2)', border: '#ff6b6b' },  // Red
+    { bg: 'rgba(255, 217, 61, 0.2)', border: '#ffd93d' },   // Yellow
+    { bg: 'rgba(107, 140, 255, 0.2)', border: '#6b8cff' },  // Blue
+  ]
+
+  // Apply color fallbacks if needed (defense-in-depth edge case handling)
+  const processedData = {
+    ...data,
+    datasets: data.datasets?.map((dataset: any, index: number) => {
+      const colorIndex = index % defaultColors.length
+      const needsBackgroundColor = !dataset.backgroundColor
+      const needsBorderColor = !dataset.borderColor
+
+      if (needsBackgroundColor || needsBorderColor) {
+        console.warn(
+          `[RadarChart] Applying fallback colors for dataset '${dataset.label || 'unknown'}'. ` +
+          `Colors should be provided by the backend.`
+        )
+      }
+
+      return {
+        ...dataset,
+        backgroundColor: dataset.backgroundColor || defaultColors[colorIndex].bg,
+        borderColor: dataset.borderColor || defaultColors[colorIndex].border,
+      }
+    }) || [],
+  }
+
   // Build radar chart specific options
   const radarOptions = {
     ...getBaseChartOptions(),
@@ -56,5 +87,5 @@ export function RadarChart({ data, options }: BaseChartProps) {
     }
   }
 
-  return <Radar data={data} options={finalOptions as any} />
+  return <Radar data={processedData} options={finalOptions as any} />
 }

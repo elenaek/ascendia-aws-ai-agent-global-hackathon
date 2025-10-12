@@ -507,16 +507,22 @@ export const useUIStore = create<UIState>()(
 
   showGraphsCarousel: (graphs) => {
     set((state) => {
-      // If carousel is already visible, append new graphs (avoiding duplicates by title)
+      // Generate unique IDs for incoming graphs if not provided
+      const graphsWithIds = graphs.map((graph) => ({
+        ...graph,
+        id: graph.id || crypto.randomUUID(),
+      }))
+
+      // If carousel is already visible, append new graphs (avoiding duplicates by ID)
       if (state.graphsCarousel.visible) {
         const existingGraphs = state.graphsCarousel.graphs
-        const existingTitles = new Set(
-          existingGraphs.map((g) => g.title.toLowerCase())
+        const existingIds = new Set(
+          existingGraphs.map((g) => g.id).filter((id): id is string => id !== undefined)
         )
 
-        // Only add graphs that don't already exist
-        const newGraphs = graphs.filter(
-          (g) => !existingTitles.has(g.title.toLowerCase())
+        // Only add graphs that don't already exist (by ID)
+        const newGraphs = graphsWithIds.filter(
+          (g) => !existingIds.has(g.id!)
         )
 
         return {
@@ -532,7 +538,7 @@ export const useUIStore = create<UIState>()(
         graphsCarousel: {
           visible: true,
           minimized: true,
-          graphs,
+          graphs: graphsWithIds,
           currentIndex: 0,
         },
       }
