@@ -445,13 +445,11 @@ class UIUpdates:
             title: Graph title displayed at the top (e.g., "Feature Comparison")
             x_axis_label: Label for horizontal axis (e.g., "Feature Categories" or "Companies")
             y_axis_label: Label for vertical axis (e.g., "Score (0-10)" or "Number of Features")
-            categories: List of category labels for the X-axis (e.g., ["AI Features", "Mobile App", "Integrations"])
             datasets: List of dataset dicts for comparison. Each dataset dict should contain:
                 - label (str): Dataset name for legend (e.g., "Your Company", "Industry Average")
                 - data (list[float]): Values for each category (must match length of categories)
                 - backgroundColor (str, optional): Color for bars (e.g., "#00ff88")
             description: Brief explanation of what the graph shows and key insights
-            category: Category for filtering (e.g., "Product Analysis", "Feature Comparison")
             horizontal: If True, creates horizontal bar chart (useful for long category names)
 
         Returns:
@@ -463,8 +461,6 @@ class UIUpdates:
                 x_axis_label="Feature Categories",
                 y_axis_label="Capability Score (0-10)",
                 description="Your product excels in AI and mobile but lags in integrations and analytics compared to industry standards.",
-                category="Product Analysis",
-                categories=["AI Features", "Mobile App", "Integrations", "Analytics", "Customer Support"],
                 datasets=[
                     {
                         "label": "Your Company",

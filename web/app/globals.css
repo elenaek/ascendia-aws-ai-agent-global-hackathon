@@ -175,4 +175,9 @@
     animation: highlight-pulse 4s linear 1;
     will-change: box-shadow, border-color;
   }
+
+  /* Chart.js canvas - prevent text selection during interaction */
+  canvas {
+    user-select: none;
+  }
 }

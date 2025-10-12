@@ -121,9 +121,9 @@ export function GraphCarousel() {
                     key={index}
                     onClick={() => expandGraphsCarousel(index)}
                     className={cn(
-                      'w-2 h-2 rounded-full transition-all',
+                      'w-3 h-3 rounded-full transition-all',
                       index === currentIndex
-                        ? 'bg-purple-400 w-6'
+                        ? 'bg-purple-400 w-8'
                         : 'bg-muted-foreground/30 hover:bg-muted-foreground/50'
                     )}
                     aria-label={`Go to graph ${index + 1}`}

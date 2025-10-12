@@ -46,8 +46,8 @@ interface GraphCardProps {
 export function GraphCard({ data, onClose, className }: GraphCardProps) {
   const { title, graphType, data: chartData, options, category, description } = data
 
-  // Check if chart type requires axes
-  const requiresAxes = ['scatter', 'bar', 'line', 'radar', 'bubble'].includes(graphType)
+  // Check if chart type requires axes (radar charts use radial scales, not x/y axes)
+  const requiresAxes = ['scatter', 'bar', 'line', 'bubble'].includes(graphType)
 
   // Check if axis labels are missing
   const missingXLabel = requiresAxes && !options?.scales?.x?.title?.text
@@ -64,8 +64,6 @@ export function GraphCard({ data, onClose, className }: GraphCardProps) {
         return { x: 'Categories', y: 'Values' }
       case 'line':
         return { x: 'Time/Category', y: 'Values' }
-      case 'radar':
-        return { x: 'Metrics', y: 'Score' }
       default:
         return { x: 'X Axis', y: 'Y Axis' }
     }
@@ -86,6 +84,40 @@ export function GraphCard({ data, onClose, className }: GraphCardProps) {
   const defaultOptions: ChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
+    elements: {
+      point: {
+        radius: 5,              // Normal dot size (default is 3)
+        hoverRadius: 7,         // Dot size when hovering (default is 4)
+        hitRadius: 10,          // Click/hover detection area
+        borderWidth: 2,         // Border thickness around dots
+        hoverBorderWidth: 3,    // Border thickness on hover
+      },
+      line: {
+        borderWidth: 2,         // Line thickness for line charts
+        tension: 0.4,           // Line curve smoothness (0 = straight, 0.4 = curved)
+      },
+    },
+    onHover: (event, activeElements, chart) => {
+      const canvas = event.native?.target as HTMLCanvasElement
+      if (!canvas) return
+
+      // Check if cursor is hovering over legend items
+      const legend = chart.legend
+      if (legend && event.x !== undefined && event.y !== undefined) {
+        const isOverLegend = legend.legendItems?.some((item, index) => {
+          const hitBox = legend.legendHitBoxes?.[index]
+          if (!hitBox) return false
+          return (
+            event.x! >= hitBox.left &&
+            event.x! <= hitBox.left + hitBox.width &&
+            event.y! >= hitBox.top &&
+            event.y! <= hitBox.top + hitBox.height
+          )
+        })
+
+        canvas.style.cursor = isOverLegend ? 'pointer' : 'default'
+      }
+    },
     plugins: {
       legend: {
         display: true,
@@ -95,6 +127,9 @@ export function GraphCard({ data, onClose, className }: GraphCardProps) {
           font: {
             size: 11,
           },
+          padding: 12,
+          usePointStyle: true,
+          boxHeight: 8,
         },
       },
       tooltip: {
@@ -116,13 +151,19 @@ export function GraphCard({ data, onClose, className }: GraphCardProps) {
               return `${pointLabel}: (${value.x}, ${value.y})`
             }
 
+            // For radar charts, use the r (radial) value
+            if (graphType === 'radar') {
+              return `${label}: ${value.r}`
+            }
+
+            // For other charts (bar, line, pie, doughnut)
             return `${label}: ${value.y !== undefined ? value.y : value}`
           },
         },
       },
     },
     scales:
-      graphType !== 'pie' && graphType !== 'doughnut'
+      graphType !== 'pie' && graphType !== 'doughnut' && graphType !== 'radar'
         ? {
             x: {
               grid: {
@@ -163,6 +204,31 @@ export function GraphCard({ data, onClose, className }: GraphCardProps) {
               },
             },
           }
+        : graphType === 'radar'
+        ? {
+            r: {
+              grid: {
+                color: 'rgba(255, 255, 255, 0.1)',
+              },
+              angleLines: {
+                color: 'rgba(255, 255, 255, 0.1)',
+              },
+              pointLabels: {
+                color: '#e5e7eb',
+                font: {
+                  size: 13,
+                  weight: '500',
+                },
+              },
+              ticks: {
+                color: '#9ca3af',
+                font: {
+                  size: 10,
+                },
+                backdropColor: 'transparent',
+              },
+            },
+          }
         : undefined,
   }
 
@@ -178,6 +244,32 @@ export function GraphCard({ data, onClose, className }: GraphCardProps) {
       ...defaultOptions.scales,
       ...options?.scales,
     },
+    elements: {
+      ...defaultOptions.elements,
+      ...options?.elements,
+    },
+    // Always preserve our onHover callback for legend interaction
+    onHover: defaultOptions.onHover,
+  }
+
+  // Deep merge radar chart scales to preserve pointLabels styling
+  if (graphType === 'radar' && defaultOptions.scales?.r && options?.scales?.r) {
+    mergedOptions.scales.r = {
+      ...defaultOptions.scales.r,
+      ...options.scales.r,
+      pointLabels: {
+        ...defaultOptions.scales.r.pointLabels,
+        ...options.scales.r.pointLabels,
+      },
+    }
+
+    // Radar charts need straight lines (no tension/curve) to form proper polygons
+    if (mergedOptions.elements?.line) {
+      mergedOptions.elements.line = {
+        ...mergedOptions.elements.line,
+        tension: 0,  // Straight lines for proper radar polygon
+      }
+    }
   }
 
   // Render appropriate chart type
