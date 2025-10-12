@@ -173,7 +173,7 @@ class CompetitiveResearch:
                 agent_result = last_node_result.result
 
                 final_text = str(agent_result)
-                # self.logger.info(f"Competitor analysis COMPLETED----------------------------------------------: {final_text}")
+                self.logger.info(f"Competitor analysis COMPLETED----------------------------------------------: {final_text}")
                 return final_text
             else:
                 self.logger.error(f"Error analyzing competitor: {response}")
