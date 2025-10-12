@@ -156,6 +156,19 @@ export interface GraphAxis {
   max?: number
 }
 
+export interface GraphRadialAxis {
+  title?: GraphAxisTitle
+  min?: number
+  max?: number
+  pointLabels?: {
+    color?: string
+    font?: {
+      size?: number
+      weight?: string
+    }
+  }
+}
+
 export interface GraphOptions {
   responsive?: boolean
   maintainAspectRatio?: boolean
@@ -175,6 +188,7 @@ export interface GraphOptions {
   scales?: {
     x?: GraphAxis
     y?: GraphAxis
+    r?: GraphRadialAxis // For radar charts
   }
 }
 

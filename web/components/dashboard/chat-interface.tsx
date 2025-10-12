@@ -21,8 +21,65 @@ import { sendMessageToAgentStreaming, type CompanyInfo, getSessionId, setSession
 import { ThinkingDisplay } from './thinking-display'
 import { ToolUseDisplay } from './tool-use-display'
 import { MessageContent } from './message-content'
+import { toast } from 'sonner'
 
 const SESSION_STORAGE_KEY = 'agentcore-session-id'
+
+// Error detection and user-friendly messaging
+interface ErrorInfo {
+  title: string
+  message: string
+  suggestion: string
+  type: 'connection' | 'timeout' | 'rate-limit' | 'unknown'
+}
+
+function detectErrorType(error: unknown): ErrorInfo {
+  const errorStr = String(error).toLowerCase()
+  const errorMessage = error instanceof Error ? error.message.toLowerCase() : errorStr
+
+  // Connection/Protocol errors
+  if (errorMessage.includes('connection') ||
+      errorMessage.includes('network') ||
+      errorMessage.includes('premature') ||
+      errorMessage.includes('protocolerror')) {
+    return {
+      title: 'Connection Interrupted',
+      message: 'The connection to the AI service was interrupted while generating your response.',
+      suggestion: 'This can happen with long or complex analyses. Please try asking again, or break your question into smaller parts.',
+      type: 'connection'
+    }
+  }
+
+  // Timeout errors
+  if (errorMessage.includes('timeout') || errorMessage.includes('timed out')) {
+    return {
+      title: 'Response Timeout',
+      message: 'The analysis took longer than expected and timed out.',
+      suggestion: 'Try breaking your request into smaller, more specific questions.',
+      type: 'timeout'
+    }
+  }
+
+  // Rate limit errors
+  if (errorMessage.includes('rate') ||
+      errorMessage.includes('throttl') ||
+      errorMessage.includes('too many')) {
+    return {
+      title: 'Too Many Requests',
+      message: 'You\'ve made too many requests in a short time.',
+      suggestion: 'Please wait a moment before trying again.',
+      type: 'rate-limit'
+    }
+  }
+
+  // Default unknown error
+  return {
+    title: 'Unexpected Error',
+    message: 'An unexpected error occurred while processing your request.',
+    suggestion: 'Please try again. If the problem persists, try refreshing the page.',
+    type: 'unknown'
+  }
+}
 
 export function ChatInterface() {
   const {
@@ -175,7 +232,20 @@ export function ChatInterface() {
         },
         onError: (error) => {
           console.error('Streaming error:', error)
-          appendToMessage(assistantMessageId, '\n\nSorry, I encountered an error while processing your request.')
+
+          // Detect error type and get user-friendly messages
+          const errorInfo = detectErrorType(error)
+
+          // Show toast notification with error details
+          toast.error(errorInfo.title, {
+            description: errorInfo.suggestion,
+            duration: 6000,
+          })
+
+          // Add formatted error message to chat
+          const errorMessage = `\n\n⚠️ **${errorInfo.title}**\n\n${errorInfo.message}\n\n💡 ${errorInfo.suggestion}`
+          appendToMessage(assistantMessageId, errorMessage)
+
           // Clean up state to re-enable chat input
           saveToolUsesToMessage(assistantMessageId)
           setLoading(false)
@@ -192,7 +262,20 @@ export function ChatInterface() {
       })
     } catch (error) {
       console.error('Error sending message:', error)
-      appendToMessage(assistantMessageId, 'Sorry, I encountered an error while processing your request. Please try again.')
+
+      // Detect error type and get user-friendly messages
+      const errorInfo = detectErrorType(error)
+
+      // Show toast notification with error details
+      toast.error(errorInfo.title, {
+        description: errorInfo.suggestion,
+        duration: 6000,
+      })
+
+      // Add formatted error message to chat
+      const errorMessage = `\n\n⚠️ **${errorInfo.title}**\n\n${errorInfo.message}\n\n💡 ${errorInfo.suggestion}`
+      appendToMessage(assistantMessageId, errorMessage)
+
       setLoading(false)
       setThinking(false)
       setStreamingId(null)

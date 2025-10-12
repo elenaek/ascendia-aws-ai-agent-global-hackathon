@@ -19,11 +19,16 @@ import {
   Title,
   Tooltip,
   Legend,
-  ChartOptions,
 } from 'chart.js'
-import { Bar, Line, Scatter, Radar, Pie, Doughnut, Bubble } from 'react-chartjs-2'
+import { BarChart } from './charts/bar-chart'
+import { LineChart } from './charts/line-chart'
+import { ScatterBubbleChart } from './charts/scatter-bubble-chart'
+import { RadarChart } from './charts/radar-chart'
+import { PieDoughnutChart } from './charts/pie-doughnut-chart'
+import { getCategoryColor } from './charts/shared/chart-utils'
+import { legendHoverPlugin } from './charts/shared/chart-base-options'
 
-// Register Chart.js components
+// Register Chart.js components and plugins
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -34,7 +39,8 @@ ChartJS.register(
   RadialLinearScale,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  legendHoverPlugin
 )
 
 interface GraphCardProps {
@@ -54,265 +60,40 @@ export function GraphCard({ data, onClose, className }: GraphCardProps) {
   const missingYLabel = requiresAxes && !options?.scales?.y?.title?.text
   const hasDefaultLabels = missingXLabel || missingYLabel
 
-  // Get default axis labels based on chart type
-  const getDefaultAxisLabels = () => {
-    switch (graphType) {
-      case 'scatter':
-      case 'bubble':
-        return { x: 'Dimension 1', y: 'Dimension 2' }
-      case 'bar':
-        return { x: 'Categories', y: 'Values' }
-      case 'line':
-        return { x: 'Time/Category', y: 'Values' }
-      default:
-        return { x: 'X Axis', y: 'Y Axis' }
-    }
-  }
-
-  const defaultAxisLabels = getDefaultAxisLabels()
-
   // Log warning if default labels are used
   if (hasDefaultLabels && process.env.NODE_ENV === 'development') {
     console.warn(
       `[GraphCard] Graph "${title}" is using default axis labels. ` +
       `Consider providing specific labels via options.scales.x.title.text and options.scales.y.title.text ` +
-      `for better clarity. Current defaults: X="${defaultAxisLabels.x}", Y="${defaultAxisLabels.y}"`
+      `for better clarity.`
     )
   }
 
-  // Default options with dark theme
-  const defaultOptions: ChartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    elements: {
-      point: {
-        radius: 5,              // Normal dot size (default is 3)
-        hoverRadius: 7,         // Dot size when hovering (default is 4)
-        hitRadius: 10,          // Click/hover detection area
-        borderWidth: 2,         // Border thickness around dots
-        hoverBorderWidth: 3,    // Border thickness on hover
-      },
-      line: {
-        borderWidth: 2,         // Line thickness for line charts
-        tension: 0.4,           // Line curve smoothness (0 = straight, 0.4 = curved)
-      },
-    },
-    onHover: (event, activeElements, chart) => {
-      const canvas = event.native?.target as HTMLCanvasElement
-      if (!canvas) return
-
-      // Check if cursor is hovering over legend items
-      const legend = chart.legend
-      if (legend && event.x !== undefined && event.y !== undefined) {
-        const isOverLegend = legend.legendItems?.some((item, index) => {
-          const hitBox = legend.legendHitBoxes?.[index]
-          if (!hitBox) return false
-          return (
-            event.x! >= hitBox.left &&
-            event.x! <= hitBox.left + hitBox.width &&
-            event.y! >= hitBox.top &&
-            event.y! <= hitBox.top + hitBox.height
-          )
-        })
-
-        canvas.style.cursor = isOverLegend ? 'pointer' : 'default'
-      }
-    },
-    plugins: {
-      legend: {
-        display: true,
-        position: 'top',
-        labels: {
-          color: '#e5e7eb',
-          font: {
-            size: 11,
-          },
-          padding: 12,
-          usePointStyle: true,
-          boxHeight: 8,
-        },
-      },
-      tooltip: {
-        enabled: true,
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-        titleColor: '#00ff88',
-        bodyColor: '#e5e7eb',
-        borderColor: '#00ff88',
-        borderWidth: 1,
-        callbacks: {
-          label: (context) => {
-            const label = context.dataset.label || ''
-            const value = context.parsed
-
-            // For scatter/bubble charts, show both x and y
-            if (graphType === 'scatter' || graphType === 'bubble') {
-              const dataPoint = context.raw as { x?: number; y?: number; label?: string }
-              const pointLabel = dataPoint.label || label
-              return `${pointLabel}: (${value.x}, ${value.y})`
-            }
-
-            // For radar charts, use the r (radial) value
-            if (graphType === 'radar') {
-              return `${label}: ${value.r}`
-            }
-
-            // For other charts (bar, line, pie, doughnut)
-            return `${label}: ${value.y !== undefined ? value.y : value}`
-          },
-        },
-      },
-    },
-    scales:
-      graphType !== 'pie' && graphType !== 'doughnut' && graphType !== 'radar'
-        ? {
-            x: {
-              grid: {
-                color: 'rgba(255, 255, 255, 0.1)',
-              },
-              ticks: {
-                color: '#9ca3af',
-                font: {
-                  size: 10,
-                },
-              },
-              title: {
-                display: true,
-                text: options?.scales?.x?.title?.text || defaultAxisLabels.x,
-                color: '#9ca3af',
-                font: {
-                  size: 11,
-                },
-              },
-            },
-            y: {
-              grid: {
-                color: 'rgba(255, 255, 255, 0.1)',
-              },
-              ticks: {
-                color: '#9ca3af',
-                font: {
-                  size: 10,
-                },
-              },
-              title: {
-                display: true,
-                text: options?.scales?.y?.title?.text || defaultAxisLabels.y,
-                color: '#9ca3af',
-                font: {
-                  size: 11,
-                },
-              },
-            },
-          }
-        : graphType === 'radar'
-        ? {
-            r: {
-              grid: {
-                color: 'rgba(255, 255, 255, 0.1)',
-              },
-              angleLines: {
-                color: 'rgba(255, 255, 255, 0.1)',
-              },
-              pointLabels: {
-                color: '#e5e7eb',
-                font: {
-                  size: 13,
-                  weight: '500',
-                },
-              },
-              ticks: {
-                color: '#9ca3af',
-                font: {
-                  size: 10,
-                },
-                backdropColor: 'transparent',
-              },
-            },
-          }
-        : undefined,
-  }
-
-  // Merge provided options with defaults
-  const mergedOptions = {
-    ...defaultOptions,
-    ...options,
-    plugins: {
-      ...defaultOptions.plugins,
-      ...options?.plugins,
-    },
-    scales: {
-      ...defaultOptions.scales,
-      ...options?.scales,
-    },
-    elements: {
-      ...defaultOptions.elements,
-      ...options?.elements,
-    },
-    // Always preserve our onHover callback for legend interaction
-    onHover: defaultOptions.onHover,
-  }
-
-  // Deep merge radar chart scales to preserve pointLabels styling
-  if (graphType === 'radar' && defaultOptions.scales?.r && options?.scales?.r) {
-    mergedOptions.scales.r = {
-      ...defaultOptions.scales.r,
-      ...options.scales.r,
-      pointLabels: {
-        ...defaultOptions.scales.r.pointLabels,
-        ...options.scales.r.pointLabels,
-      },
-    }
-
-    // Radar charts need straight lines (no tension/curve) to form proper polygons
-    if (mergedOptions.elements?.line) {
-      mergedOptions.elements.line = {
-        ...mergedOptions.elements.line,
-        tension: 0,  // Straight lines for proper radar polygon
-      }
-    }
-  }
-
-  // Render appropriate chart type
+  // Render appropriate chart component based on type
   const renderChart = () => {
     const chartProps = {
       data: chartData,
-      options: mergedOptions,
+      options: options,
     }
 
     switch (graphType) {
       case 'bar':
-        return <Bar {...chartProps} />
+        return <BarChart {...chartProps} />
       case 'line':
-        return <Line {...chartProps} />
+        return <LineChart {...chartProps} />
       case 'scatter':
-        return <Scatter {...chartProps} />
-      case 'radar':
-        return <Radar {...chartProps} />
-      case 'pie':
-        return <Pie {...chartProps} />
-      case 'doughnut':
-        return <Doughnut {...chartProps} />
+        return <ScatterBubbleChart {...chartProps} chartType="scatter" />
       case 'bubble':
-        return <Bubble {...chartProps} />
+        return <ScatterBubbleChart {...chartProps} chartType="bubble" />
+      case 'radar':
+        return <RadarChart {...chartProps} />
+      case 'pie':
+        return <PieDoughnutChart {...chartProps} chartType="pie" />
+      case 'doughnut':
+        return <PieDoughnutChart {...chartProps} chartType="doughnut" />
       default:
-        return <Bar {...chartProps} />
+        return <BarChart {...chartProps} />
     }
-  }
-
-  const getCategoryColor = (category?: string) => {
-    if (!category) return 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
-
-    const lowerCategory = category.toLowerCase()
-    if (lowerCategory.includes('competitive') || lowerCategory.includes('competitor')) {
-      return 'bg-purple-500/20 text-purple-400 border-purple-500/30'
-    }
-    if (lowerCategory.includes('market')) {
-      return 'bg-blue-500/20 text-blue-400 border-blue-500/30'
-    }
-    if (lowerCategory.includes('product') || lowerCategory.includes('feature')) {
-      return 'bg-green-500/20 text-green-400 border-green-500/30'
-    }
-    return 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
   }
 
   return (

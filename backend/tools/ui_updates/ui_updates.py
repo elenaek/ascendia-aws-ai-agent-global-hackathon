@@ -428,26 +428,24 @@ class UIUpdates:
         title: str,
         x_axis_label: str,
         y_axis_label: str,
-        categories: list[str],
         datasets: list[dict],
         description: Optional[str] = None,
-        category: Optional[str] = None,
         horizontal: bool = False
     ) -> str:
         """
         Display an interactive bar chart for comparisons and rankings.
 
-        Bar charts are ideal for comparing values across categories, showing rankings,
+        Bar charts are ideal for comparing values across, showing rankings,
         feature comparisons, and displaying discrete data. They make it easy to see
         relative differences between competitors or product features.
 
         Args:
             title: Graph title displayed at the top (e.g., "Feature Comparison")
-            x_axis_label: Label for horizontal axis (e.g., "Feature Categories" or "Companies")
+            x_axis_label: Label for horizontal axis (e.g., "Companies")
             y_axis_label: Label for vertical axis (e.g., "Score (0-10)" or "Number of Features")
             datasets: List of dataset dicts for comparison. Each dataset dict should contain:
                 - label (str): Dataset name for legend (e.g., "Your Company", "Industry Average")
-                - data (list[float]): Values for each category (must match length of categories)
+                - data (list[float]): Values for each dataset
                 - backgroundColor (str, optional): Color for bars (e.g., "#00ff88")
             description: Brief explanation of what the graph shows and key insights
             horizontal: If True, creates horizontal bar chart (useful for long category names)
@@ -458,7 +456,7 @@ class UIUpdates:
         Example:
             show_bar_graph(
                 title="Feature Comparison: Your Product vs Industry Average",
-                x_axis_label="Feature Categories",
+                x_axis_label="Companies",
                 y_axis_label="Capability Score (0-10)",
                 description="Your product excels in AI and mobile but lags in integrations and analytics compared to industry standards.",
                 datasets=[
@@ -488,7 +486,6 @@ class UIUpdates:
             - Use "#00ff88" (green) for your company
             - Use "#6b8cff" (blue) for industry averages or benchmarks
             - Use different colors for each competitor
-            - Keep category names concise (use horizontal=True for long names)
             - Use consistent scales (0-10 or 0-100)
             - Include clear axis labels with units
         """
@@ -496,7 +493,7 @@ class UIUpdates:
             "title": title,
             "graphType": "horizontalBar" if horizontal else "bar",
             "data": {
-                "labels": categories,
+                "labels": [dataset["label"] for dataset in datasets],
                 "datasets": datasets
             },
             "options": {
@@ -516,8 +513,6 @@ class UIUpdates:
 
         if description:
             payload["description"] = description
-        if category:
-            payload["category"] = category
 
         return self._send_update("show_graph", payload)
 
