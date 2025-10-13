@@ -82,17 +82,17 @@ export function Header() {
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="cursor-pointer hover:bg-primary/10"
-                onClick={handleCompareClick}
-              >
-                <Scale className="w-4 h-4 mr-2" />
-                Compare
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="cursor-pointer hover:bg-primary/10"
                 onClick={handleProfileClick}
               >
                 <User className="w-4 h-4 mr-2" />
                 Profile
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="cursor-pointer hover:bg-primary/10"
+                onClick={handleCompareClick}
+              >
+                <Scale className="w-4 h-4 mr-2" />
+                Compare
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="cursor-pointer hover:bg-destructive/10 text-destructive focus:text-destructive"

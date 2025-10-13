@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Trash2, Loader2, ChevronDown, X } from 'lucide-react'
+import { Plus, Trash2, Loader2, ChevronDown, X, Sparkles } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
 import { useAnalyticsStore } from '@/stores/analytics-store'
 import { toast } from 'sonner'
@@ -26,6 +26,38 @@ const TARGET_CHANNEL_OPTIONS = [
   'Social Media or Content Marketing',
   'Trade Shows or Events'
 ] as const
+
+// Demo data for quick testing
+const DEMO_DATA = {
+  company_name: 'Amazon Web Services (AWS)',
+  company_url: 'https://aws.amazon.com',
+  company_description: 'Amazon Web Services (AWS) is the world\'s most comprehensive and broadly adopted cloud platform, offering over 200 fully featured services from data centers globally. AWS provides on-demand cloud computing platforms and APIs to individuals, companies, and governments, on a metered pay-as-you-go basis.',
+  unique_value_proposition: 'AWS offers the broadest and deepest functionality within cloud computing, the most extensive global infrastructure with 32 geographic regions, the largest community of customers and partners, and the most proven operational expertise and reliability in the industry.',
+  stage_of_company: 'mature',
+  revenue: '$90B+ (2023)',
+  number_of_employees: '100,000+',
+  pricing_model: 'Pay-as-you-go, Reserved Instances, Savings Plans',
+  target_customers: 'Enterprises, startups, government agencies, and educational institutions across all industries seeking scalable, reliable, and cost-effective cloud infrastructure. From Fortune 500 companies to innovative startups, AWS serves millions of customers worldwide.',
+  types_of_products: [{
+    product_name: 'Amazon EC2 (Elastic Compute Cloud)',
+    product_url: 'https://aws.amazon.com/ec2',
+    product_description: 'Amazon Elastic Compute Cloud (EC2) provides secure, resizable compute capacity in the cloud. It offers the broadest and deepest compute platform with over 600 instances and choice of latest processor, storage, networking, operating system, and purchase model to help you best match your workload needs.',
+    pricing: 'Pay-as-you-go starting at $0.0116/hour, Reserved Instances up to 72% savings, Spot Instances up to 90% discount',
+    pricing_model: 'Pay-per-use with multiple purchasing options (On-Demand, Reserved, Spot)',
+    distribution_model: 'Direct to Customer',
+    distribution_model_justification: 'Direct-to-customer model through AWS Console and APIs allows for instant provisioning, self-service management, and automated scaling, enabling customers to quickly deploy and manage infrastructure without intermediaries.',
+    target_channels: [
+      'Company Website or Online Store',
+      'Partner Integrations or APIs',
+      'Marketplaces',
+      'Sales Representatives or Account Managers'
+    ],
+    target_audience_description: 'Software developers, DevOps engineers, IT administrators, data scientists, and technical decision-makers who need flexible, scalable computing resources for applications, websites, data processing, machine learning, and enterprise workloads.',
+    target_sectors: ['Technology', 'Finance', 'Healthcare', 'E-commerce', 'Gaming'],
+    typical_segment_size: 'Enterprise',
+    key_decision_makers: ['CTOs', 'Cloud Architects', 'DevOps Engineers', 'IT Directors']
+  }]
+}
 
 export default function OnboardingPage() {
   const router = useRouter()
@@ -117,6 +149,11 @@ export default function OnboardingPage() {
     })
   }
 
+  const fillDemoData = () => {
+    setFormData(DEMO_DATA)
+    toast.success('Demo data loaded! Feel free to edit any fields.')
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -184,9 +221,19 @@ export default function OnboardingPage() {
           <h1 className="text-4xl font-bold text-primary text-glow mb-2">
             Welcome to Ascendia
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground mb-4">
             Tell us about your company to get started
           </p>
+          <Button
+            type="button"
+            onClick={fillDemoData}
+            variant="outline"
+            size="sm"
+            className="border-primary/30 hover:bg-primary/10 text-primary"
+          >
+            <Sparkles className="w-4 h-4 mr-2" />
+            Use Demo Data (AWS/EC2)
+          </Button>
         </div>
 
         <Card className="p-8 bg-panel border-primary/20 glow">

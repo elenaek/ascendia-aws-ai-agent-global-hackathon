@@ -64,7 +64,7 @@ export default function HomePage() {
           </div>
 
           {/* Features */}
-          <div className="grid md:grid-cols-3 gap-6 mt-20">
+          <div className="grid md:grid-cols-2 gap-6 mt-20">
             <div className="p-6 bg-panel border border-primary/20 rounded-lg glow">
               <Sparkles className="w-12 h-12 text-primary mx-auto mb-4" />
               <h3 className="text-xl font-semibold text-foreground mb-2">
@@ -84,17 +84,6 @@ export default function HomePage() {
               <p className="text-muted-foreground">
                 Get actionable insights about your market position and growth
                 opportunities.
-              </p>
-            </div>
-
-            <div className="p-6 bg-panel border border-primary/20 rounded-lg glow">
-              <Zap className="w-12 h-12 text-primary mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-foreground mb-2">
-                Real-Time Data
-              </h3>
-              <p className="text-muted-foreground">
-                Access up-to-date information and analytics powered by live data
-                sources.
               </p>
             </div>
           </div>
