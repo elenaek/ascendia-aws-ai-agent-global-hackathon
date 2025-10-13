@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils'
 import { sendMessageToAgentStreaming, type CompanyInfo, getSessionId, setSessionId, resetSession } from '@/lib/agentcore-client'
 import { ThinkingDisplay } from './thinking-display'
 import { ToolUseDisplay } from './tool-use-display'
+import { ToolUsesContainer } from './tool-uses-container'
 import { MessageContent } from './message-content'
 import { toast } from 'sonner'
 
@@ -214,7 +215,7 @@ export function ChatInterface() {
     const distanceFromBottom = Math.ceil(scrollHeight - scrollTop - clientHeight)
     // More lenient threshold to account for content layout changes
     // Use a threshold to avoid false "scrolled away" detections when thinking blocks, tool uses, etc. appear
-    const threshold = 200
+    const threshold = 100
     return distanceFromBottom <= threshold
   }
 
@@ -544,15 +545,12 @@ export function ChatInterface() {
                   )}
 
                   {/* Show tool uses for this message (only if toggle is enabled) */}
-                  {message.role === 'assistant' && message.toolUses && showCompletedToolUses && message.toolUses.map((tool) => (
-                    <ToolUseDisplay
-                      key={tool.id}
-                      id={tool.id}
-                      name={tool.name}
-                      input={tool.input}
-                      status={tool.status}
+                  {message.role === 'assistant' && message.toolUses && showCompletedToolUses && message.toolUses.length > 0 && (
+                    <ToolUsesContainer
+                      toolUses={message.toolUses}
+                      isStreaming={false}
                     />
-                  ))}
+                  )}
 
                   {/* Hide message bubble when currently streaming (will be shown after ToolUseDisplay) */}
                   {!(message.role === 'assistant' && message.id === currentStreamingId && isLoading) && (
@@ -567,7 +565,7 @@ export function ChatInterface() {
                       {message.role === 'assistant' && !message.content.trim() && isLoading ? (
                         <div className="flex items-center gap-2 text-muted-foreground">
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          <span className="text-sm">Thinking...</span>
+                          <span className="text-sm">AI things are happening somewhere, some place, right now...</span>
                         </div>
                       ) : (
                         <>
@@ -600,15 +598,12 @@ export function ChatInterface() {
             />
 
             {/* Only show global tool uses during streaming (not saved to message yet) */}
-            {isLoading && toolUses.map((tool) => (
-              <ToolUseDisplay
-                key={tool.id}
-                id={tool.id}
-                name={tool.name}
-                input={tool.input}
-                status={tool.status}
+            {isLoading && toolUses.length > 0 && (
+              <ToolUsesContainer
+                toolUses={toolUses}
+                isStreaming={true}
               />
-            ))}
+            )}
 
             {/* Show streaming message content at the bottom */}
             {isLoading && currentStreamingId && (() => {
@@ -626,7 +621,7 @@ export function ChatInterface() {
                       {!streamingMessage.content.trim() ? (
                         <div className="flex items-center gap-2 text-muted-foreground">
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          <span className="text-sm">Thinking...</span>
+                          <span className="text-sm">AI things are happening somewhere, some place, right now...</span>
                         </div>
                       ) : (
                         <>
