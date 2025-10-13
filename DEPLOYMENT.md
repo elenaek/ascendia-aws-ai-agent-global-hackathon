@@ -121,16 +121,18 @@ For experienced users who have all prerequisites installed:
 git clone <repository-url>
 cd ascendia-aws-ai-agent-global-hackathon
 
-# 2. Deploy everything (interactive setup included)
+# 2. Deploy everything with full automation
 ./scripts/deploy-all.sh
 
-# The script will:
-# - Prompt for required configuration (AWS credentials, API keys)
+# The script will automatically:
+# - Prompt for environment setup if .env files don't exist
 # - Auto-detect your AWS account from AWS CLI
-# - Create .env files automatically
-# - Automatically bootstrap CDK if not already done
-# - Deploy all infrastructure
-# - Configure environment variables
+# - Validate your environment and prerequisites
+# - Bootstrap CDK if needed
+# - Deploy CDK infrastructure (Cognito, DynamoDB, Lambda, WebSocket API)
+# - Deploy AgentCore primitives (Memory, Identity, Agent Runtime)
+# - Attach IAM policies for permissions
+# - Update all .env files with deployment outputs
 
 # 3. Start frontend
 cd web
@@ -140,7 +142,7 @@ npm run dev
 
 Your application will be available at http://localhost:3000
 
-**Note:** If you prefer manual setup, run `./scripts/setup-env.sh` first to configure environment variables interactively.
+**Note:** The deployment is fully automated. If .env files are missing, the script will interactively prompt you for required values (AWS credentials, Tavily API key). All other configuration values are automatically populated from deployment outputs.
 
 ---
 
@@ -148,40 +150,46 @@ Your application will be available at http://localhost:3000
 
 ### Step 1: Environment Setup
 
-#### Option A: Interactive Setup (Recommended)
+#### Option A: Automatic Setup via deploy-all.sh (Recommended)
 
-Run the interactive setup script to configure environment variables:
+The `deploy-all.sh` script automatically handles environment setup:
+
+```bash
+./scripts/deploy-all.sh
+```
+
+**What happens:**
+- If `.env` files are missing, the script automatically runs interactive setup
+- ✓ Auto-detects your AWS account ID from AWS CLI
+- ✓ Prompts for required configuration (AWS credentials, Tavily API key)
+- ✓ Creates both `backend/.env` and `web/.env` automatically
+- ✓ Uses sensible defaults for optional settings
+- ✓ Validates your inputs
+- ✓ After deployment, automatically populates all CDK outputs and AgentCore ARN
+
+**No separate setup step needed!** Just run `deploy-all.sh` and follow the prompts.
+
+#### Option B: Interactive Setup Script (Alternative)
+
+If you want to set up environment files before deployment:
 
 ```bash
 ./scripts/setup-env.sh
 ```
 
-This script will:
-- ✓ Auto-detect your AWS account ID from AWS CLI
-- ✓ Prompt for required configuration (AWS credentials, Tavily API key)
-- ✓ Create both `backend/.env` and `web/.env` automatically
-- ✓ Use sensible defaults for optional settings
-- ✓ Validate your inputs
+This creates the `.env` files with your AWS credentials and API keys. Deployment outputs will be populated later by `deploy-all.sh`.
 
-**Example interaction:**
-```
-▶ AWS Region: us-east-1
-▶ AWS Account ID: 123456789012 (auto-detected)
-▶ Use existing AWS CLI credentials? (y/n): y
-▶ Enter Tavily API key: tvly-...
-```
+#### Option C: Manual Setup
 
-#### Option B: Manual Setup
-
-If you prefer manual configuration:
+If you prefer complete manual configuration:
 
 1. Copy environment templates:
 ```bash
-cp backend/.env backend/.env
-cp web/.env.example web/.env
+cp .env.template backend/.env
+cp web/.env.template web/.env
 ```
 
-2. Edit `backend/.env` with your values:
+2. Edit `backend/.env` with your values (use `.env.template` as reference):
 ```bash
 AWS_REGION=us-east-1
 AWS_ACCOUNT_ID=123456789012
@@ -189,6 +197,8 @@ AWS_ACCESS_KEY_ID=AKIA...
 AWS_SECRET_ACCESS_KEY=...
 TAVILY_API_KEY=tvly-...
 ```
+
+**Note:** CDK outputs (Cognito, WebSocket, DynamoDB) and AgentCore ARN will need to be manually copied after deployment if not using `deploy-all.sh`.
 
 #### 1.2 Validate Environment
 
@@ -218,15 +228,44 @@ You have two options:
 ./scripts/deploy-all.sh
 ```
 
-This master script will:
-1. Validate environment
-2. Bootstrap CDK (if needed)
-3. Deploy CDK infrastructure
-4. Deploy AgentCore (memory, identity, agent)
-5. Attach IAM policies
-6. Update environment files with outputs
+This master script handles the complete deployment process:
+1. ✓ **Environment Setup**: Interactive prompts if .env files are missing
+2. ✓ **Validation**: Checks prerequisites and environment configuration
+3. ✓ **CDK Bootstrap**: Automatically bootstraps CDK if needed
+4. ✓ **CDK Deployment**: Deploys Cognito, DynamoDB, Lambda, WebSocket API
+5. ✓ **AgentCore Deployment**: Creates Memory, Identity, and Agent Runtime
+6. ✓ **IAM Configuration**: Attaches policies for agent permissions
+7. ✓ **Auto-Configuration**: Updates both `backend/.env` and `web/.env` with all outputs
+
+**Partial Deployment Options:**
+
+If you need to skip certain steps, use these flags:
+
+```bash
+# Skip environment validation
+./scripts/deploy-all.sh --skip-validation
+
+# Skip CDK deployment (if already deployed)
+./scripts/deploy-all.sh --skip-cdk
+
+# Skip AgentCore deployment (if already deployed)
+./scripts/deploy-all.sh --skip-agentcore
+
+# Skip IAM policy attachment
+./scripts/deploy-all.sh --skip-iam
+
+# Combine multiple flags
+./scripts/deploy-all.sh --skip-validation --skip-cdk
+```
+
+**Idempotent Deployment:**
+- First run: Creates all resources from scratch
+- Subsequent runs: Updates changed resources, reuses existing ones
+- Safe to re-run: Won't create duplicates
 
 #### Option B: Deploy Step-by-Step
+
+**⚠️ Note:** This manual approach requires manually updating `.env` files. Using `deploy-all.sh` (Option A) is strongly recommended as it automatically handles all configuration updates.
 
 **2.1 Deploy CDK Infrastructure**
 
@@ -251,9 +290,9 @@ This creates:
 - Lambda functions
 - IAM policies
 
-**2.2 Update Backend Environment**
+**2.2 Update Backend Environment** *(Manual Step - Automated by deploy-all.sh)*
 
-After CDK deployment, update `backend/.env` with stack outputs:
+After CDK deployment, manually update `backend/.env` with stack outputs:
 
 ```bash
 # Get outputs from CloudFormation
@@ -261,12 +300,17 @@ aws cloudformation describe-stacks \
   --stack-name InfrastructureStack \
   --query 'Stacks[0].Outputs'
 
-# Copy these values to backend/.env:
+# Manually copy these values to backend/.env:
 # - UserPoolId → COGNITO_USER_POOL_ID
 # - UserPoolClientId → COGNITO_CLIENT_ID
 # - IdentityPoolId → COGNITO_IDENTITY_POOL_ID
 # - WebSocketApiId → WEBSOCKET_API_ID
+# - CompaniesTableName → DYNAMODB_COMPANIES_TABLE
+# - CompetitorsTableName → DYNAMODB_COMPETITORS_TABLE
+# - CompanyCompetitorsTableName → DYNAMODB_COMPANY_COMPETITORS_TABLE
 ```
+
+**💡 Tip:** If using `deploy-all.sh`, this step is automatic via `sed` commands in the script.
 
 **2.3 Deploy AgentCore**
 
@@ -302,9 +346,16 @@ This grants the agent permissions to:
 
 #### 3.1 Update Frontend Environment
 
-Edit `web/.env`:
+**✅ Automatic with deploy-all.sh:** If you used `deploy-all.sh`, your `web/.env` is already configured with all values. Skip to Step 3.2.
+
+**Manual Configuration (if not using deploy-all.sh):**
+
+Edit `web/.env` with the following values:
 
 ```bash
+# AWS Configuration
+NEXT_PUBLIC_AWS_REGION=us-east-1
+
 # AWS Cognito (from CDK outputs)
 NEXT_PUBLIC_COGNITO_USER_POOL_ID=us-east-1_XXXXXXXXX
 NEXT_PUBLIC_COGNITO_CLIENT_ID=XXXXXXXXXXXXXXXXXX
@@ -313,17 +364,18 @@ NEXT_PUBLIC_COGNITO_IDENTITY_POOL_ID=us-east-1:XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXX
 # WebSocket API (from CDK outputs)
 NEXT_PUBLIC_WEBSOCKET_URL=wss://XXXXXXXXXX.execute-api.us-east-1.amazonaws.com/prod
 
-# AgentCore (from .bedrock_agentcore.yaml)
+# AgentCore (from backend/.bedrock_agentcore.yaml)
 NEXT_PUBLIC_AGENTCORE_ARN=arn:aws:bedrock-agentcore:us-east-1:XXXXXXXXXXXX:agent-runtime/XXXXXXXXXXXX
 
-# AWS Configuration
-NEXT_PUBLIC_AWS_REGION=us-east-1
-
 # DynamoDB Tables (from CDK outputs)
-NEXT_PUBLIC_COMPANIES_TABLE=InfrastructureStack-CompaniesTable-XXXXXXXXXXXX
-NEXT_PUBLIC_COMPETITORS_TABLE=InfrastructureStack-CompetitorsTable-XXXXXXXXXXXX
-NEXT_PUBLIC_COMPANY_COMPETITORS_TABLE=InfrastructureStack-CompanyCompetitorsTable-XXXXXXXXXXXX
+DYNAMODB_COMPANIES_TABLE=InfrastructureStack-CompaniesTable-XXXXXXXXXXXX
+DYNAMODB_COMPETITORS_TABLE=InfrastructureStack-CompetitorsTable-XXXXXXXXXXXX
+DYNAMODB_COMPANY_COMPETITORS_TABLE=InfrastructureStack-CompanyCompetitorsTable-XXXXXXXXXXXX
 ```
+
+**Where to find these values:**
+- Cognito/WebSocket/DynamoDB: From CloudFormation stack outputs
+- AgentCore ARN: From `backend/.bedrock_agentcore.yaml` file
 
 #### 3.2 Install Dependencies
 
@@ -348,41 +400,51 @@ Access at: http://localhost:3000
 
 #### Backend (backend/.env)
 
-| Variable | Required | Description | Example | Auto-populated |
-|----------|----------|-------------|---------|----------------|
-| `AWS_REGION` | Yes | AWS region | `us-east-1` | No |
-| `AWS_ACCOUNT_ID` | Yes | AWS account ID | `123456789012` | By setup script |
-| `AWS_ACCESS_KEY_ID` | Yes* | AWS access key | `AKIAIOSFODNN7EXAMPLE` | Optional |
-| `AWS_SECRET_ACCESS_KEY` | Yes* | AWS secret key | `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY` | Optional |
-| `TAVILY_API_KEY` | Yes | Tavily search API key | `tvly-XXXXXXXXXX` | No |
-| `MEMORY_NAME` | No | AgentCore memory name | `business_analyst_memory` | Default value |
-| `MAX_RECENT_TURNS` | No | Conversation turns to keep | `10` | Default value |
-| `COGNITO_USER_POOL_ID` | No | Cognito User Pool ID | `us-east-1_XXXXXXXXX` | By deploy-all.sh |
-| `COGNITO_CLIENT_ID` | No | Cognito Client ID | `XXXXXXXXXXXXXXXXXX` | By deploy-all.sh |
-| `COGNITO_IDENTITY_POOL_ID` | No | Cognito Identity Pool ID | `us-east-1:XXXXXXXX...` | By deploy-all.sh |
-| `WEBSOCKET_API_ID` | No | WebSocket API ID | `XXXXXXXXXX` | By deploy-all.sh |
+| Variable | Required | Description | Example | How Populated |
+|----------|----------|-------------|---------|---------------|
+| `AWS_REGION` | Yes | AWS region | `us-east-1` | Interactive setup or manual |
+| `AWS_ACCOUNT_ID` | Yes | AWS account ID | `123456789012` | Auto-detected by setup script |
+| `AWS_ACCESS_KEY_ID` | Yes* | AWS access key | `AKIAIOSFODNN7EXAMPLE` | Interactive setup or manual |
+| `AWS_SECRET_ACCESS_KEY` | Yes* | AWS secret key | `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY` | Interactive setup or manual |
+| `TAVILY_API_KEY` | Yes | Tavily search API key | `tvly-XXXXXXXXXX` | Interactive setup or manual |
+| `MEMORY_NAME` | No | AgentCore memory name | `business_analyst_memory` | Default value in template |
+| `MAX_RECENT_TURNS` | No | Conversation turns to keep | `10` | Default value in template |
+| `COGNITO_USER_POOL_ID` | Yes | Cognito User Pool ID | `us-east-1_XXXXXXXXX` | **Auto-populated by deploy-all.sh** |
+| `COGNITO_CLIENT_ID` | Yes | Cognito Client ID | `XXXXXXXXXXXXXXXXXX` | **Auto-populated by deploy-all.sh** |
+| `COGNITO_IDENTITY_POOL_ID` | Yes | Cognito Identity Pool ID | `us-east-1:XXXXXXXX...` | **Auto-populated by deploy-all.sh** |
+| `WEBSOCKET_API_ID` | Yes | WebSocket API ID | `XXXXXXXXXX` | **Auto-populated by deploy-all.sh** |
 
 *AWS credentials are optional if using AWS CLI configured credentials
 
 #### Frontend (web/.env)
 
-| Variable | Required | Description | Populated By |
-|----------|----------|-------------|--------------|
-| `NEXT_PUBLIC_COGNITO_USER_POOL_ID` | Yes | Cognito User Pool ID | CDK deployment |
-| `NEXT_PUBLIC_COGNITO_CLIENT_ID` | Yes | Cognito Client ID | CDK deployment |
-| `NEXT_PUBLIC_COGNITO_IDENTITY_POOL_ID` | Yes | Cognito Identity Pool ID | CDK deployment |
-| `NEXT_PUBLIC_WEBSOCKET_URL` | Yes | WebSocket API URL | CDK deployment |
-| `NEXT_PUBLIC_AGENTCORE_ARN` | Yes | Agent ARN | AgentCore deployment |
-| `NEXT_PUBLIC_AWS_REGION` | Yes | AWS region | Manual |
+| Variable | Required | Description | How Populated |
+|----------|----------|-------------|---------------|
+| `NEXT_PUBLIC_AWS_REGION` | Yes | AWS region | Interactive setup or manual |
+| `NEXT_PUBLIC_COGNITO_USER_POOL_ID` | Yes | Cognito User Pool ID | **Auto-populated by deploy-all.sh** |
+| `NEXT_PUBLIC_COGNITO_CLIENT_ID` | Yes | Cognito Client ID | **Auto-populated by deploy-all.sh** |
+| `NEXT_PUBLIC_COGNITO_IDENTITY_POOL_ID` | Yes | Cognito Identity Pool ID | **Auto-populated by deploy-all.sh** |
+| `NEXT_PUBLIC_WEBSOCKET_URL` | Yes | WebSocket API URL | **Auto-populated by deploy-all.sh** |
+| `NEXT_PUBLIC_AGENTCORE_ARN` | Yes | Agent ARN | **Auto-populated by deploy-all.sh** |
+| `DYNAMODB_COMPANIES_TABLE` | Yes | Companies table name | **Auto-populated by deploy-all.sh** |
+| `DYNAMODB_COMPETITORS_TABLE` | Yes | Competitors table name | **Auto-populated by deploy-all.sh** |
+| `DYNAMODB_COMPANY_COMPETITORS_TABLE` | Yes | Company-competitor junction table | **Auto-populated by deploy-all.sh** |
+| `ALLOWED_IPS` | No | IP whitelist for middleware | Manual (optional) |
+
+**Note:** All values marked as "Auto-populated by deploy-all.sh" are automatically filled after successful deployment. Manual configuration is only needed if deploying step-by-step without using the master script.
 
 ---
 
 ## Architecture Overview
 
+> **📊 For detailed architecture diagrams** including system architecture, agent-driven UI flow, data flow, and agent tools/swarm architecture, see the [README.md Architecture section](./README.md#%EF%B8%8F-architecture). The README contains comprehensive Mermaid diagrams showing the complete system.
+
+**Simplified Overview:**
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                         User Browser                             │
-│                       (Next.js Frontend)                         │
+│                         User Browser                            │
+│                       (Next.js Frontend)                        │
 └────────────┬──────────────────────────────────┬─────────────────┘
              │                                   │
              │ REST                              │ WebSocket
@@ -399,18 +461,18 @@ Access at: http://localhost:3000
                                     └────────────┬────────────────┘
                                                  │
 ┌────────────────────────────────────────────────▼─────────────────┐
-│                    AWS Bedrock AgentCore                          │
-│   ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐ │
-│   │   Memory     │  │   Identity   │  │   Agent Runtime      │ │
-│   │   (History)  │  │   (API Keys) │  │   (Strands Agents)   │ │
-│   └──────────────┘  └──────────────┘  └──────────────────────┘ │
-└───────────────────────────────────────────────────────────────────┘
+│                    AWS Bedrock AgentCore                         │
+│   ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐   |
+│   │   Memory     │  │   Identity   │  │   Agent Runtime      │   │
+│   │   (History)  │  │   (API Keys) │  │   (Strands Agents)   │   │
+│   └──────────────┘  └──────────────┘  └──────────────────────┘   │
+└──────────────────────────────────────────────────────────────────┘
                                   │
                      ┌────────────┴────────────┐
                      │                         │
               ┌──────▼─────┐           ┌──────▼──────┐
               │  DynamoDB  │           │   Tavily    │
-              │   Tables   │           │     API     │
+              │   Table    │           │     API     │
               └────────────┘           └─────────────┘
 ```
 
@@ -421,9 +483,9 @@ Access at: http://localhost:3000
 3. **Agent Invocation**: User sends query → Lambda → AgentCore
 4. **Agent Processing**:
    - Retrieves conversation history from Memory
-   - Gets API keys from Identity
+   - Gets API keys from Agentcore Identity credentials provider
    - Executes business logic using tools (Tavily)
-   - Stores data in DynamoDB
+   - Identify user websocket connection in DynamoDB table
    - Sends updates via WebSocket
 5. **Real-time Updates**: Frontend receives and displays results
 
@@ -484,7 +546,21 @@ Access at: http://localhost:3000
 
 ### Verify Deployment
 
-**1. Test AgentCore Agent**
+**1. Verify Environment Configuration**
+
+Check that `.env` files were properly populated by deploy-all.sh:
+
+```bash
+# Verify backend configuration
+grep -E "COGNITO_USER_POOL_ID|WEBSOCKET_API_ID" backend/.env
+
+# Verify frontend configuration
+grep -E "NEXT_PUBLIC_COGNITO_USER_POOL_ID|NEXT_PUBLIC_AGENTCORE_ARN|DYNAMODB_COMPANIES_TABLE" web/.env
+```
+
+All values should be populated (not empty). If any are empty, check the deployment logs.
+
+**2. Test AgentCore Agent**
 
 ```bash
 cd backend
@@ -499,26 +575,29 @@ Expected output:
 }
 ```
 
-**2. Check CloudWatch Logs**
+**3. Check CloudWatch Logs**
 
 ```bash
 aws logs tail /aws/bedrock-agentcore/business_analyst --follow
 ```
 
-**3. Test WebSocket Connection**
+**4. Test WebSocket Connection**
 
 ```bash
 # Install wscat if needed
 npm install -g wscat
 
+# Get WebSocket URL from .env
+WEBSOCKET_URL=$(grep NEXT_PUBLIC_WEBSOCKET_URL web/.env | cut -d= -f2)
+
 # Connect to WebSocket
-wscat -c wss://YOUR_WEBSOCKET_ID.execute-api.us-east-1.amazonaws.com/prod
+wscat -c $WEBSOCKET_URL
 
 # Send test message
 > {"action": "test", "data": "hello"}
 ```
 
-**4. Test Frontend**
+**5. Test Frontend**
 
 1. Open http://localhost:3000
 2. Sign up for a new account
@@ -558,6 +637,45 @@ aws ce get-cost-and-usage \
 
 ### Common Issues
 
+#### Environment Files Not Populated
+
+**Issue**: After running `deploy-all.sh`, `.env` files have empty values
+
+**Solution**: Check the deployment script output for errors. Common causes:
+- CloudFormation stack outputs not available
+- Stack name mismatch (should be `InfrastructureStack`)
+- Permission issues reading stack outputs
+
+Manually populate values:
+```bash
+# Get all stack outputs
+aws cloudformation describe-stacks --stack-name InfrastructureStack \
+  --query 'Stacks[0].Outputs' --output table
+```
+
+Then copy values to `.env` files as described in Configuration Reference.
+
+---
+
+#### Partial Deployment Needed
+
+**Issue**: Need to re-run only specific deployment steps
+
+**Solution**: Use skip flags:
+
+```bash
+# Re-deploy only AgentCore (skip CDK and validation)
+./scripts/deploy-all.sh --skip-validation --skip-cdk
+
+# Re-attach IAM policies only
+./scripts/deploy-all.sh --skip-validation --skip-cdk --skip-agentcore
+
+# Complete re-deployment of infrastructure (skip AgentCore)
+./scripts/deploy-all.sh --skip-agentcore
+```
+
+---
+
 #### AgentCore Deployment Fails
 
 **Error**: `AgentCore not found in region`
@@ -586,17 +704,31 @@ aws iam attach-user-policy \
 
 #### CDK Deployment Fails
 
-**Error**: `CDK bootstrap required`
+**Error**: `CDK bootstrap required` or bootstrap-related errors
 
-**Note**: The `deploy-all.sh` script automatically bootstraps CDK if needed. If you're deploying manually or this step failed:
+**Note**: The `deploy-all.sh` script automatically checks and bootstraps CDK if needed. This error typically means:
+- Manual deployment was attempted without bootstrapping
+- Bootstrap failed due to permission issues
+- Multiple AWS profiles causing confusion
 
-**Solution**: Bootstrap CDK in your account/region:
+**Solution**:
 
+1. If using `deploy-all.sh`, check you have correct AWS credentials:
+```bash
+aws sts get-caller-identity
+```
+
+2. If deploying manually, bootstrap CDK explicitly:
 ```bash
 cd infrastructure
 cdk bootstrap
 # Or with explicit account/region:
 cdk bootstrap aws://ACCOUNT_ID/us-east-1
+```
+
+3. Verify bootstrap stack exists:
+```bash
+aws cloudformation describe-stacks --stack-name CDKToolkit
 ```
 
 ---
@@ -807,6 +939,5 @@ After successful deployment:
 
 ---
 
-**Deployment Version**: 1.0.0
-**Last Updated**: 2025-01-12
-**Tested With**: AgentCore Preview, CDK 2.x, Python 3.11
+**Tested With**: AgentCore Preview, CDK 2.x, Python 3.11, Node.js 18+
+**Key Changes**: Fully automated deployment with environment configuration, skip flags, and comprehensive error handling

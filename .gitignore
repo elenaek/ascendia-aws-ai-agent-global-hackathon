@@ -132,7 +132,7 @@ celerybeat.pid
 # SageMath parsed files
 *.sage.py
 
-# Environments
+# Environments & Secrets (Security Critical - Never commit these!)
 .env*
 .envrc
 .venv
@@ -141,6 +141,10 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+*.backup
+*.bak
+*.bak[0-9]
+*.bak[0-9][0-9]
 
 # Spyder project settings
 .spyderproject
@@ -207,5 +211,9 @@ infrastructure/lambda/shared/
 
 .serena
 .bedrock_agentcore*
+
+# AWS CDK Output (contains synthesized templates with ARNs/IDs)
+infrastructure/cdk.out/
+cdk.out/
 
 
