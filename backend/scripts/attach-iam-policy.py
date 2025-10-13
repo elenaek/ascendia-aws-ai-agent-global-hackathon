@@ -199,7 +199,8 @@ class IAMPolicyAttacher:
             print_step("Summary")
             print_success("IAM policy successfully attached to AgentCore execution role")
             print_info("The agent now has permissions to:")
-            print_info("  - Access SSM parameters (Tavily API key)")
+            print_info("  - Access AgentCore Memory (conversation history)")
+            print_info("  - Access AgentCore Identity (API key credential providers)")
             print_info("  - Read/write to DynamoDB tables")
             print_info("  - Send messages to WebSocket API")
         else:

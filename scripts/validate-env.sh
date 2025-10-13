@@ -107,10 +107,10 @@ check_command "pip" "pip" "true"
 check_command "node" "Node.js" "true"
 check_command "npm" "npm" "true"
 check_command "cdk" "AWS CDK" "true"
-check_command "docker" "Docker" "false"
+check_command "docker" "Docker" "false" || true
 
 # Check for agentcore CLI
-if python3 -c "import bedrock_agentcore_starter_toolkit" 2>/dev/null; then
+if python -c "import bedrock_agentcore_starter_toolkit" 2>/dev/null; then
     echo -e "${GREEN}✓${NC} bedrock-agentcore-starter-toolkit: Installed"
 else
     echo -e "${RED}✗${NC} bedrock-agentcore-starter-toolkit: Not installed (Required)"
@@ -158,8 +158,8 @@ check_env_var "AWS_ACCOUNT_ID" "true"
 check_env_var "TAVILY_API_KEY" "true"
 
 # AgentCore Configuration
-check_env_var "MEMORY_NAME" "false"
-check_env_var "MAX_RECENT_TURNS" "false"
+check_env_var "MEMORY_NAME" "false" || true
+check_env_var "MAX_RECENT_TURNS" "false" || true
 
 # ============================================================================
 # Step 5: Check Post-Deployment Variables (Optional)
@@ -168,10 +168,10 @@ check_env_var "MAX_RECENT_TURNS" "false"
 echo ""
 echo -e "${BLUE}Step 5: Checking post-deployment variables (optional)${NC}"
 
-check_env_var "COGNITO_USER_POOL_ID" "false"
-check_env_var "COGNITO_CLIENT_ID" "false"
-check_env_var "COGNITO_IDENTITY_POOL_ID" "false"
-check_env_var "WEBSOCKET_API_ID" "false"
+check_env_var "COGNITO_USER_POOL_ID" "false" || true
+check_env_var "COGNITO_CLIENT_ID" "false" || true
+check_env_var "COGNITO_IDENTITY_POOL_ID" "false" || true
+check_env_var "WEBSOCKET_API_ID" "false" || true
 
 # ============================================================================
 # Step 6: Check Python Dependencies
@@ -183,7 +183,7 @@ echo -e "${BLUE}Step 6: Checking Python dependencies${NC}"
 PYTHON_DEPS=("boto3" "bedrock_agentcore" "strands_agents" "python-dotenv")
 
 for dep in "${PYTHON_DEPS[@]}"; do
-    if python3 -c "import $dep" 2>/dev/null; then
+    if python -c "import $dep" 2>/dev/null; then
         echo -e "${GREEN}✓${NC} Python package: $dep"
     else
         echo -e "${YELLOW}⚠${NC} Python package: $dep (Not installed)"

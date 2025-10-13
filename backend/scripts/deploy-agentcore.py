@@ -10,14 +10,28 @@ Programmatically deploys AWS Bedrock AgentCore primitives:
 Usage:
     python backend/scripts/deploy-agentcore.py [--skip-memory] [--skip-identity] [--skip-agent]
 
-Environment Variables Required:
-    AWS_REGION - AWS region for deployment
-    AWS_ACCOUNT_ID - AWS account ID
-    MEMORY_NAME - Name for AgentCore memory resource
-    TAVILY_API_KEY - Tavily API key to store in identity
-    COGNITO_USER_POOL_ID - Cognito User Pool ID for agent authorization
-    COGNITO_CLIENT_ID - Cognito Client ID for agent authorization
-    WEBSOCKET_API_ID - WebSocket API Gateway ID for UI updates
+Environment Variables:
+    This script loads variables from TWO .env files in order:
+    1. Root .env (pre-deployment): AWS_ACCOUNT_ID, TAVILY_API_KEY, AWS_REGION
+    2. backend/.env (post-deployment): COGNITO_USER_POOL_ID, COGNITO_CLIENT_ID,
+       WEBSOCKET_API_ID (these override root .env if present)
+
+    Required (Pre-Deployment):
+        AWS_REGION - AWS region for deployment
+        AWS_ACCOUNT_ID - AWS account ID
+        TAVILY_API_KEY - Tavily API key to store in identity
+
+    Required (Post-CDK Deployment):
+        COGNITO_USER_POOL_ID - Cognito User Pool ID for agent authorization
+        COGNITO_CLIENT_ID - Cognito Client ID for agent authorization
+        WEBSOCKET_API_ID - WebSocket API Gateway ID for UI updates
+
+    Optional:
+        MEMORY_NAME - Name for AgentCore memory resource (default: business_analyst_memory)
+        MAX_RECENT_TURNS - Number of recent conversation turns to keep (default: 10)
+
+Note: If using deploy-all.sh, CDK outputs are automatically populated in backend/.env
+      before this script runs, so all variables will be available.
 """
 
 import os
@@ -30,13 +44,15 @@ from typing import Dict, Optional, Any
 from dotenv import load_dotenv
 
 # Load environment variables
-load_dotenv()
+# Load root .env first (pre-deployment vars: AWS_ACCOUNT_ID, TAVILY_API_KEY)
+load_dotenv(dotenv_path=Path(__file__).parent.parent.parent / '.env')
+# Load backend/.env second (post-deployment vars from CDK: COGNITO_*, WEBSOCKET_API_ID)
+load_dotenv(dotenv_path=Path(__file__).parent.parent / '.env', override=True)
 
 try:
     import boto3
     from bedrock_agentcore_starter_toolkit.operations.memory.manager import MemoryManager
     from bedrock_agentcore_starter_toolkit.operations.memory.models.strategies import SemanticStrategy
-    from bedrock_agentcore.services.identity import IdentityClient
 except ImportError as e:
     print(f"❌ Error: Required package not found: {e}")
     print("Install with: pip install bedrock-agentcore bedrock-agentcore-starter-toolkit boto3")
@@ -50,22 +66,44 @@ class Colors:
     RED = '\033[0;31m'
     NC = '\033[0m'  # No Color
 
+def safe_print(text: str):
+    """Print text, handling Unicode encoding errors for Windows console"""
+    try:
+        print(text)
+    except UnicodeEncodeError:
+        # If printing fails, encode to ASCII with replacement
+        try:
+            print(text.encode('ascii', errors='replace').decode('ascii'))
+        except:
+            print("[Output contains characters that cannot be displayed]")
+
 def print_step(msg: str):
-    print(f"\n{Colors.BLUE}{'='*60}{Colors.NC}")
-    print(f"{Colors.BLUE}{msg}{Colors.NC}")
-    print(f"{Colors.BLUE}{'='*60}{Colors.NC}")
+    safe_print(f"\n{Colors.BLUE}{'='*60}{Colors.NC}")
+    safe_print(f"{Colors.BLUE}{msg}{Colors.NC}")
+    safe_print(f"{Colors.BLUE}{'='*60}{Colors.NC}")
 
 def print_success(msg: str):
-    print(f"{Colors.GREEN}✓{Colors.NC} {msg}")
+    safe_print(f"{Colors.GREEN}[OK]{Colors.NC} {msg}")
 
 def print_warning(msg: str):
-    print(f"{Colors.YELLOW}⚠{Colors.NC} {msg}")
+    safe_print(f"{Colors.YELLOW}[WARN]{Colors.NC} {msg}")
 
 def print_error(msg: str):
-    print(f"{Colors.RED}✗{Colors.NC} {msg}")
+    safe_print(f"{Colors.RED}[ERROR]{Colors.NC} {msg}")
 
 def print_info(msg: str):
-    print(f"  {msg}")
+    safe_print(f"  {msg}")
+
+def sanitize_output(text: str) -> str:
+    """Remove or replace characters that can't be encoded in Windows console"""
+    if not text:
+        return text
+    try:
+        # Try to encode with console encoding, replace unsupported chars
+        return text.encode('cp1252', errors='replace').decode('cp1252')
+    except:
+        # Fallback: remove non-ASCII characters
+        return ''.join(char if ord(char) < 128 else '?' for char in text)
 
 
 class AgentCoreDeployer:
@@ -85,12 +123,16 @@ class AgentCoreDeployer:
         self.agent_name = "business_analyst"
         self.agent_entrypoint = "main.py"
 
+        # Credential provider name (matches what deploy_identity creates)
+        self.api_key_provider_name = f"{self.agent_name}_tavily_api_key"
+
         # Validate required variables
         self._validate_environment()
 
         # Initialize AWS clients
         self.memory_manager = MemoryManager(region_name=self.aws_region)
-        self.identity_client = IdentityClient(region_name=self.aws_region)
+        # Use boto3 bedrock-agentcore-control client for identity management
+        self.identity_client = boto3.client('bedrock-agentcore-control', region_name=self.aws_region)
 
     def _validate_environment(self):
         """Validate required environment variables"""
@@ -118,13 +160,20 @@ class AgentCoreDeployer:
             print_info(f"Checking for existing memory: {self.memory_name}")
 
             # List existing memories
-            existing_memories = self.memory_manager.list_memories()
-            memory_exists = any(m.get('name') == self.memory_name for m in existing_memories.get('memories', []))
+            existing_memories_response = self.memory_manager.list_memories()
+
+            # Handle both list and dict response formats
+            if isinstance(existing_memories_response, dict):
+                existing_memories = existing_memories_response.get('memories', [])
+            else:
+                existing_memories = existing_memories_response
+
+            memory_exists = any(m.get('name') == self.memory_name for m in existing_memories)
 
             if memory_exists:
                 print_warning(f"Memory '{self.memory_name}' already exists")
                 # Get existing memory details
-                for memory in existing_memories.get('memories', []):
+                for memory in existing_memories:
                     if memory.get('name') == self.memory_name:
                         memory_resource = memory
                         break
@@ -157,42 +206,55 @@ class AgentCoreDeployer:
 
     def deploy_identity(self) -> Dict[str, Any]:
         """
-        Deploy or get existing AgentCore Identity (workload identity)
+        Deploy or get existing AgentCore Identity (workload identity) and API key credential provider
         Returns: Identity resource metadata
         """
         print_step("Step 2: Deploying AgentCore Identity")
 
         try:
-            # Check if identity already exists
-            print_info(f"Checking for existing identity: {self.agent_name}")
+            # Step 1: Create or get workload identity
+            print_info(f"Checking for existing workload identity: {self.agent_name}")
+
+            identity_response = None
+            identity_arn = None
 
             try:
-                # Try to get existing identity
+                # Try to get existing workload identity
                 identity_response = self.identity_client.get_workload_identity(name=self.agent_name)
-                print_warning(f"Identity '{self.agent_name}' already exists")
                 identity_arn = identity_response.get('workloadIdentityArn')
-            except Exception:
-                # Create new identity
-                print_info(f"Creating new identity: {self.agent_name}")
+                print_warning(f"Workload identity '{self.agent_name}' already exists")
+            except self.identity_client.exceptions.ResourceNotFoundException:
+                # Identity doesn't exist, create it
+                print_info(f"Creating new workload identity: {self.agent_name}")
                 identity_response = self.identity_client.create_workload_identity(name=self.agent_name)
                 identity_arn = identity_response.get('workloadIdentityArn')
+                print_success(f"Workload identity created")
 
             print_success(f"Identity ready: {identity_arn}")
 
-            # Store Tavily API key in identity
-            print_info("Storing Tavily API key in identity...")
+            # Step 2: Create or update API key credential provider
+            print_info(f"Setting up API key credential provider: {self.api_key_provider_name}")
+
             try:
-                self.identity_client.put_credential_provider(
-                    workload_identity_name=self.agent_name,
-                    provider_name="tavily_api_key",
-                    provider_configuration={
-                        "type": "api_key",
-                        "api_key": self.tavily_api_key
-                    }
+                # Try to create new credential provider
+                provider_response = self.identity_client.create_api_key_credential_provider(
+                    name=self.api_key_provider_name,
+                    apiKey=self.tavily_api_key
                 )
-                print_success("Tavily API key stored successfully")
-            except Exception as e:
-                print_warning(f"Failed to store API key (may already exist): {str(e)}")
+                print_success(f"API key credential provider created: {provider_response.get('credentialProviderArn')}")
+            except (self.identity_client.exceptions.ConflictException,
+                    self.identity_client.exceptions.ValidationException) as e:
+                # Provider already exists, update it
+                if "already exists" in str(e):
+                    print_warning(f"API key credential provider '{self.api_key_provider_name}' already exists, updating...")
+                    provider_response = self.identity_client.update_api_key_credential_provider(
+                        name=self.api_key_provider_name,
+                        apiKey=self.tavily_api_key
+                    )
+                    print_success(f"API key credential provider updated")
+                else:
+                    # Re-raise if it's a different validation error
+                    raise
 
             return identity_response
 
@@ -221,20 +283,62 @@ class AgentCoreDeployer:
                 print_warning("Agent configuration already exists")
                 print_info("Using existing configuration from .bedrock_agentcore.yaml")
             else:
+                # Validate Cognito variables are available for configuration
+                if not self.cognito_user_pool_id or not self.cognito_client_id:
+                    print_error("Cannot configure agent: Missing Cognito configuration")
+                    print_info("COGNITO_USER_POOL_ID and COGNITO_CLIENT_ID are required for JWT authentication")
+                    print_info("These are automatically populated by deploy-all.sh after CDK deployment")
+                    raise Exception("Missing required Cognito configuration for agent setup")
+
                 print_info("Configuring agent...")
+
+                # Build Cognito discovery URL
+                cognito_discovery_url = f"https://cognito-idp.{self.aws_region}.amazonaws.com/{self.cognito_user_pool_id}/.well-known/openid-configuration"
+
+                # Build authorizer config JSON
+                authorizer_config = json.dumps({
+                    "customJWTAuthorizer": {
+                        "discoveryUrl": cognito_discovery_url,
+                        "allowedClients": [self.cognito_client_id]
+                    }
+                })
+
                 # Run agentcore configure
                 configure_cmd = [
                     "agentcore", "configure",
                     "-e", self.agent_entrypoint,
-                    "--agent-name", self.agent_name
+                    "--name", self.agent_name,
+                    "--region", self.aws_region,
+                    "--authorizer-config", authorizer_config,
+                    "--ecr", "auto",
+                    "--request-header-allowlist", "Authorization",
+                    "--non-interactive"
                 ]
 
-                result = subprocess.run(configure_cmd, capture_output=True, text=True)
+                # Set environment variables for cleaner output
+                env = os.environ.copy()
+                env['PYTHONIOENCODING'] = 'utf-8'  # Force UTF-8 encoding
+
+                # Let output stream directly to console (no capture) to avoid TTY issues
+                result = subprocess.run(configure_cmd, text=True, env=env)
                 if result.returncode != 0:
-                    print_error(f"Configuration failed: {result.stderr}")
+                    print_error(f"Configuration failed with exit code {result.returncode}")
                     raise Exception("Agent configuration failed")
 
                 print_success("Agent configured successfully")
+
+            # Validate post-deployment variables before launch
+            post_deploy_vars = {
+                'COGNITO_USER_POOL_ID': self.cognito_user_pool_id,
+                'COGNITO_CLIENT_ID': self.cognito_client_id,
+                'WEBSOCKET_API_ID': self.websocket_api_id,
+            }
+            missing_post_deploy = [var for var, value in post_deploy_vars.items() if not value]
+
+            if missing_post_deploy:
+                print_warning(f"Post-deployment variables not set: {', '.join(missing_post_deploy)}")
+                print_info("Agent will deploy but Cognito authorization and WebSocket features won't work")
+                print_info("These are automatically populated by deploy-all.sh after CDK deployment")
 
             # Deploy agent using agentcore launch
             print_info("Launching agent to AgentCore Runtime...")
@@ -248,6 +352,7 @@ class AgentCoreDeployer:
                 f"WEBSOCKET_API_ID={self.websocket_api_id}",
                 f"MEMORY_NAME={self.memory_name}",
                 f"MAX_RECENT_TURNS={os.getenv('MAX_RECENT_TURNS', '10')}",
+                f"TAVILY_API_KEY_PROVIDER_NAME={self.api_key_provider_name}",
             ]
 
             # Build launch command
@@ -258,10 +363,15 @@ class AgentCoreDeployer:
 
             print_info(f"Running: {' '.join(launch_cmd[:3])}... (with {len(env_vars)} environment variables)")
 
-            result = subprocess.run(launch_cmd, capture_output=True, text=True)
+            # Set environment variables for cleaner output
+            env = os.environ.copy()
+            env['PYTHONIOENCODING'] = 'utf-8'  # Force UTF-8 encoding
+
+            # Let output stream directly to console (no capture) to avoid TTY issues
+            result = subprocess.run(launch_cmd, text=True, env=env)
 
             if result.returncode != 0:
-                print_error(f"Deployment failed: {result.stderr}")
+                print_error(f"Deployment failed with exit code {result.returncode}")
                 raise Exception("Agent deployment failed")
 
             print_success("Agent deployed successfully")

@@ -194,7 +194,7 @@ if [ "$SKIP_AGENTCORE" = false ]; then
     print_header "Step 3: Deploying AgentCore Primitives"
 
     print_step "Deploying AgentCore memory, identity, and agent..."
-    python3 backend/scripts/deploy-agentcore.py
+    python backend/scripts/deploy-agentcore.py
 
     if [ $? -ne 0 ]; then
         print_error "AgentCore deployment failed"
@@ -228,7 +228,7 @@ if [ "$SKIP_IAM" = false ]; then
     print_header "Step 4: Attaching IAM Policy"
 
     print_step "Attaching CDK IAM policy to AgentCore execution role..."
-    python3 backend/scripts/attach-iam-policy.py
+    python backend/scripts/attach-iam-policy.py
 
     if [ $? -ne 0 ]; then
         print_warning "IAM policy attachment failed (non-critical)"
@@ -276,10 +276,9 @@ echo -e "   ${BLUE}cd backend && agentcore invoke '{\"prompt\": \"Hello!\"}'${NC
 echo ""
 echo -e "${CYAN}Resources Created:${NC}"
 echo -e "  • Cognito User Pool & Identity Pool"
-echo -e "  • DynamoDB Tables (Companies, Competitors, Reviews, WebSocket Connections)"
+echo -e "  • DynamoDB Tables (Companies, Competitors, CompanyCompetitors, WebSocketConnections)"
 echo -e "  • WebSocket API Gateway"
-echo -e "  • Lambda Functions (Webhook, WebSocket handlers)"
-echo -e "  • S3 Bucket (Raw reviews)"
+echo -e "  • Lambda Functions (WebSocket handlers)"
 echo -e "  • AgentCore Memory, Identity, and Agent Runtime"
 echo ""
 echo -e "${YELLOW}📝 See DEPLOYMENT.md for detailed information${NC}"

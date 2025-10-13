@@ -92,7 +92,7 @@ def get_identity_id(idToken: str) -> str:
     )
     return response['IdentityId']
 
-@requires_api_key(provider_name="tavily_api_key")
+@requires_api_key(provider_name=os.getenv("TAVILY_API_KEY_PROVIDER_NAME", "tavily_api_key"))
 def set_tavily_api_key(*, api_key: str):
     os.environ['TAVILY_API_KEY'] = api_key
 

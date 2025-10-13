@@ -25,11 +25,4 @@ stack = InfrastructureStack(app, "InfrastructureStack",
     # For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html
     )
 
-# Add CloudFormation outputs
-cdk.CfnOutput(stack, "WebhookApiEndpoint",
-    value=stack.api_url,
-    description="Webhook Function URL",
-    export_name="WebhookApiEndpoint"
-)
-
 app.synth()

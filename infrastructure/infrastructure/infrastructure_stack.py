@@ -392,29 +392,33 @@ class InfrastructureStack(Stack):
         # Alternative: Create a policy that can be attached to the AgentCore execution role
         agentcore_secrets_policy = iam.ManagedPolicy(
             self, "AgentCoreSecretsAccessPolicy",
-            managed_policy_name=f"AgentCoreSecretsAccess-{self.stack_name}",
-            description="Allows AgentCore agent to access AWS resources (SSM, DynamoDB, WebSocket API)",
+            description="Allows AgentCore agent to access AWS resources (AgentCore Memory/Identity, DynamoDB, WebSocket API)",
             statements=[
-                # SSM Parameter access for API keys
+                # AgentCore Memory access - to read/write conversation history
                 iam.PolicyStatement(
                     effect=iam.Effect.ALLOW,
                     actions=[
-                        "ssm:GetParameter",
-                        "ssm:GetParameters",
-                        "ssm:DescribeParameters"
+                        "bedrock-agentcore:BatchCreateMemoryRecords",
+                        "bedrock-agentcore:BatchDeleteMemoryRecords",
+                        "bedrock-agentcore:BatchUpdateMemoryRecords",
+                        "bedrock-agentcore:GetMemoryRecord",
+                        "bedrock-agentcore:DeleteMemoryRecord",
+                        "bedrock-agentcore:CreateEvent",
+                        "bedrock-agentcore:GetEvent",
+                        "bedrock-agentcore:DeleteEvent"
                     ],
-                    resources=[f"arn:aws:ssm:{self.region}:{self.account}:parameter{agentcore_tavily_api_secret.parameter_name}"]
+                    resources=[f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:memory/*"]
                 ),
-                # KMS decrypt for SecureString parameters
+                # AgentCore Identity - to retrieve API keys from credential providers
                 iam.PolicyStatement(
                     effect=iam.Effect.ALLOW,
-                    actions=["kms:Decrypt"],
-                    resources=["*"],
-                    conditions={
-                        "StringEquals": {
-                            "kms:ViaService": f"ssm.{self.region}.amazonaws.com"
-                        }
-                    }
+                    actions=[
+                        "bedrock-agentcore:GetResourceApiKey"
+                    ],
+                    resources=[
+                        f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:token-vault/*",
+                        f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:workload-identity-directory/*"
+                    ]
                 ),
                 # DynamoDB access for all tables
                 iam.PolicyStatement(
