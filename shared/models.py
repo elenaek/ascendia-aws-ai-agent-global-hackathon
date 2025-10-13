@@ -47,28 +47,3 @@ class CompanyCompetitor(BaseModel):
         json_encoders = {
             ObjectId: str
         }
-
-class Review(BaseModel):
-    """Review data model"""
-    competitor_id: str = Field(description="ObjectId of the competitor this review belongs to")
-    company_id: str = Field(description="ObjectId of the company (denormalized for faster queries)")
-    task_id: str = Field(description="DataForSEO task ID")
-    rank: int = Field(description="Rank of the review")
-    reviewer_review_count: int = Field(description="Number of reviews by this reviewer")
-    reviewer_name: str = Field(description="Name of the reviewer")
-    review_text: str = Field(description="Text content of the review")
-    rating: float = Field(description="Rating given (e.g., 1-5 stars)")
-    review_date: str = Field(description="Date of the review")
-    created_at: Optional[str] = Field(default=None, description="Timestamp when stored")
-
-    class Config:
-        json_encoders = {
-            ObjectId: str
-        }
-
-class ReviewBatch(BaseModel):
-    """Batch of reviews from DataForSEO"""
-    competitor_id: str = Field(description="Competitor ID from database")
-    company_id: str = Field(description="Company ID from database")
-    task_id: str = Field(description="DataForSEO task ID")
-    reviews: list[Review] = Field(description="List of reviews")

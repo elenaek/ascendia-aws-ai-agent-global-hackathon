@@ -1,6 +1,6 @@
 """MongoDB implementation of database interface - DEPRECATED, use DynamoDB"""
 from typing import List, Optional, Dict, Any
-from shared.models import Company, Competitor, CompanyCompetitor, Review
+from shared.models import Company, Competitor, CompanyCompetitor
 from shared.database.interface import DatabaseInterface
 
 
@@ -37,19 +37,4 @@ class MongoDBRepository(DatabaseInterface):
         raise NotImplementedError("Use DynamoDB")
 
     def get_companies_for_competitor(self, competitor_id: str) -> List[Dict[str, Any]]:
-        raise NotImplementedError("Use DynamoDB")
-
-    def create_review(self, review: Review) -> str:
-        raise NotImplementedError("Use DynamoDB")
-
-    def create_reviews_batch(self, reviews: List[Review]) -> int:
-        raise NotImplementedError("Use DynamoDB")
-
-    def get_reviews_for_competitor(self, competitor_id: str) -> List[Review]:
-        raise NotImplementedError("Use DynamoDB")
-
-    def get_reviews_for_company(self, company_id: str) -> List[Review]:
-        raise NotImplementedError("Use DynamoDB")
-
-    def get_reviews_by_task_id(self, task_id: str) -> List[Review]:
         raise NotImplementedError("Use DynamoDB")

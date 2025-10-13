@@ -64,10 +64,6 @@ This stack deploys a complete AWS-powered business intelligence application feat
    - Sign up at https://tavily.com
    - Get your API key from dashboard
 
-2. **DataForSEO Credentials** (required)
-   - Sign up at https://dataforseo.com
-   - Base64 encode your credentials: `echo -n "username:password" | base64`
-
 ---
 
 ## Quick Start
@@ -126,7 +122,6 @@ AWS_SECRET_ACCESS_KEY=...            # Your secret key
 
 # Third-Party API Keys
 TAVILY_API_KEY=tvly-...              # From tavily.com
-DATA_FOR_SEO_CREDS_B64=dXNlcm5h...   # Base64 encoded credentials
 
 # AgentCore Configuration (defaults)
 MEMORY_NAME=business_analyst_memory
@@ -186,10 +181,9 @@ cd ..
 
 This creates:
 - Cognito User Pool and Identity Pool
-- DynamoDB tables (Companies, Competitors, Reviews, WebSocketConnections)
+- DynamoDB tables (Companies, Competitors, CompanyCompetitors, WebSocketConnections)
 - WebSocket API Gateway
 - Lambda functions
-- S3 bucket
 - IAM policies
 
 **2.2 Update Backend Environment**
@@ -262,7 +256,6 @@ NEXT_PUBLIC_AWS_REGION=us-east-1
 
 # DynamoDB Tables (from CDK outputs)
 NEXT_PUBLIC_COMPANIES_TABLE=InfrastructureStack-CompaniesTable-XXXXXXXXXXXX
-NEXT_PUBLIC_REVIEWS_TABLE=InfrastructureStack-ReviewsTable-XXXXXXXXXXXX
 NEXT_PUBLIC_COMPETITORS_TABLE=InfrastructureStack-CompetitorsTable-XXXXXXXXXXXX
 NEXT_PUBLIC_COMPANY_COMPETITORS_TABLE=InfrastructureStack-CompanyCompetitorsTable-XXXXXXXXXXXX
 ```
@@ -297,7 +290,6 @@ Access at: http://localhost:3000
 | `AWS_ACCESS_KEY_ID` | Yes | AWS access key | `AKIAIOSFODNN7EXAMPLE` |
 | `AWS_SECRET_ACCESS_KEY` | Yes | AWS secret key | `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY` |
 | `TAVILY_API_KEY` | Yes | Tavily search API key | `tvly-XXXXXXXXXX` |
-| `DATA_FOR_SEO_CREDS_B64` | Yes | Base64 encoded DataForSEO creds | `dXNlcm5hbWU6cGFzc3dvcmQ=` |
 | `MEMORY_NAME` | No | AgentCore memory name | `business_analyst_memory` |
 | `MAX_RECENT_TURNS` | No | Conversation turns to keep | `10` |
 
@@ -332,7 +324,6 @@ Access at: http://localhost:3000
                                                  │
                                     ┌────────────▼────────────────┐
                                     │   Lambda Functions          │
-                                    │   - Webhook handler         │
                                     │   - WebSocket handlers      │
                                     └────────────┬────────────────┘
                                                  │
@@ -344,12 +335,12 @@ Access at: http://localhost:3000
 │   └──────────────┘  └──────────────┘  └──────────────────────┘ │
 └───────────────────────────────────────────────────────────────────┘
                                   │
-                     ┌────────────┼────────────┐
-                     │            │            │
-              ┌──────▼─────┐ ┌───▼──────┐ ┌──▼───────┐
-              │  DynamoDB  │ │  Tavily  │ │DataForSEO│
-              │   Tables   │ │    API   │ │   API    │
-              └────────────┘ └──────────┘ └──────────┘
+                     ┌────────────┴────────────┐
+                     │                         │
+              ┌──────▼─────┐           ┌──────▼──────┐
+              │  DynamoDB  │           │   Tavily    │
+              │   Tables   │           │     API     │
+              └────────────┘           └─────────────┘
 ```
 
 ### Data Flow
@@ -360,7 +351,7 @@ Access at: http://localhost:3000
 4. **Agent Processing**:
    - Retrieves conversation history from Memory
    - Gets API keys from Identity
-   - Executes business logic using tools (Tavily, DataForSEO)
+   - Executes business logic using tools (Tavily)
    - Stores data in DynamoDB
    - Sends updates via WebSocket
 5. **Real-time Updates**: Frontend receives and displays results
@@ -394,7 +385,6 @@ Access at: http://localhost:3000
 | Companies | Company data | PK: `company_id` |
 | Competitors | Competitor data | PK: `competitor_id` |
 | CompanyCompetitors | Company-competitor relationships | PK: `company_id`, SK: `competitor_id` |
-| Reviews | Customer reviews | PK: `review_id` |
 | WebSocketConnections | Active WebSocket connections | PK: `connectionId` |
 
 #### API Gateway
@@ -408,7 +398,6 @@ Access at: http://localhost:3000
 
 | Function | Trigger | Purpose |
 |----------|---------|---------|
-| WebhookHandler | API Gateway | Processes agent webhooks |
 | ConnectHandler | WebSocket $connect | Manages connections |
 | DisconnectHandler | WebSocket $disconnect | Cleans up connections |
 
@@ -719,14 +708,13 @@ If automated teardown fails, manually delete:
 ### Cost Optimization
 
 1. **Use DynamoDB On-Demand**: Already configured (scales automatically)
-2. **Enable S3 Lifecycle Policies**: Archive old reviews to Glacier
-3. **Set CloudWatch Log Retention**: Default is indefinite
+2. **Set CloudWatch Log Retention**: Default is indefinite
    ```bash
    aws logs put-retention-policy \
      --log-group-name /aws/bedrock-agentcore/business_analyst \
      --retention-in-days 7
    ```
-4. **Monitor Costs**: Set up AWS Budgets with alerts
+3. **Monitor Costs**: Set up AWS Budgets with alerts
 
 ---
 

@@ -156,7 +156,6 @@ check_env_var "AWS_ACCOUNT_ID" "true"
 
 # API Keys
 check_env_var "TAVILY_API_KEY" "true"
-check_env_var "DATA_FOR_SEO_CREDS_B64" "true"
 
 # AgentCore Configuration
 check_env_var "MEMORY_NAME" "false"

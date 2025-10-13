@@ -3,7 +3,7 @@ import os
 import boto3
 from typing import List, Optional, Dict, Any
 from datetime import datetime
-from shared.models import Company, Competitor, CompanyCompetitor, Review
+from shared.models import Company, Competitor, CompanyCompetitor
 from shared.dynamodb_utils import to_dynamodb_simple, from_dynamodb_simple
 from shared.database.interface import DatabaseInterface
 
@@ -16,7 +16,6 @@ class DynamoDBRepository(DatabaseInterface):
         self.companies_table = self.dynamodb.Table(os.environ['DYNAMODB_COMPANIES_TABLE'])
         self.competitors_table = self.dynamodb.Table(os.environ['DYNAMODB_COMPETITORS_TABLE'])
         self.company_competitors_table = self.dynamodb.Table(os.environ['DYNAMODB_COMPANY_COMPETITORS_TABLE'])
-        self.reviews_table = self.dynamodb.Table(os.environ['DYNAMODB_REVIEWS_TABLE'])
 
     # Companies
     def get_company(self, company_id: str) -> Optional[Company]:
@@ -101,39 +100,3 @@ class DynamoDBRepository(DatabaseInterface):
                 results.append(result)
 
         return results
-
-    # Reviews
-    def create_review(self, review: Review) -> str:
-        review.created_at = datetime.utcnow().isoformat()
-        self.reviews_table.put_item(Item=to_dynamodb_simple(review))
-        return review.review_id if hasattr(review, 'review_id') else ""
-
-    def create_reviews_batch(self, reviews: List[Review]) -> int:
-        with self.reviews_table.batch_writer() as batch:
-            for review in reviews:
-                review.created_at = datetime.utcnow().isoformat()
-                batch.put_item(Item=to_dynamodb_simple(review))
-        return len(reviews)
-
-    def get_reviews_for_competitor(self, competitor_id: str) -> List[Review]:
-        response = self.reviews_table.query(
-            KeyConditionExpression='competitor_id = :cid',
-            ExpressionAttributeValues={':cid': competitor_id}
-        )
-        return [from_dynamodb_simple(item, Review) for item in response['Items']]
-
-    def get_reviews_for_company(self, company_id: str) -> List[Review]:
-        response = self.reviews_table.query(
-            IndexName='company-reviews-index',
-            KeyConditionExpression='company_id = :cid',
-            ExpressionAttributeValues={':cid': company_id}
-        )
-        return [from_dynamodb_simple(item, Review) for item in response['Items']]
-
-    def get_reviews_by_task_id(self, task_id: str) -> List[Review]:
-        response = self.reviews_table.query(
-            IndexName='task-reviews-index',
-            KeyConditionExpression='task_id = :tid',
-            ExpressionAttributeValues={':tid': task_id}
-        )
-        return [from_dynamodb_simple(item, Review) for item in response['Items']]

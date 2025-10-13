@@ -6,7 +6,7 @@ def get_table_name(table_type: str) -> str:
     Get DynamoDB table name from environment variables
 
     Args:
-        table_type: One of 'companies', 'competitors', 'company_competitors', 'reviews'
+        table_type: One of 'companies', 'competitors', 'company_competitors'
 
     Returns:
         Table name from environment
@@ -14,8 +14,7 @@ def get_table_name(table_type: str) -> str:
     table_map = {
         'companies': 'DYNAMODB_COMPANIES_TABLE',
         'competitors': 'DYNAMODB_COMPETITORS_TABLE',
-        'company_competitors': 'DYNAMODB_COMPANY_COMPETITORS_TABLE',
-        'reviews': 'DYNAMODB_REVIEWS_TABLE'
+        'company_competitors': 'DYNAMODB_COMPANY_COMPETITORS_TABLE'
     }
 
     env_var = table_map.get(table_type)

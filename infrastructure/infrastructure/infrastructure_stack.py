@@ -82,21 +82,6 @@ class InfrastructureStack(Stack):
 
         # We'll create the Identity Pool after the tables and roles
 
-        # Get DataForSEO API credentials from environment variable
-        dataforseo_auth = os.environ.get('DATA_FOR_SEO_CREDS_B64', '')
-
-        if not dataforseo_auth:
-            print("WARNING: DATA_FOR_SEO_CREDS_B64 not found in environment variables")
-
-        # Create SSM Parameter for DataForSEO B64 auth string
-        dataforseo_auth_param = ssm.StringParameter(
-            self, "DataForSEOAuth",
-            description="DataForSEO API B64 Basic Auth String",
-            parameter_name=f"/ascendia/webhook/dataforseo/auth-{self.account}",
-            string_value=dataforseo_auth,
-            tier=ssm.ParameterTier.STANDARD,
-        )
-
         # ============ Secrets Manager for AgentCore API Tokens ============
 
         # Get Tavily API key from environment variable
@@ -112,17 +97,6 @@ class InfrastructureStack(Stack):
             description="Tavily API key for AgentCore agent",
             string_value=tavily_api_key,
             tier=ssm.ParameterTier.STANDARD
-        )
-
-
-        # Create S3 bucket for raw reviews with account ID for uniqueness
-        raw_reviews_bucket = s3.Bucket(
-            self, "RawReviewsBucket",
-            bucket_name=f"aws-hackathon-raw-reviews-{self.account}",
-            versioned=True,
-            encryption=s3.BucketEncryption.S3_MANAGED,
-            removal_policy=RemovalPolicy.DESTROY,  # Keep data on stack deletion
-            auto_delete_objects=False,
         )
 
         # DynamoDB Tables (parallel to MongoDB)
@@ -193,48 +167,7 @@ class InfrastructureStack(Stack):
             projection_type=dynamodb.ProjectionType.ALL
         )
 
-        # Table 4: Reviews
-        reviews_table = dynamodb.Table(
-            self, "ReviewsTable",
-            table_name=f"reviews-{self.account}",
-            partition_key=dynamodb.Attribute(
-                name="competitor_id",
-                type=dynamodb.AttributeType.STRING
-            ),
-            sort_key=dynamodb.Attribute(
-                name="review_id",
-                type=dynamodb.AttributeType.STRING
-            ),
-            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
-            removal_policy=RemovalPolicy.DESTROY,
-            point_in_time_recovery=True,
-        )
-
-        # GSI1: Query reviews by company_id
-        reviews_table.add_global_secondary_index(
-            index_name="company-reviews-index",
-            partition_key=dynamodb.Attribute(
-                name="company_id",
-                type=dynamodb.AttributeType.STRING
-            ),
-            sort_key=dynamodb.Attribute(
-                name="review_date",
-                type=dynamodb.AttributeType.STRING
-            ),
-            projection_type=dynamodb.ProjectionType.ALL
-        )
-
-        # GSI2: Query by task_id
-        reviews_table.add_global_secondary_index(
-            index_name="task-reviews-index",
-            partition_key=dynamodb.Attribute(
-                name="task_id",
-                type=dynamodb.AttributeType.STRING
-            ),
-            projection_type=dynamodb.ProjectionType.ALL
-        )
-
-        # Table 5: WebSocket Connections
+        # Table 4: WebSocket Connections
         websocket_connections_table = dynamodb.Table(
             self, "WebSocketConnectionsTable",
             table_name=f"websocket-connections-{self.account}",
@@ -327,82 +260,6 @@ class InfrastructureStack(Stack):
                 }
             }
         ))
-
-        # Add policy for reviews table (row-level based on company_id)
-        authenticated_role.add_to_policy(iam.PolicyStatement(
-            effect=iam.Effect.ALLOW,
-            actions=[
-                "dynamodb:GetItem",
-                "dynamodb:Query",
-                "dynamodb:PutItem",
-                "dynamodb:UpdateItem",
-                "dynamodb:DeleteItem",
-            ],
-            resources=[
-                reviews_table.table_arn,
-                f"{reviews_table.table_arn}/index/company-reviews-index"
-            ],
-            conditions={
-                "ForAllValues:StringEquals": {
-                    "dynamodb:LeadingKeys": ["${cognito-identity.amazonaws.com:sub}"]
-                }
-            }
-        ))
-
-        # Copy shared directory to lambda during bundling
-        lambda_dir = Path("lambda")
-        shared_src = Path("../shared")
-        shared_dest = lambda_dir / "shared"
-
-        # Copy shared if not already there
-        if shared_src.exists() and not shared_dest.exists():
-            shutil.copytree(shared_src, shared_dest)
-
-        # Create Lambda function for webhook with automatic dependency bundling
-        webhook_lambda = PythonFunction(
-            self, "WebhookFunction",
-            runtime=_lambda.Runtime.PYTHON_3_12,
-            entry="lambda",
-            index="webhook.py",
-            handler="handler",
-            environment={
-                "DATA_FOR_SEO_CREDS_B64": dataforseo_auth_param.parameter_name,
-                "RAW_REVIEWS_BUCKET": raw_reviews_bucket.bucket_name,
-                # DynamoDB table names
-                "DYNAMODB_COMPANIES_TABLE": companies_table.table_name,
-                "DYNAMODB_COMPETITORS_TABLE": competitors_table.table_name,
-                "DYNAMODB_COMPANY_COMPETITORS_TABLE": company_competitors_table.table_name,
-                "DYNAMODB_REVIEWS_TABLE": reviews_table.table_name,
-                # Database selection - using DynamoDB
-                "DATABASE_TYPE": "DYNAMODB",
-                "PYTHONPATH": "/var/task:/var/task/shared",  # Add shared to Python path
-            },
-            timeout=Duration.seconds(30),
-            memory_size=256,
-            log_retention=logs.RetentionDays.ONE_WEEK,
-        )
-
-        # Grant Lambda permission to read the SSM parameter
-        dataforseo_auth_param.grant_read(webhook_lambda)
-
-        # Grant Lambda permission to put objects into the S3 bucket
-        raw_reviews_bucket.grant_put(webhook_lambda)
-
-        # Grant Lambda permissions for DynamoDB tables
-        companies_table.grant_read_write_data(webhook_lambda)
-        competitors_table.grant_read_write_data(webhook_lambda)
-        company_competitors_table.grant_read_write_data(webhook_lambda)
-        reviews_table.grant_read_write_data(webhook_lambda)
-
-        # Add Function URL for webhook
-        webhook_url = webhook_lambda.add_function_url(
-            auth_type=_lambda.FunctionUrlAuthType.NONE,
-            cors=_lambda.FunctionUrlCorsOptions(
-                allowed_origins=["*"],
-                allowed_methods=[_lambda.HttpMethod.POST, _lambda.HttpMethod.GET],
-                allowed_headers=["*"],
-            )
-        )
 
         # ============ WebSocket API Gateway for Dynamic UI Updates ============
 
@@ -577,8 +434,6 @@ class InfrastructureStack(Stack):
                         f"{competitors_table.table_arn}/index/*",
                         company_competitors_table.table_arn,
                         f"{company_competitors_table.table_arn}/index/*",
-                        reviews_table.table_arn,
-                        f"{reviews_table.table_arn}/index/*",
                         websocket_connections_table.table_arn,
                         f"{websocket_connections_table.table_arn}/index/*"
                     ]
@@ -617,12 +472,6 @@ class InfrastructureStack(Stack):
             value=identity_pool_instance.identity_pool_id,
             description="Cognito Identity Pool ID",
             export_name=f"{self.stack_name}-IdentityPoolId"
-        )
-
-        CfnOutput(
-            self, "WebhookUrl",
-            value=webhook_url.url,
-            description="Webhook Lambda Function URL"
         )
 
         CfnOutput(
@@ -684,13 +533,6 @@ class InfrastructureStack(Stack):
             export_name=f"{self.stack_name}-CompanyCompetitorsTable"
         )
 
-        CfnOutput(
-            self, "ReviewsTableName",
-            value=reviews_table.table_name,
-            description="Reviews DynamoDB table name",
-            export_name=f"{self.stack_name}-ReviewsTable"
-        )
-
         # DynamoDB Table ARNs (for AgentCore IAM permissions)
         CfnOutput(
             self, "CompaniesTableArn",
@@ -714,13 +556,6 @@ class InfrastructureStack(Stack):
         )
 
         CfnOutput(
-            self, "ReviewsTableArn",
-            value=reviews_table.table_arn,
-            description="Reviews DynamoDB table ARN",
-            export_name=f"{self.stack_name}-ReviewsTableArn"
-        )
-
-        CfnOutput(
             self, "WebSocketConnectionsTableArn",
             value=websocket_connections_table.table_arn,
             description="WebSocket connections DynamoDB table ARN",
@@ -738,8 +573,6 @@ class InfrastructureStack(Stack):
         # Store for programmatic access
         self.user_pool_id = user_pool.user_pool_id
         self.user_pool_client_id = user_pool_client.user_pool_client_id
-        self.api_url = webhook_url.url
-        self.secret_arn = dataforseo_auth_param.parameter_name
         self.websocket_url = websocket_url
         self.websocket_api_id = websocket_api.ref
         self.websocket_connections_table_name = websocket_connections_table.table_name
