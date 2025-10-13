@@ -392,7 +392,7 @@ class InfrastructureStack(Stack):
         # Alternative: Create a policy that can be attached to the AgentCore execution role
         agentcore_secrets_policy = iam.ManagedPolicy(
             self, "AgentCoreSecretsAccessPolicy",
-            description="Allows AgentCore agent to access AWS resources (AgentCore Memory/Identity, DynamoDB, WebSocket API)",
+            description="Allows AgentCore agent to access AWS resources (AgentCore Memory/Identity, Secrets Manager, DynamoDB, WebSocket API)",
             statements=[
                 # AgentCore Memory access - to read/write conversation history
                 iam.PolicyStatement(
@@ -418,6 +418,17 @@ class InfrastructureStack(Stack):
                     resources=[
                         f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:token-vault/*",
                         f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:workload-identity-directory/*"
+                    ]
+                ),
+                # Secrets Manager - AgentCore Identity stores API keys here
+                iam.PolicyStatement(
+                    effect=iam.Effect.ALLOW,
+                    actions=[
+                        "secretsmanager:GetSecretValue"
+                    ],
+                    resources=[
+                        # AgentCore creates secrets with this pattern (hyphen-separated, not slash)
+                        f"arn:aws:secretsmanager:{self.region}:{self.account}:secret:bedrock-agentcore-*"
                     ]
                 ),
                 # DynamoDB access for all tables

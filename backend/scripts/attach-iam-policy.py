@@ -201,6 +201,7 @@ class IAMPolicyAttacher:
             print_info("The agent now has permissions to:")
             print_info("  - Access AgentCore Memory (conversation history)")
             print_info("  - Access AgentCore Identity (API key credential providers)")
+            print_info("  - Retrieve secrets from Secrets Manager (API keys)")
             print_info("  - Read/write to DynamoDB tables")
             print_info("  - Send messages to WebSocket API")
         else:

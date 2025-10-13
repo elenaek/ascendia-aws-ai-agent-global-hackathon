@@ -4,7 +4,7 @@
 # ============================================================================
 # Deploys the entire AWS Hackathon stack in the correct order:
 # 1. Validate environment
-# 2. Deploy CDK infrastructure
+# 2. Bootstrap CDK (if needed) and deploy infrastructure
 # 3. Deploy AgentCore (memory, identity, agent)
 # 4. Attach IAM policies
 # 5. Output final configuration
@@ -89,6 +89,47 @@ print_info() {
 }
 
 # ============================================================================
+# Check for Environment Files
+# ============================================================================
+
+if [ ! -f "backend/.env" ] || [ ! -f "web/.env" ]; then
+    print_header "Environment Setup Required"
+
+    if [ ! -f "backend/.env" ]; then
+        echo -e "${YELLOW}⚠ backend/.env not found${NC}"
+    fi
+
+    if [ ! -f "web/.env" ]; then
+        echo -e "${YELLOW}⚠ web/.env not found${NC}"
+    fi
+
+    echo ""
+    echo -e "Running interactive environment setup..."
+    echo ""
+
+    if [ -f "./scripts/setup-env.sh" ]; then
+        ./scripts/setup-env.sh
+        if [ $? -ne 0 ]; then
+            print_error "Environment setup failed"
+            exit 1
+        fi
+    else
+        print_error "setup-env.sh script not found"
+        print_info "Please manually create backend/.env and web/.env from templates"
+        exit 1
+    fi
+fi
+
+# ============================================================================
+# Load Environment Variables
+# ============================================================================
+
+# Load AWS_REGION and AWS_ACCOUNT_ID from backend/.env for CDK bootstrap check
+if [ -f "backend/.env" ]; then
+    export $(grep -v '^#' backend/.env | grep -E 'AWS_REGION|AWS_ACCOUNT_ID' | xargs)
+fi
+
+# ============================================================================
 # Start Deployment
 # ============================================================================
 
@@ -100,7 +141,12 @@ echo -e "  ${CYAN}3.${NC} AgentCore Identity (API key management)"
 echo -e "  ${CYAN}4.${NC} AgentCore Agent (AI agent runtime)"
 echo -e "  ${CYAN}5.${NC} IAM Policy Attachment (permissions configuration)"
 echo ""
-echo -e "${YELLOW}Note: This may take 10-15 minutes to complete.${NC}"
+echo -e "${CYAN}ℹ  Deployment Behavior:${NC}"
+echo -e "  • ${GREEN}First run:${NC} Creates all resources from scratch"
+echo -e "  • ${GREEN}Subsequent runs:${NC} Reuses existing resources (idempotent)"
+echo -e "  • ${GREEN}Updates:${NC} CDK and AgentCore will update changed resources"
+echo ""
+echo -e "${YELLOW}Note: This may take 10-15 minutes on first run, faster on updates.${NC}"
 echo ""
 
 read -p "Continue with deployment? (y/n) " -n 1 -r
@@ -141,6 +187,35 @@ if [ "$SKIP_CDK" = false ]; then
 
     cd infrastructure
 
+    # Check if CDK is bootstrapped, bootstrap if needed
+    print_step "Checking CDK bootstrap status..."
+
+    if [ -z "$AWS_REGION" ]; then
+        print_warning "AWS_REGION not set, using default: us-east-1"
+        AWS_REGION="us-east-1"
+    fi
+
+    if aws cloudformation describe-stacks --stack-name CDKToolkit --region "$AWS_REGION" &> /dev/null; then
+        print_success "CDK already bootstrapped in $AWS_REGION"
+    else
+        print_warning "CDK not bootstrapped in $AWS_REGION"
+        print_step "Bootstrapping CDK (this may take a few minutes)..."
+
+        if [ -n "$AWS_ACCOUNT_ID" ]; then
+            cdk bootstrap aws://$AWS_ACCOUNT_ID/$AWS_REGION
+        else
+            cdk bootstrap
+        fi
+
+        if [ $? -eq 0 ]; then
+            print_success "CDK bootstrap completed successfully"
+        else
+            print_error "CDK bootstrap failed"
+            print_info "You may need to run manually: cdk bootstrap"
+            exit 1
+        fi
+    fi
+
     print_step "Synthesizing CDK stack..."
     cdk synth
 
@@ -161,11 +236,18 @@ if [ "$SKIP_CDK" = false ]; then
     COGNITO_IDENTITY_POOL_ID=$(aws cloudformation describe-stacks --stack-name InfrastructureStack --query "Stacks[0].Outputs[?OutputKey=='IdentityPoolId'].OutputValue" --output text)
     WEBSOCKET_API_ID=$(aws cloudformation describe-stacks --stack-name InfrastructureStack --query "Stacks[0].Outputs[?OutputKey=='WebSocketApiId'].OutputValue" --output text)
     WEBSOCKET_API_URL=$(aws cloudformation describe-stacks --stack-name InfrastructureStack --query "Stacks[0].Outputs[?OutputKey=='WebSocketApiUrl'].OutputValue" --output text)
+    DYNAMODB_COMPANIES_TABLE=$(aws cloudformation describe-stacks --stack-name InfrastructureStack --query "Stacks[0].Outputs[?OutputKey=='CompaniesTableName'].OutputValue" --output text)
+    DYNAMODB_COMPETITORS_TABLE=$(aws cloudformation describe-stacks --stack-name InfrastructureStack --query "Stacks[0].Outputs[?OutputKey=='CompetitorsTableName'].OutputValue" --output text)
+    DYNAMODB_COMPANY_COMPETITORS_TABLE=$(aws cloudformation describe-stacks --stack-name InfrastructureStack --query "Stacks[0].Outputs[?OutputKey=='CompanyCompetitorsTableName'].OutputValue" --output text)
 
     print_success "CDK outputs retrieved"
     print_info "Cognito User Pool ID: $COGNITO_USER_POOL_ID"
     print_info "Cognito Client ID: $COGNITO_CLIENT_ID"
     print_info "WebSocket API ID: $WEBSOCKET_API_ID"
+    print_info "DynamoDB Tables:"
+    print_info "  Companies: $DYNAMODB_COMPANIES_TABLE"
+    print_info "  Competitors: $DYNAMODB_COMPETITORS_TABLE"
+    print_info "  CompanyCompetitors: $DYNAMODB_COMPANY_COMPETITORS_TABLE"
 
     # Update backend .env file
     print_step "Updating backend/.env with CDK outputs..."
@@ -180,6 +262,22 @@ if [ "$SKIP_CDK" = false ]; then
         print_success "Backend .env updated"
     else
         print_warning "backend/.env not found, skipping update"
+    fi
+
+    # Update web .env file
+    print_step "Updating web/.env with CDK outputs..."
+    if [ -f "web/.env" ]; then
+        sed -i.bak "s|^NEXT_PUBLIC_COGNITO_USER_POOL_ID=.*|NEXT_PUBLIC_COGNITO_USER_POOL_ID=$COGNITO_USER_POOL_ID|" web/.env || echo "NEXT_PUBLIC_COGNITO_USER_POOL_ID=$COGNITO_USER_POOL_ID" >> web/.env
+        sed -i.bak "s|^NEXT_PUBLIC_COGNITO_CLIENT_ID=.*|NEXT_PUBLIC_COGNITO_CLIENT_ID=$COGNITO_CLIENT_ID|" web/.env || echo "NEXT_PUBLIC_COGNITO_CLIENT_ID=$COGNITO_CLIENT_ID" >> web/.env
+        sed -i.bak "s|^NEXT_PUBLIC_COGNITO_IDENTITY_POOL_ID=.*|NEXT_PUBLIC_COGNITO_IDENTITY_POOL_ID=$COGNITO_IDENTITY_POOL_ID|" web/.env || echo "NEXT_PUBLIC_COGNITO_IDENTITY_POOL_ID=$COGNITO_IDENTITY_POOL_ID" >> web/.env
+        sed -i.bak "s|^NEXT_PUBLIC_WEBSOCKET_URL=.*|NEXT_PUBLIC_WEBSOCKET_URL=$WEBSOCKET_API_URL|" web/.env || echo "NEXT_PUBLIC_WEBSOCKET_URL=$WEBSOCKET_API_URL" >> web/.env
+        sed -i.bak "s|^DYNAMODB_COMPANIES_TABLE=.*|DYNAMODB_COMPANIES_TABLE=$DYNAMODB_COMPANIES_TABLE|" web/.env || echo "DYNAMODB_COMPANIES_TABLE=$DYNAMODB_COMPANIES_TABLE" >> web/.env
+        sed -i.bak "s|^DYNAMODB_COMPETITORS_TABLE=.*|DYNAMODB_COMPETITORS_TABLE=$DYNAMODB_COMPETITORS_TABLE|" web/.env || echo "DYNAMODB_COMPETITORS_TABLE=$DYNAMODB_COMPETITORS_TABLE" >> web/.env
+        sed -i.bak "s|^DYNAMODB_COMPANY_COMPETITORS_TABLE=.*|DYNAMODB_COMPANY_COMPETITORS_TABLE=$DYNAMODB_COMPANY_COMPETITORS_TABLE|" web/.env || echo "DYNAMODB_COMPANY_COMPETITORS_TABLE=$DYNAMODB_COMPANY_COMPETITORS_TABLE" >> web/.env
+        rm web/.env.bak 2>/dev/null || true
+        print_success "Web .env updated"
+    else
+        print_warning "web/.env not found, skipping update"
     fi
 
 else
@@ -198,6 +296,15 @@ if [ "$SKIP_AGENTCORE" = false ]; then
 
     if [ $? -ne 0 ]; then
         print_error "AgentCore deployment failed"
+        echo ""
+        print_info "Common issues and solutions:"
+        print_info "  • ${BLUE}Agent already exists:${NC} Resources are already deployed (this is OK)"
+        print_info "  • ${BLUE}Permission denied:${NC} Check your AWS credentials and IAM permissions"
+        print_info "  • ${BLUE}Region mismatch:${NC} Ensure AWS_REGION in .env matches your AWS CLI config"
+        echo ""
+        print_info "To skip AgentCore deployment: ${BLUE}./scripts/deploy-all.sh --skip-agentcore${NC}"
+        print_info "To force redeploy: Delete backend/.bedrock_agentcore.yaml and try again"
+        echo ""
         exit 1
     fi
 
@@ -249,37 +356,50 @@ print_header "Deployment Complete!"
 
 echo -e "${GREEN}✓ All components deployed successfully!${NC}"
 echo ""
+echo -e "${CYAN}Environment files automatically updated:${NC}"
+echo -e "  • ${GREEN}✓${NC} ${BLUE}backend/.env${NC} - Backend configuration"
+echo -e "  • ${GREEN}✓${NC} ${BLUE}web/.env${NC} - Frontend configuration"
+echo ""
 echo -e "${CYAN}Next Steps:${NC}"
 echo ""
-echo -e "1. Update your ${BLUE}web/.env${NC} file with the following values:"
+echo -e "1. Start your web frontend:"
+echo -e "   ${BLUE}cd web${NC}"
+echo -e "   ${BLUE}npm install${NC} (if not already done)"
+echo -e "   ${BLUE}npm run dev${NC}"
+echo ""
+echo -e "2. Test the agent:"
+echo -e "   ${BLUE}cd backend${NC}"
+echo -e "   ${BLUE}agentcore invoke '{\"prompt\": \"Hello!\"}'${NC}"
+echo ""
+echo -e "3. Access your application:"
+echo -e "   ${BLUE}http://localhost:3000${NC}"
+echo ""
+echo -e "${CYAN}Deployed Resources:${NC}"
+echo -e "  • ${GREEN}✓${NC} Cognito User Pool & Identity Pool"
+echo -e "  • ${GREEN}✓${NC} DynamoDB Tables (Companies, Competitors, CompanyCompetitors, WebSocketConnections)"
+echo -e "  • ${GREEN}✓${NC} WebSocket API Gateway"
+echo -e "  • ${GREEN}✓${NC} Lambda Functions (WebSocket handlers)"
+echo -e "  • ${GREEN}✓${NC} AgentCore Memory, Identity, and Agent Runtime"
+echo ""
+echo -e "${CYAN}Configuration Values:${NC}"
 if [ -n "$COGNITO_USER_POOL_ID" ]; then
-    echo -e "   ${YELLOW}NEXT_PUBLIC_COGNITO_USER_POOL_ID${NC}=$COGNITO_USER_POOL_ID"
+    echo -e "  • Cognito User Pool: ${BLUE}$COGNITO_USER_POOL_ID${NC}"
 fi
 if [ -n "$COGNITO_CLIENT_ID" ]; then
-    echo -e "   ${YELLOW}NEXT_PUBLIC_COGNITO_CLIENT_ID${NC}=$COGNITO_CLIENT_ID"
-fi
-if [ -n "$COGNITO_IDENTITY_POOL_ID" ]; then
-    echo -e "   ${YELLOW}NEXT_PUBLIC_COGNITO_IDENTITY_POOL_ID${NC}=$COGNITO_IDENTITY_POOL_ID"
+    echo -e "  • Cognito Client: ${BLUE}$COGNITO_CLIENT_ID${NC}"
 fi
 if [ -n "$WEBSOCKET_API_URL" ]; then
-    echo -e "   ${YELLOW}NEXT_PUBLIC_WEBSOCKET_URL${NC}=$WEBSOCKET_API_URL"
+    echo -e "  • WebSocket URL: ${BLUE}$WEBSOCKET_API_URL${NC}"
 fi
 if [ -n "$AGENT_ARN" ]; then
-    echo -e "   ${YELLOW}NEXT_PUBLIC_AGENTCORE_ARN${NC}=$AGENT_ARN"
+    echo -e "  • Agent ARN: ${BLUE}$AGENT_ARN${NC}"
 fi
-echo ""
-echo -e "2. Start your web frontend:"
-echo -e "   ${BLUE}cd web && npm run dev${NC}"
-echo ""
-echo -e "3. Test the agent:"
-echo -e "   ${BLUE}cd backend && agentcore invoke '{\"prompt\": \"Hello!\"}'${NC}"
-echo ""
-echo -e "${CYAN}Resources Created:${NC}"
-echo -e "  • Cognito User Pool & Identity Pool"
-echo -e "  • DynamoDB Tables (Companies, Competitors, CompanyCompetitors, WebSocketConnections)"
-echo -e "  • WebSocket API Gateway"
-echo -e "  • Lambda Functions (WebSocket handlers)"
-echo -e "  • AgentCore Memory, Identity, and Agent Runtime"
+if [ -n "$DYNAMODB_COMPANIES_TABLE" ]; then
+    echo -e "  • DynamoDB Tables:"
+    echo -e "    - Companies: ${BLUE}$DYNAMODB_COMPANIES_TABLE${NC}"
+    echo -e "    - Competitors: ${BLUE}$DYNAMODB_COMPETITORS_TABLE${NC}"
+    echo -e "    - CompanyCompetitors: ${BLUE}$DYNAMODB_COMPANY_COMPETITORS_TABLE${NC}"
+fi
 echo ""
 echo -e "${YELLOW}📝 See DEPLOYMENT.md for detailed information${NC}"
 echo ""

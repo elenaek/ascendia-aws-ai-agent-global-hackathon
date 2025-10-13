@@ -29,9 +29,26 @@ tavily_logger = logging.getLogger("strands_agents.tools.tavily")
 tavily_logger.setLevel(logging.WARNING)
 
 app = BedrockAgentCoreApp()
-model = BedrockModel(model_id="us.amazon.nova-pro-v1:0", max_tokens=10000)
-# model = BedrockModel(model_id="openai.gpt-oss-120b-1:0")
-# model = BedrockModel(model_id="us.amazon.nova-premier-v1:0")
+
+# Initialize Bedrock model with error handling
+try:
+    model = BedrockModel(model_id="us.amazon.nova-pro-v1:0", max_tokens=10000)
+    # model = BedrockModel(model_id="openai.gpt-oss-120b-1:0")
+    # model = BedrockModel(model_id="us.amazon.nova-premier-v1:0")
+except Exception as e:
+    error_message = (
+        f"Failed to initialize Bedrock model: {str(e)}\n\n"
+        "This usually means:\n"
+        "1. The model doesn't have access enabled in your AWS account\n"
+        "2. Your AWS credentials don't have Bedrock permissions\n\n"
+        "To enable model access:\n"
+        f"  • Run: python scripts/check-bedrock-models.py --region {AWS_REGION}\n"
+        f"  • Or visit: https://console.aws.amazon.com/bedrock/home?region={AWS_REGION}#/modelaccess\n\n"
+        "Required models: Amazon Nova Pro (us.amazon.nova-pro-v1:0)\n"
+        "See DEPLOYMENT.md for detailed instructions."
+    )
+    app.logger.error(error_message)
+    raise RuntimeError(error_message) from e
 
 # Prompt Templates
 new_agent_system_prompt = """

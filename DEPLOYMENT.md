@@ -53,16 +53,62 @@ This stack deploys a complete AWS-powered business intelligence application feat
 
 - AWS Account with Administrator access
 - AWS region: `us-east-1` (required for AgentCore preview)
-- CDK bootstrapped in your account/region:
-  ```bash
-  cdk bootstrap aws://ACCOUNT-ID/us-east-1
-  ```
+- CDK will be automatically bootstrapped by the deployment script if needed
 
 ### API Keys
 
 1. **Tavily API Key** (required)
    - Sign up at https://tavily.com
    - Get your API key from dashboard
+
+### AWS Bedrock Model Access (REQUIRED - Manual Step)
+
+**⚠️ IMPORTANT**: Before deploying, you **must** enable access to AWS Bedrock foundation models through the AWS Console. This **cannot** be done programmatically.
+
+#### Required Models
+
+This application requires access to:
+- **Amazon Nova Pro** (`us.amazon.nova-pro-v1:0`) - Primary model for business analysis
+
+#### How to Enable Model Access
+
+1. **Open the AWS Bedrock Console**:
+   - Navigate to https://console.aws.amazon.com/bedrock/
+   - Or search for "Bedrock" in the AWS Console
+
+2. **Go to Model Access**:
+   - In the left sidebar, under "Bedrock configurations", click **Model access**
+
+3. **Enable Required Models**:
+   - Click **Modify model access**
+   - Find "Amazon Nova Pro" in the list
+   - Check the box next to it
+   - Optionally enable "Amazon Nova Premier" if you plan to use it
+   - Review the End User License Agreement (EULA)
+
+4. **Submit Request**:
+   - Click **Next**
+   - Review your selections
+   - Click **Submit**
+
+5. **Wait for Access** (usually instant):
+   - For Amazon models (Nova), access is typically granted immediately
+   - Changes may take a few minutes to propagate
+
+#### Verify Model Access
+
+After enabling, verify access with the included script:
+
+```bash
+python scripts/check-bedrock-models.py --region us-east-1
+```
+
+This check is also performed automatically during `./scripts/validate-env.sh`.
+
+**Direct Link**: Replace `us-east-1` with your region:
+```
+https://console.aws.amazon.com/bedrock/home?region=us-east-1#/modelaccess
+```
 
 ---
 
@@ -71,21 +117,22 @@ This stack deploys a complete AWS-powered business intelligence application feat
 For experienced users who have all prerequisites installed:
 
 ```bash
-# 1. Clone and setup
+# 1. Clone repository
 git clone <repository-url>
 cd ascendia-aws-ai-agent-global-hackathon
 
-# 2. Configure environment
-cp .env.template backend/.env
-# Edit backend/.env with your values
-
-cp web/.env.example web/.env
-# Edit web/.env with your values
-
-# 3. Deploy everything
+# 2. Deploy everything (interactive setup included)
 ./scripts/deploy-all.sh
 
-# 4. Start frontend
+# The script will:
+# - Prompt for required configuration (AWS credentials, API keys)
+# - Auto-detect your AWS account from AWS CLI
+# - Create .env files automatically
+# - Automatically bootstrap CDK if not already done
+# - Deploy all infrastructure
+# - Configure environment variables
+
+# 3. Start frontend
 cd web
 npm install
 npm run dev
@@ -93,59 +140,69 @@ npm run dev
 
 Your application will be available at http://localhost:3000
 
+**Note:** If you prefer manual setup, run `./scripts/setup-env.sh` first to configure environment variables interactively.
+
 ---
 
 ## Detailed Deployment Steps
 
 ### Step 1: Environment Setup
 
-#### 1.1 Copy Environment Templates
+#### Option A: Interactive Setup (Recommended)
+
+Run the interactive setup script to configure environment variables:
 
 ```bash
-# Backend configuration
-cp .env.template backend/.env
+./scripts/setup-env.sh
+```
 
-# Frontend configuration
+This script will:
+- ✓ Auto-detect your AWS account ID from AWS CLI
+- ✓ Prompt for required configuration (AWS credentials, Tavily API key)
+- ✓ Create both `backend/.env` and `web/.env` automatically
+- ✓ Use sensible defaults for optional settings
+- ✓ Validate your inputs
+
+**Example interaction:**
+```
+▶ AWS Region: us-east-1
+▶ AWS Account ID: 123456789012 (auto-detected)
+▶ Use existing AWS CLI credentials? (y/n): y
+▶ Enter Tavily API key: tvly-...
+```
+
+#### Option B: Manual Setup
+
+If you prefer manual configuration:
+
+1. Copy environment templates:
+```bash
+cp backend/.env backend/.env
 cp web/.env.example web/.env
 ```
 
-#### 1.2 Configure Backend Environment
-
-Edit `backend/.env`:
-
+2. Edit `backend/.env` with your values:
 ```bash
-# AWS Account Configuration
 AWS_REGION=us-east-1
-AWS_ACCOUNT_ID=123456789012          # Your AWS account ID
-AWS_ACCESS_KEY_ID=AKIA...            # Your access key
-AWS_SECRET_ACCESS_KEY=...            # Your secret key
-
-# Third-Party API Keys
-TAVILY_API_KEY=tvly-...              # From tavily.com
-
-# AgentCore Configuration (defaults)
-MEMORY_NAME=business_analyst_memory
-MAX_RECENT_TURNS=10
-
-# CDK Outputs (populated after CDK deployment)
-COGNITO_USER_POOL_ID=              # Auto-populated
-COGNITO_CLIENT_ID=                 # Auto-populated
-COGNITO_IDENTITY_POOL_ID=          # Auto-populated
-WEBSOCKET_API_ID=                  # Auto-populated
+AWS_ACCOUNT_ID=123456789012
+AWS_ACCESS_KEY_ID=AKIA...
+AWS_SECRET_ACCESS_KEY=...
+TAVILY_API_KEY=tvly-...
 ```
 
-#### 1.3 Validate Environment
+#### 1.2 Validate Environment
 
 ```bash
 ./scripts/validate-env.sh
 ```
 
 This checks:
-- All required CLI tools are installed
-- AWS credentials are valid
-- Required environment variables are set
-- Python dependencies are available
-- CDK is bootstrapped
+- ✓ Environment files exist
+- ✓ All required CLI tools are installed
+- ✓ AWS credentials are valid
+- ✓ Required environment variables are set
+- ✓ Python dependencies are available
+- ✓ CDK is bootstrapped
 
 Fix any errors before proceeding.
 
@@ -163,10 +220,11 @@ You have two options:
 
 This master script will:
 1. Validate environment
-2. Deploy CDK infrastructure
-3. Deploy AgentCore (memory, identity, agent)
-4. Attach IAM policies
-5. Update environment files with outputs
+2. Bootstrap CDK (if needed)
+3. Deploy CDK infrastructure
+4. Deploy AgentCore (memory, identity, agent)
+5. Attach IAM policies
+6. Update environment files with outputs
 
 #### Option B: Deploy Step-by-Step
 
@@ -174,6 +232,13 @@ This master script will:
 
 ```bash
 cd infrastructure
+
+# Check if CDK is bootstrapped, bootstrap if needed
+if ! aws cloudformation describe-stacks --stack-name CDKToolkit &> /dev/null; then
+    echo "Bootstrapping CDK..."
+    cdk bootstrap
+fi
+
 cdk synth              # Verify synthesis
 cdk deploy             # Deploy stack
 cd ..
@@ -283,15 +348,21 @@ Access at: http://localhost:3000
 
 #### Backend (backend/.env)
 
-| Variable | Required | Description | Example |
-|----------|----------|-------------|---------|
-| `AWS_REGION` | Yes | AWS region | `us-east-1` |
-| `AWS_ACCOUNT_ID` | Yes | AWS account ID | `123456789012` |
-| `AWS_ACCESS_KEY_ID` | Yes | AWS access key | `AKIAIOSFODNN7EXAMPLE` |
-| `AWS_SECRET_ACCESS_KEY` | Yes | AWS secret key | `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY` |
-| `TAVILY_API_KEY` | Yes | Tavily search API key | `tvly-XXXXXXXXXX` |
-| `MEMORY_NAME` | No | AgentCore memory name | `business_analyst_memory` |
-| `MAX_RECENT_TURNS` | No | Conversation turns to keep | `10` |
+| Variable | Required | Description | Example | Auto-populated |
+|----------|----------|-------------|---------|----------------|
+| `AWS_REGION` | Yes | AWS region | `us-east-1` | No |
+| `AWS_ACCOUNT_ID` | Yes | AWS account ID | `123456789012` | By setup script |
+| `AWS_ACCESS_KEY_ID` | Yes* | AWS access key | `AKIAIOSFODNN7EXAMPLE` | Optional |
+| `AWS_SECRET_ACCESS_KEY` | Yes* | AWS secret key | `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY` | Optional |
+| `TAVILY_API_KEY` | Yes | Tavily search API key | `tvly-XXXXXXXXXX` | No |
+| `MEMORY_NAME` | No | AgentCore memory name | `business_analyst_memory` | Default value |
+| `MAX_RECENT_TURNS` | No | Conversation turns to keep | `10` | Default value |
+| `COGNITO_USER_POOL_ID` | No | Cognito User Pool ID | `us-east-1_XXXXXXXXX` | By deploy-all.sh |
+| `COGNITO_CLIENT_ID` | No | Cognito Client ID | `XXXXXXXXXXXXXXXXXX` | By deploy-all.sh |
+| `COGNITO_IDENTITY_POOL_ID` | No | Cognito Identity Pool ID | `us-east-1:XXXXXXXX...` | By deploy-all.sh |
+| `WEBSOCKET_API_ID` | No | WebSocket API ID | `XXXXXXXXXX` | By deploy-all.sh |
+
+*AWS credentials are optional if using AWS CLI configured credentials
 
 #### Frontend (web/.env)
 
@@ -517,9 +588,14 @@ aws iam attach-user-policy \
 
 **Error**: `CDK bootstrap required`
 
+**Note**: The `deploy-all.sh` script automatically bootstraps CDK if needed. If you're deploying manually or this step failed:
+
 **Solution**: Bootstrap CDK in your account/region:
 
 ```bash
+cd infrastructure
+cdk bootstrap
+# Or with explicit account/region:
 cdk bootstrap aws://ACCOUNT_ID/us-east-1
 ```
 

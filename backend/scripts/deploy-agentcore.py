@@ -52,7 +52,7 @@ load_dotenv(dotenv_path=Path(__file__).parent.parent / '.env', override=True)
 try:
     import boto3
     from bedrock_agentcore_starter_toolkit.operations.memory.manager import MemoryManager
-    from bedrock_agentcore_starter_toolkit.operations.memory.models.strategies import SemanticStrategy
+    from bedrock_agentcore_starter_toolkit.operations.memory.models.strategies import SemanticStrategy, SummaryStrategy
 except ImportError as e:
     print(f"❌ Error: Required package not found: {e}")
     print("Install with: pip install bedrock-agentcore bedrock-agentcore-starter-toolkit boto3")
@@ -183,7 +183,12 @@ class AgentCoreDeployer:
                 memory_resource = self.memory_manager.get_or_create_memory(
                     name=self.memory_name,
                     description="Memory store for business analyst agent - stores conversation history and extracted competitive insights",
+                    event_expiry_days=7,
                     strategies=[
+                        SummaryStrategy(
+                            name="summaryStrategy",
+                            namespaces=['/strategies/{memoryStrategyId}/actors/{actorId}/sessions/{sessionId}']
+                        ),
                         SemanticStrategy(
                             name="semanticLongTermMemory",
                             # Actor-based namespace ensures memory isolation per user
@@ -276,13 +281,37 @@ class AgentCoreDeployer:
 
             print_info(f"Working directory: {os.getcwd()}")
 
-            # Check if agent is already configured
+            # Check if agent is already configured and deployed
             config_file = Path(".bedrock_agentcore.yaml")
+            agent_already_deployed = False
 
             if config_file.exists():
                 print_warning("Agent configuration already exists")
                 print_info("Using existing configuration from .bedrock_agentcore.yaml")
-            else:
+
+                # Check if agent is actually deployed by reading the config
+                try:
+                    import yaml
+                    with open(config_file, 'r') as f:
+                        config = yaml.safe_load(f)
+
+                    agent_arn = config.get('agents', {}).get(self.agent_name, {}).get('bedrock_agentcore', {}).get('agent_arn')
+                    if agent_arn:
+                        print_success(f"Agent already deployed: {agent_arn}")
+                        print_info("Skipping deployment - agent is already active")
+                        agent_already_deployed = True
+
+                        return {
+                            'agent_arn': agent_arn,
+                            'agent_id': config.get('agents', {}).get(self.agent_name, {}).get('bedrock_agentcore', {}).get('agent_id'),
+                            'agent_name': self.agent_name,
+                            'status': 'already_deployed'
+                        }
+                except Exception as e:
+                    print_warning(f"Could not read existing config: {str(e)}")
+                    print_info("Will attempt to redeploy...")
+
+            if not agent_already_deployed and not config_file.exists():
                 # Validate Cognito variables are available for configuration
                 if not self.cognito_user_pool_id or not self.cognito_client_id:
                     print_error("Cannot configure agent: Missing Cognito configuration")
@@ -319,13 +348,23 @@ class AgentCoreDeployer:
                 env = os.environ.copy()
                 env['PYTHONIOENCODING'] = 'utf-8'  # Force UTF-8 encoding
 
-                # Let output stream directly to console (no capture) to avoid TTY issues
-                result = subprocess.run(configure_cmd, text=True, env=env)
+                # Capture output for better error reporting
+                result = subprocess.run(configure_cmd, text=True, encoding='utf-8', env=env, capture_output=True)
+
+                # Print stdout if available
+                if result.stdout:
+                    print(sanitize_output(result.stdout))
+
                 if result.returncode != 0:
                     print_error(f"Configuration failed with exit code {result.returncode}")
+                    if result.stderr:
+                        print_error(f"Error details: {sanitize_output(result.stderr)}")
                     raise Exception("Agent configuration failed")
 
                 print_success("Agent configured successfully")
+
+            # Skip launch if agent is already deployed (handled above with early return)
+            # This code only runs if agent needs to be deployed/updated
 
             # Validate post-deployment variables before launch
             post_deploy_vars = {
@@ -367,11 +406,22 @@ class AgentCoreDeployer:
             env = os.environ.copy()
             env['PYTHONIOENCODING'] = 'utf-8'  # Force UTF-8 encoding
 
-            # Let output stream directly to console (no capture) to avoid TTY issues
-            result = subprocess.run(launch_cmd, text=True, env=env)
+            # Capture output for better error reporting
+            result = subprocess.run(launch_cmd, text=True, encoding='utf-8', env=env, capture_output=True)
+
+            # Print stdout if available
+            if result.stdout:
+                print(sanitize_output(result.stdout))
 
             if result.returncode != 0:
                 print_error(f"Deployment failed with exit code {result.returncode}")
+                if result.stderr:
+                    print_error(f"Error details: {sanitize_output(result.stderr)}")
+
+                # Provide helpful context
+                if "already exists" in (result.stderr or "") or "AlreadyExists" in (result.stderr or ""):
+                    print_info("The agent may already be deployed. Try running with --skip-agent or delete .bedrock_agentcore.yaml to redeploy from scratch")
+
                 raise Exception("Agent deployment failed")
 
             print_success("Agent deployed successfully")

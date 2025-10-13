@@ -39,11 +39,11 @@ check_command() {
     else
         if [ "$required" = "true" ]; then
             echo -e "${RED}✗${NC} $name: Not found (Required)"
-            ((ERRORS++))
+            ERRORS=$((ERRORS + 1))
             return 1
         else
             echo -e "${YELLOW}⚠${NC} $name: Not found (Optional)"
-            ((WARNINGS++))
+            WARNINGS=$((WARNINGS + 1))
             return 1
         fi
     fi
@@ -65,33 +65,45 @@ check_env_var() {
     else
         if [ "$required" = "true" ]; then
             echo -e "${RED}✗${NC} $var_name: Not set (Required)"
-            ((ERRORS++))
+            ERRORS=$((ERRORS + 1))
             return 1
         else
             echo -e "${YELLOW}⚠${NC} $var_name: Not set (Optional)"
-            ((WARNINGS++))
+            WARNINGS=$((WARNINGS + 1))
             return 1
         fi
     fi
 }
 
 # ============================================================================
-# Step 1: Check for .env file
+# Step 1: Check for .env files
 # ============================================================================
 
 echo ""
-echo -e "${BLUE}Step 1: Checking for .env file${NC}"
+echo -e "${BLUE}Step 1: Checking for .env files${NC}"
 
-if [ -f ".env" ]; then
-    echo -e "${GREEN}✓${NC} Found .env file, loading variables..."
+BACKEND_ENV_EXISTS=false
+WEB_ENV_EXISTS=false
+
+if [ -f "backend/.env" ]; then
+    echo -e "${GREEN}✓${NC} Found backend/.env, loading variables..."
     set -a
-    source .env
+    source backend/.env
     set +a
+    BACKEND_ENV_EXISTS=true
 else
-    echo -e "${YELLOW}⚠${NC} No .env file found"
-    echo -e "  Create one by copying .env.template:"
-    echo -e "  ${BLUE}cp .env.template .env${NC}"
-    ((WARNINGS++))
+    echo -e "${YELLOW}⚠${NC} backend/.env not found"
+    echo -e "  Run: ${BLUE}./scripts/setup-env.sh${NC}"
+    WARNINGS=$((WARNINGS + 1))
+fi
+
+if [ -f "web/.env" ]; then
+    echo -e "${GREEN}✓${NC} Found web/.env"
+    WEB_ENV_EXISTS=true
+else
+    echo -e "${YELLOW}⚠${NC} web/.env not found"
+    echo -e "  Run: ${BLUE}./scripts/setup-env.sh${NC}"
+    WARNINGS=$((WARNINGS + 1))
 fi
 
 # ============================================================================
@@ -102,7 +114,7 @@ echo ""
 echo -e "${BLUE}Step 2: Checking CLI tools${NC}"
 
 check_command "aws" "AWS CLI" "true"
-check_command "python3" "Python 3" "true"
+check_command "python" "Python 3" "true"
 check_command "pip" "pip" "true"
 check_command "node" "Node.js" "true"
 check_command "npm" "npm" "true"
@@ -115,7 +127,7 @@ if python -c "import bedrock_agentcore_starter_toolkit" 2>/dev/null; then
 else
     echo -e "${RED}✗${NC} bedrock-agentcore-starter-toolkit: Not installed (Required)"
     echo -e "  Install with: ${BLUE}pip install bedrock-agentcore-starter-toolkit${NC}"
-    ((ERRORS++))
+    ERRORS=$((ERRORS + 1))
 fi
 
 # ============================================================================
@@ -135,12 +147,12 @@ if aws sts get-caller-identity &> /dev/null; then
     # Check if AWS_ACCOUNT_ID matches
     if [ -n "$AWS_ACCOUNT_ID" ] && [ "$AWS_ACCOUNT_ID" != "$ACCOUNT_ID" ]; then
         echo -e "${YELLOW}⚠${NC} AWS_ACCOUNT_ID in .env ($AWS_ACCOUNT_ID) doesn't match actual account ($ACCOUNT_ID)"
-        ((WARNINGS++))
+        WARNINGS=$((WARNINGS + 1))
     fi
 else
     echo -e "${RED}✗${NC} AWS Credentials invalid or not configured"
     echo -e "  Configure with: ${BLUE}aws configure${NC}"
-    ((ERRORS++))
+    ERRORS=$((ERRORS + 1))
 fi
 
 # ============================================================================
@@ -180,7 +192,7 @@ check_env_var "WEBSOCKET_API_ID" "false" || true
 echo ""
 echo -e "${BLUE}Step 6: Checking Python dependencies${NC}"
 
-PYTHON_DEPS=("boto3" "bedrock_agentcore" "strands_agents" "python-dotenv")
+PYTHON_DEPS=("boto3" "bedrock_agentcore" "strands_agents" "dotenv")
 
 for dep in "${PYTHON_DEPS[@]}"; do
     if python -c "import $dep" 2>/dev/null; then
@@ -188,7 +200,7 @@ for dep in "${PYTHON_DEPS[@]}"; do
     else
         echo -e "${YELLOW}⚠${NC} Python package: $dep (Not installed)"
         echo -e "  Install from backend/requirements.txt"
-        ((WARNINGS++))
+        WARNINGS=$((WARNINGS + 1))
     fi
 done
 
@@ -205,10 +217,44 @@ if [ -n "$AWS_ACCOUNT_ID" ] && [ -n "$AWS_REGION" ]; then
     else
         echo -e "${YELLOW}⚠${NC} CDK not bootstrapped in $AWS_REGION"
         echo -e "  Bootstrap with: ${BLUE}cd infrastructure && cdk bootstrap${NC}"
-        ((WARNINGS++))
+        WARNINGS=$((WARNINGS + 1))
     fi
 else
     echo -e "${YELLOW}⚠${NC} Cannot check CDK bootstrap status (missing AWS_ACCOUNT_ID or AWS_REGION)"
+fi
+
+# ============================================================================
+# Step 8: Check Bedrock Model Access
+# ============================================================================
+
+echo ""
+echo -e "${BLUE}Step 8: Checking Bedrock model access${NC}"
+
+if [ -n "$AWS_REGION" ] && command -v python &> /dev/null; then
+    # Run the Bedrock model checker script
+    if [ -f "./scripts/check-bedrock-models.py" ]; then
+        # Capture output and exit code
+        if python ./scripts/check-bedrock-models.py --region "$AWS_REGION" --required-only > /dev/null 2>&1; then
+            echo -e "${GREEN}✓${NC} All required Bedrock models are accessible"
+        else
+            echo -e "${YELLOW}⚠${NC} Bedrock models not accessible (manual setup required)"
+            echo -e "  Run: ${BLUE}python ./scripts/check-bedrock-models.py --region $AWS_REGION${NC}"
+            echo -e "  Or visit: ${BLUE}https://console.aws.amazon.com/bedrock/home?region=$AWS_REGION#/modelaccess${NC}"
+            WARNINGS=$((WARNINGS + 1))
+        fi
+    else
+        echo -e "${YELLOW}⚠${NC} Bedrock model checker script not found"
+        echo -e "  Ensure scripts/check-bedrock-models.py exists"
+        WARNINGS=$((WARNINGS + 1))
+    fi
+else
+    echo -e "${YELLOW}⚠${NC} Cannot check Bedrock model access"
+    if [ -z "$AWS_REGION" ]; then
+        echo -e "  Missing AWS_REGION"
+    fi
+    if ! command -v python &> /dev/null; then
+        echo -e "  Python not available"
+    fi
 fi
 
 # ============================================================================
@@ -227,6 +273,12 @@ if [ $ERRORS -eq 0 ] && [ $WARNINGS -eq 0 ]; then
 elif [ $ERRORS -eq 0 ]; then
     echo -e "${YELLOW}⚠ Validation passed with $WARNINGS warning(s)${NC}"
     echo -e "${YELLOW}  You can proceed, but some features may not work${NC}"
+    echo ""
+    if [ "$BACKEND_ENV_EXISTS" = false ] || [ "$WEB_ENV_EXISTS" = false ]; then
+        echo -e "To setup environment files, run:"
+        echo -e "  ${BLUE}./scripts/setup-env.sh${NC}"
+        echo ""
+    fi
     exit 0
 else
     echo -e "${RED}✗ Validation failed${NC}"
@@ -234,6 +286,10 @@ else
     echo -e "${YELLOW}  Warnings: $WARNINGS${NC}"
     echo ""
     echo -e "Please fix the errors above before deploying."
-    echo -e "See .env.template for required variables."
+    echo ""
+    echo -e "To setup environment files, run:"
+    echo -e "  ${BLUE}./scripts/setup-env.sh${NC}"
+    echo ""
+    echo -e "For manual setup, see backend/.env template"
     exit 1
 fi
