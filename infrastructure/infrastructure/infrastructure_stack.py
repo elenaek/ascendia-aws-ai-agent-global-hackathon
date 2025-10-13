@@ -536,8 +536,9 @@ class InfrastructureStack(Stack):
         agentcore_secrets_policy = iam.ManagedPolicy(
             self, "AgentCoreSecretsAccessPolicy",
             managed_policy_name=f"AgentCoreSecretsAccess-{self.stack_name}",
-            description="Allows AgentCore to access API tokens in SSM Parameter Store",
+            description="Allows AgentCore agent to access AWS resources (SSM, DynamoDB, WebSocket API)",
             statements=[
+                # SSM Parameter access for API keys
                 iam.PolicyStatement(
                     effect=iam.Effect.ALLOW,
                     actions=[
@@ -547,16 +548,49 @@ class InfrastructureStack(Stack):
                     ],
                     resources=[f"arn:aws:ssm:{self.region}:{self.account}:parameter{agentcore_tavily_api_secret.parameter_name}"]
                 ),
-                # Grant KMS decrypt for SecureString parameters
+                # KMS decrypt for SecureString parameters
                 iam.PolicyStatement(
                     effect=iam.Effect.ALLOW,
                     actions=["kms:Decrypt"],
-                    resources=["*"],  # Or specify the KMS key ARN if using custom key
+                    resources=["*"],
                     conditions={
                         "StringEquals": {
                             "kms:ViaService": f"ssm.{self.region}.amazonaws.com"
                         }
                     }
+                ),
+                # DynamoDB access for all tables
+                iam.PolicyStatement(
+                    effect=iam.Effect.ALLOW,
+                    actions=[
+                        "dynamodb:GetItem",
+                        "dynamodb:PutItem",
+                        "dynamodb:UpdateItem",
+                        "dynamodb:DeleteItem",
+                        "dynamodb:Query",
+                        "dynamodb:Scan"
+                    ],
+                    resources=[
+                        companies_table.table_arn,
+                        f"{companies_table.table_arn}/index/*",
+                        competitors_table.table_arn,
+                        f"{competitors_table.table_arn}/index/*",
+                        company_competitors_table.table_arn,
+                        f"{company_competitors_table.table_arn}/index/*",
+                        reviews_table.table_arn,
+                        f"{reviews_table.table_arn}/index/*",
+                        websocket_connections_table.table_arn,
+                        f"{websocket_connections_table.table_arn}/index/*"
+                    ]
+                ),
+                # WebSocket API access for sending UI updates
+                iam.PolicyStatement(
+                    effect=iam.Effect.ALLOW,
+                    actions=[
+                        "execute-api:Invoke",
+                        "execute-api:ManageConnections"
+                    ],
+                    resources=[f"arn:aws:execute-api:{self.region}:{self.account}:{websocket_api.ref}/*"]
                 )
             ]
         )
@@ -624,6 +658,81 @@ class InfrastructureStack(Stack):
             value=websocket_connections_table.table_name,
             description="DynamoDB table for WebSocket connections",
             export_name=f"{self.stack_name}-WebSocketConnectionsTable"
+        )
+
+        # ============ Additional Outputs for AgentCore ============
+
+        # DynamoDB Table Names (for AgentCore environment variables)
+        CfnOutput(
+            self, "CompaniesTableName",
+            value=companies_table.table_name,
+            description="Companies DynamoDB table name",
+            export_name=f"{self.stack_name}-CompaniesTable"
+        )
+
+        CfnOutput(
+            self, "CompetitorsTableName",
+            value=competitors_table.table_name,
+            description="Competitors DynamoDB table name",
+            export_name=f"{self.stack_name}-CompetitorsTable"
+        )
+
+        CfnOutput(
+            self, "CompanyCompetitorsTableName",
+            value=company_competitors_table.table_name,
+            description="Company-Competitors junction table name",
+            export_name=f"{self.stack_name}-CompanyCompetitorsTable"
+        )
+
+        CfnOutput(
+            self, "ReviewsTableName",
+            value=reviews_table.table_name,
+            description="Reviews DynamoDB table name",
+            export_name=f"{self.stack_name}-ReviewsTable"
+        )
+
+        # DynamoDB Table ARNs (for AgentCore IAM permissions)
+        CfnOutput(
+            self, "CompaniesTableArn",
+            value=companies_table.table_arn,
+            description="Companies DynamoDB table ARN",
+            export_name=f"{self.stack_name}-CompaniesTableArn"
+        )
+
+        CfnOutput(
+            self, "CompetitorsTableArn",
+            value=competitors_table.table_arn,
+            description="Competitors DynamoDB table ARN",
+            export_name=f"{self.stack_name}-CompetitorsTableArn"
+        )
+
+        CfnOutput(
+            self, "CompanyCompetitorsTableArn",
+            value=company_competitors_table.table_arn,
+            description="Company-Competitors junction table ARN",
+            export_name=f"{self.stack_name}-CompanyCompetitorsTableArn"
+        )
+
+        CfnOutput(
+            self, "ReviewsTableArn",
+            value=reviews_table.table_arn,
+            description="Reviews DynamoDB table ARN",
+            export_name=f"{self.stack_name}-ReviewsTableArn"
+        )
+
+        CfnOutput(
+            self, "WebSocketConnectionsTableArn",
+            value=websocket_connections_table.table_arn,
+            description="WebSocket connections DynamoDB table ARN",
+            export_name=f"{self.stack_name}-WebSocketConnectionsTableArn"
+        )
+
+        # WebSocket API Execution ARN (for AgentCore to send UI updates)
+        CfnOutput(
+            self, "WebSocketApiExecutionArn",
+            value=f"arn:aws:execute-api:{self.region}:{self.account}:{websocket_api.ref}/*/*",
+            description="WebSocket API execution ARN for AgentCore permissions",
+            export_name=f"{self.stack_name}-WebSocketApiExecutionArn"
         )
 
         # Store for programmatic access
