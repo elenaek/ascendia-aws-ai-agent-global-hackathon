@@ -1,103 +1,75 @@
-# Deploy backend agent with environment variables from .env file
+# ============================================================================
+# Backend Agent Deployment Script (PowerShell)
+# ============================================================================
+# Simplified deployment script that uses Python scripts for AgentCore deployment
+#
+# Usage: .\backend\deploy.ps1 [-AgentOnly] [-WithIAM]
+# ============================================================================
 
 $ErrorActionPreference = "Stop"
 
-Write-Host "=== Deploying Backend Agent ===" -ForegroundColor Blue
+# Parse parameters
+param(
+    [switch]$AgentOnly,
+    [switch]$WithIAM
+)
+
+Write-Host "`n=== Deploying Backend Agent ===" -ForegroundColor Blue
+Write-Host ""
 
 # Check if .env file exists
 if (-Not (Test-Path ".env")) {
     Write-Host "Error: .env file not found in backend directory" -ForegroundColor Red
+    Write-Host "Tip: Copy .env.template and fill in required values" -ForegroundColor Yellow
     exit 1
 }
 
-# Build the agentcore launch command parts
-$deployArgs = @("launch")
+# Deploy AgentCore using Python script
+Write-Host "Using programmatic deployment via Python scripts..." -ForegroundColor Blue
+Write-Host ""
 
-# First pass: Check if ENV_VARS_TO_PACK is specified
-$varsToPack = $null
-$allowedVars = @()
-
-Get-Content ".env" | ForEach-Object {
-    $line = $_.Trim()
-
-    # Skip empty lines and comments
-    if ([string]::IsNullOrWhiteSpace($line) -or $line.StartsWith("#")) {
-        return
+try {
+    if ($AgentOnly) {
+        Write-Host "Deploying agent only (skipping memory and identity)" -ForegroundColor Yellow
+        python3 scripts/deploy-agentcore.py --skip-memory --skip-identity
+    } else {
+        Write-Host "Deploying all AgentCore components (memory, identity, agent)" -ForegroundColor Blue
+        python3 scripts/deploy-agentcore.py
     }
 
-    # Split on first = only
-    $parts = $line -split '=', 2
-
-    if ($parts.Length -ne 2) {
-        return
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Deployment failed" -ForegroundColor Red
+        exit 1
     }
 
-    $key = $parts[0].Trim()
+    Write-Host ""
+    Write-Host "✓ Agent deployed successfully" -ForegroundColor Green
+    Write-Host ""
 
-    if ($key -eq "ENV_VARS_TO_PACK") {
-        $value = $parts[1].Trim().Trim('"', "'")
-        $varsToPack = $value
+    # Attach IAM policy if requested
+    if ($WithIAM) {
+        Write-Host "Attaching IAM policy to agent execution role..." -ForegroundColor Blue
+        python3 scripts/attach-iam-policy.py
 
-        # Split by comma and trim each var name
-        $allowedVars = $varsToPack -split ',' | ForEach-Object { $_.Trim() }
-        return
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "⚠ IAM policy attachment failed (you may need to attach manually)" -ForegroundColor Yellow
+        } else {
+            Write-Host "✓ IAM policy attached" -ForegroundColor Green
+        }
     }
+
+    Write-Host ""
+    Write-Host "=== Deployment Complete ===" -ForegroundColor Blue
+    Write-Host ""
+    Write-Host "Next steps:" -ForegroundColor Green
+    Write-Host "  1. Test your agent: " -NoNewline
+    Write-Host "agentcore invoke '{`"prompt`": `"Hello!`"}'" -ForegroundColor Blue
+    Write-Host "  2. View logs: Check CloudWatch Logs for your agent"
+    Write-Host "  3. Update frontend .env with agent ARN from " -NoNewline
+    Write-Host ".bedrock_agentcore.yaml" -ForegroundColor Blue
+    Write-Host ""
+
+} catch {
+    Write-Host "Error during deployment: $_" -ForegroundColor Red
+    exit 1
 }
-
-# Parse .env file and append --env flags
-if ($varsToPack) {
-    Write-Host "Scoped deployment: Only packing specified variables" -ForegroundColor Yellow
-    Write-Host "Variables to pack: $varsToPack" -ForegroundColor Blue
-} else {
-    Write-Host "Reading all environment variables from .env..." -ForegroundColor Blue
-}
-
-# Second pass: Pack the environment variables
-Get-Content ".env" | ForEach-Object {
-    $line = $_.Trim()
-
-    # Skip empty lines and comments
-    if ([string]::IsNullOrWhiteSpace($line) -or $line.StartsWith("#")) {
-        return
-    }
-
-    # Split on first = only
-    $parts = $line -split '=', 2
-
-    if ($parts.Length -ne 2) {
-        return
-    }
-
-    $key = $parts[0].Trim()
-    $value = $parts[1].Trim()
-
-    # Skip if key or value is empty
-    if ([string]::IsNullOrWhiteSpace($key) -or [string]::IsNullOrWhiteSpace($value)) {
-        return
-    }
-
-    # Skip ENV_VARS_TO_PACK itself
-    if ($key -eq "ENV_VARS_TO_PACK") {
-        return
-    }
-
-    # If scoping is enabled, check if this var is in the allowed list
-    if ($varsToPack -and -not ($allowedVars -contains $key)) {
-        return
-    }
-
-    # Remove quotes from value if present
-    $value = $value.Trim('"', "'")
-
-    Write-Host "  + $key" -ForegroundColor Green
-
-    # Add to deploy arguments
-    $deployArgs += "--env"
-    $deployArgs += "$key=$value"
-}
-
-# Execute the deploy command
-Write-Host "Executing deployment..." -ForegroundColor Blue
-& agentcore $deployArgs
-
-Write-Host "=== Deploy Complete ===" -ForegroundColor Green
