@@ -3,14 +3,16 @@
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { cn } from '@/lib/utils'
+import { StreamingText } from './streaming-text'
 
 interface MessageContentProps {
   content: string
   role: 'user' | 'assistant'
   className?: string
+  isStreaming?: boolean
 }
 
-export function MessageContent({ content, role, className }: MessageContentProps) {
+export function MessageContent({ content, role, className, isStreaming = false }: MessageContentProps) {
   const isUser = role === 'user'
 
   if (isUser) {
@@ -22,10 +24,12 @@ export function MessageContent({ content, role, className }: MessageContentProps
     )
   }
 
-  // Assistant messages - markdown rendering
+  // Assistant messages - markdown rendering with optional streaming animation
   return (
     <div className={cn("text-sm prose prose-sm dark:prose-invert max-w-none", className)}>
-      <ReactMarkdown
+      <StreamingText targetText={content} isStreaming={isStreaming}>
+        {(displayedText) => (
+          <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
           // Custom component rendering for better styling
@@ -95,8 +99,10 @@ export function MessageContent({ content, role, className }: MessageContentProps
           em: ({ children }) => <em className="italic">{children}</em>,
         }}
       >
-        {content}
+        {displayedText}
       </ReactMarkdown>
+        )}
+      </StreamingText>
     </div>
   )
 }

@@ -15,7 +15,7 @@ import {
 import { useChatStore } from '@/stores/chat-store'
 import { useAnalyticsStore } from '@/stores/analytics-store'
 import { useUIStore } from '@/stores/ui-store'
-import { Send, Bot, User, Brain, Loader2, ChevronDown, ChevronUp, Wrench, Trash2, AlertTriangle } from 'lucide-react'
+import { Send, Bot, User, Brain, Loader2, ChevronDown, ChevronUp, Wrench, Trash2, AlertTriangle, ArrowDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { sendMessageToAgentStreaming, type CompanyInfo, getSessionId, setSessionId, resetSession } from '@/lib/agentcore-client'
 import { ThinkingDisplay } from './thinking-display'
@@ -110,7 +110,11 @@ export function ChatInterface() {
   const [input, setInput] = useState('')
   const [expandedThinking, setExpandedThinking] = useState<Set<string>>(new Set())
   const [showClearDialog, setShowClearDialog] = useState(false)
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
+  const programmaticScrollTimeRef = useRef<number>(0)
+  const catchUpScrollIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   // Restore session ID from localStorage on mount
   useEffect(() => {
@@ -129,6 +133,66 @@ export function ChatInterface() {
     }
   }, [messages.length])
 
+  // Scroll to bottom on initial mount if messages exist
+  useEffect(() => {
+    if (messages.length > 0) {
+      // Use setTimeout to ensure DOM is ready
+      setTimeout(() => {
+        scrollToBottom(true)
+      }, 100)
+    }
+  }, []) // Empty dependency array = runs only on mount
+
+  // Cleanup catch-up scroll interval on unmount
+  useEffect(() => {
+    return () => {
+      if (catchUpScrollIntervalRef.current) {
+        clearInterval(catchUpScrollIntervalRef.current)
+      }
+    }
+  }, [])
+
+  // Scroll event listener to detect user scrolling
+  useEffect(() => {
+    const container = messagesContainerRef.current
+    if (!container) return
+
+    let scrollTimeout: NodeJS.Timeout
+
+    const handleScroll = () => {
+      const now = Date.now()
+      const timeSinceProgrammaticScroll = now - programmaticScrollTimeRef.current
+
+      // Ignore ALL scroll events within 500ms of a programmatic scroll
+      // This covers smooth scrolling animation and layout changes from new content
+      if (timeSinceProgrammaticScroll < 500) {
+        return
+      }
+
+      // Debounce scroll checks to avoid excessive state updates
+      clearTimeout(scrollTimeout)
+      scrollTimeout = setTimeout(() => {
+        const atBottom = isUserAtBottom()
+
+        // If user scrolled to bottom, re-enable auto-scroll
+        if (atBottom && !shouldAutoScroll) {
+          setShouldAutoScroll(true)
+        }
+        // If user scrolled away from bottom, disable auto-scroll
+        else if (!atBottom && shouldAutoScroll) {
+          setShouldAutoScroll(false)
+        }
+      }, 150)
+    }
+
+    container.addEventListener('scroll', handleScroll, { passive: true })
+
+    return () => {
+      container.removeEventListener('scroll', handleScroll)
+      clearTimeout(scrollTimeout)
+    }
+  }, [shouldAutoScroll, isLoading])
+
   const toggleThinking = (messageId: string) => {
     setExpandedThinking(prev => {
       const newSet = new Set(prev)
@@ -139,6 +203,19 @@ export function ChatInterface() {
       }
       return newSet
     })
+  }
+
+  // Check if user is scrolled to bottom (within threshold)
+  const isUserAtBottom = () => {
+    const container = messagesContainerRef.current
+    if (!container) return true // Default to true if container not found
+
+    const { scrollHeight, scrollTop, clientHeight } = container
+    const distanceFromBottom = Math.ceil(scrollHeight - scrollTop - clientHeight)
+    // More lenient threshold to account for content layout changes
+    // Use a threshold to avoid false "scrolled away" detections when thinking blocks, tool uses, etc. appear
+    const threshold = 200
+    return distanceFromBottom <= threshold
   }
 
   const handleClearMessagesClick = () => {
@@ -160,8 +237,25 @@ export function ChatInterface() {
     setShowClearDialog(false)
   }
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  const handleScrollToBottomClick = () => {
+    setShouldAutoScroll(true)
+    scrollToBottom(true)
+  }
+
+  const scrollToBottom = (force = false) => {
+    // Scroll if auto-scroll is enabled or if forced
+    if ((shouldAutoScroll || force) && messagesEndRef.current) {
+      // Record timestamp to ignore scroll events for the next 500ms
+      // This prevents layout changes and scroll animations from being misinterpreted as user scrolling
+      programmaticScrollTimeRef.current = Date.now()
+
+      // Use instant scroll to avoid async timing issues with scroll event detection
+      // This ensures the scroll completes before the ignore period expires
+      messagesEndRef.current.scrollIntoView({
+        behavior: 'auto',
+        block: 'end'
+      })
+    }
   }
 
   useEffect(() => {
@@ -186,6 +280,11 @@ export function ChatInterface() {
       role: 'assistant',
       content: '',
     })
+
+    // Reset auto-scroll for new message and force scroll to bottom
+    setShouldAutoScroll(true)
+    // Use setTimeout to ensure the new messages are rendered first
+    setTimeout(() => scrollToBottom(true), 0)
 
     // Call AWS Bedrock AgentCore with streaming
     setLoading(true)
@@ -215,7 +314,7 @@ export function ChatInterface() {
       await sendMessageToAgentStreaming(userMessage, companyInfo, {
         onChunk: (text) => {
           appendToMessage(assistantMessageId, text)
-          // Auto-scroll as content streams in
+          // Auto-scroll only if user is at bottom
           scrollToBottom()
         },
         onThinking: (isThinkingNow) => {
@@ -258,6 +357,26 @@ export function ChatInterface() {
           setLoading(false)
           setThinking(false)
           setStreamingId(null)
+
+          // CRITICAL: Keep scrolling for 1 second after streaming ends
+          // This ensures scroll stays at bottom during the animation catch-up phase
+          // when StreamingText is still revealing remaining characters at high speed
+          if (catchUpScrollIntervalRef.current) {
+            clearInterval(catchUpScrollIntervalRef.current)
+          }
+
+          let scrollCount = 0
+          const maxScrolls = 20 // 20 scrolls over 1 second (50ms intervals)
+          catchUpScrollIntervalRef.current = setInterval(() => {
+            scrollCount++
+            scrollToBottom()
+
+            // Clear interval after 1 second
+            if (scrollCount >= maxScrolls && catchUpScrollIntervalRef.current) {
+              clearInterval(catchUpScrollIntervalRef.current)
+              catchUpScrollIntervalRef.current = null
+            }
+          }, 50)
         }
       })
     } catch (error) {
@@ -351,7 +470,7 @@ export function ChatInterface() {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 relative">
         {messages.length === 0 ? (
           <div className="h-full flex items-center justify-center text-center">
             <div className="space-y-4">
@@ -514,6 +633,7 @@ export function ChatInterface() {
                           <MessageContent
                             content={streamingMessage.content}
                             role="assistant"
+                            isStreaming={true}
                           />
                           <p className="text-xs opacity-70 mt-1">
                             {new Date(streamingMessage.timestamp).toLocaleTimeString()}
@@ -527,6 +647,20 @@ export function ChatInterface() {
             })()}
 
             <div ref={messagesEndRef} />
+
+            {/* Scroll to Bottom Button - positioned at bottom with sticky */}
+            {!shouldAutoScroll && messages.length > 0 && (
+              <div className="sticky bottom-4 left-0 right-0 flex justify-center pointer-events-none z-10 opacity-30 hover:opacity-100 transition-all duration-300">
+                <button
+                  onClick={handleScrollToBottomClick}
+                  className="p-2 rounded-full bg-primary/50 hover:bg-primary/70 text-primary-foreground shadow-lg shadow-primary/30 backdrop-blur-md border border-primary/30 hover:scale-110 hover:animate-none transition-all duration-1500 animate-pulse pointer-events-auto"
+                  aria-label="Scroll to bottom"
+                  title="Scroll to bottom"
+                >
+                  <ArrowDown className="w-5 h-5" />
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>
