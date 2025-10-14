@@ -607,6 +607,9 @@ The agent autonomously updates the UI based on the conversation:
 
 ![Demonstration of Insights Flow](https://elenaek-misc.s3.us-west-1.amazonaws.com/gifs/AscendiaInsightsCarouselReduced.gif)
 
+### Highlighting
+
+![Agent Highlighting the Insights Panel](https://elenaek-misc.s3.us-west-1.amazonaws.com/gifs/AscendiaHighlighting.gif)
 
 #### Visualizations
 

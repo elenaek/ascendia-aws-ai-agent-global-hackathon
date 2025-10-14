@@ -82,11 +82,11 @@ export default function OnboardingPage() {
       pricing_model: '',
       distribution_model: '',
       distribution_model_justification: '',
-      target_channels: [],
+      target_channels: [] as string[],
       target_audience_description: '',
-      target_sectors: [],
+      target_sectors: [] as string[],
       typical_segment_size: '',
-      key_decision_makers: []
+      key_decision_makers: [] as string[]
     }]
   })
 
@@ -120,11 +120,11 @@ export default function OnboardingPage() {
           pricing_model: '',
           distribution_model: '',
           distribution_model_justification: '',
-          target_channels: [],
+          target_channels: [] as string[],
           target_audience_description: '',
-          target_sectors: [],
+          target_sectors: [] as string[],
           typical_segment_size: '',
-          key_decision_makers: []
+          key_decision_makers: [] as string[]
         }
       ]
     })

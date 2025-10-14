@@ -83,7 +83,7 @@ export function StreamingText({ targetText, isStreaming, children }: StreamingTe
       // Adaptive speed: slower while streaming, faster after stream completes
       const isCurrentlyStreaming = isStreamingRef.current
       const targetDelay = isCurrentlyStreaming ? 30 : 10  // 30ms while streaming, 10ms after
-      const charsPerFrame = isCurrentlyStreaming ? 2 : 12 // 2 chars while streaming, 12 chars after
+      const charsPerFrame = isCurrentlyStreaming ? 10 : 12 // 5 chars while streaming, 12 chars after
 
       if (elapsed >= targetDelay) {
         const remainingChars = targetTextRef.current.length - currentIndexRef.current

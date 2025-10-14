@@ -93,10 +93,10 @@ export function useWebSocketUI({ enabled }: UseWebSocketUIOptions) {
     try {
       switch (message.type) {
         case 'show_competitor_context': {
-          const payload = message.payload as any
+          const payload = message.payload as CompetitorContextPayload | { competitors: CompetitorContextPayload[] }
 
           // Check if payload contains multiple competitors (carousel mode)
-          if (payload.competitors && Array.isArray(payload.competitors)) {
+          if ('competitors' in payload && Array.isArray(payload.competitors)) {
             showCompetitorCarousel(payload.competitors)
           } else {
             // Single competitor - also use carousel
@@ -106,10 +106,10 @@ export function useWebSocketUI({ enabled }: UseWebSocketUIOptions) {
         }
 
         case 'show_insight': {
-          const payload = message.payload as any
+          const payload = message.payload as InsightPayload | { insights: InsightPayload[] }
 
           // Check if payload contains multiple insights (carousel mode)
-          if (payload.insights && Array.isArray(payload.insights)) {
+          if ('insights' in payload && Array.isArray(payload.insights)) {
             showInsightsCarousel(payload.insights)
           } else {
             // Single insight - also use carousel
@@ -163,10 +163,10 @@ export function useWebSocketUI({ enabled }: UseWebSocketUIOptions) {
         }
 
         case 'show_graph': {
-          const payload = message.payload as any
+          const payload = message.payload as GraphPayload | { graphs: GraphPayload[] }
 
           // Check if payload contains multiple graphs (carousel mode)
-          if (payload.graphs && Array.isArray(payload.graphs)) {
+          if ('graphs' in payload && Array.isArray(payload.graphs)) {
             showGraphsCarousel(payload.graphs)
           } else {
             // Single graph - also use carousel

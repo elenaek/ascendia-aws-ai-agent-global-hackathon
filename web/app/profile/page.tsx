@@ -83,11 +83,11 @@ export default function ProfilePage() {
       pricing_model: '',
       distribution_model: '',
       distribution_model_justification: '',
-      target_channels: [],
+      target_channels: [] as string[],
       target_audience_description: '',
-      target_sectors: [],
+      target_sectors: [] as string[],
       typical_segment_size: '',
-      key_decision_makers: []
+      key_decision_makers: [] as string[]
     }]
   })
 
@@ -158,11 +158,11 @@ export default function ProfilePage() {
             pricing_model: product.pricing_model || '',
             distribution_model: product.distribution_model || '',
             distribution_model_justification: product.distribution_model_justification || '',
-            target_channels: product.target_channels || [],
+            target_channels: product.target_channels || ([] as string[]),
             target_audience_description: product.target_audience_description || '',
-            target_sectors: product.target_sectors || [],
+            target_sectors: product.target_sectors || ([] as string[]),
             typical_segment_size: product.typical_segment_size || '',
-            key_decision_makers: product.key_decision_makers || []
+            key_decision_makers: product.key_decision_makers || ([] as string[])
           }))
         })
 
@@ -177,11 +177,11 @@ export default function ProfilePage() {
               pricing_model: '',
               distribution_model: '',
               distribution_model_justification: '',
-              target_channels: [],
+              target_channels: [] as string[],
               target_audience_description: '',
-              target_sectors: [],
+              target_sectors: [] as string[],
               typical_segment_size: '',
-              key_decision_makers: []
+              key_decision_makers: [] as string[]
             }]
           }))
         }
@@ -212,11 +212,11 @@ export default function ProfilePage() {
           pricing_model: '',
           distribution_model: '',
           distribution_model_justification: '',
-          target_channels: [],
+          target_channels: [] as string[],
           target_audience_description: '',
-          target_sectors: [],
+          target_sectors: [] as string[],
           typical_segment_size: '',
-          key_decision_makers: []
+          key_decision_makers: [] as string[]
         }
       ]
     })
