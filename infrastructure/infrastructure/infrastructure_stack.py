@@ -78,6 +78,33 @@ class InfrastructureStack(Stack):
             prevent_user_existence_errors=True,
         )
 
+        # ============ Pre-Signup Lambda Trigger (Email Allowlist) ============
+
+        # Get email allowlist from environment variable (optional)
+        allowed_signup_emails = os.environ.get('ALLOWED_SIGNUP_EMAILS', '')
+
+        # Create Lambda function for pre-signup validation
+        pre_signup_lambda = PythonFunction(
+            self, "PreSignupHandler",
+            runtime=_lambda.Runtime.PYTHON_3_12,
+            entry="lambda",
+            index="pre_signup.py",
+            handler="handler",
+            environment={
+                "ALLOWED_SIGNUP_EMAILS": allowed_signup_emails,
+            },
+            timeout=Duration.seconds(5),
+            memory_size=128,
+            log_retention=logs.RetentionDays.ONE_WEEK,
+            description="Validates user email against allowlist during sign-up. Empty allowlist = allow all.",
+        )
+
+        # Add pre-signup Lambda trigger to User Pool
+        user_pool.add_trigger(
+            cognito.UserPoolOperation.PRE_SIGN_UP,
+            pre_signup_lambda
+        )
+
         # ============ Cognito Identity Pool ============
 
         # We'll create the Identity Pool after the tables and roles
