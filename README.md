@@ -694,7 +694,7 @@ The agent autonomously updates the UI based on the conversation:
 
 ## 📝 License
 
-This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
+This project is part of the AWS AI Agent Global Hackathon (2025) submission and is intended for demonstration purposes.
 
 ---
 
@@ -707,7 +707,7 @@ This project is licensed under the MIT License - see the [LICENSE](./LICENSE) fi
 
 ## 🙏 Acknowledgments
 
-- **AWS** for hosting the AI Agent Global Hackathon
+- **Devpost + AWS** for hosting/sponsoring the AI Agent Global Hackathon (2025)
 - **Bedrock AgentCore Team** for the excellent primitives
 - **Tavily** for the search API
 
