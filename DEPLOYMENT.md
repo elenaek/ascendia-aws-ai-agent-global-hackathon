@@ -43,7 +43,7 @@ This stack deploys a complete AWS-powered business intelligence application feat
 | Tool | Minimum Version | Installation |
 |------|----------------|--------------|
 | AWS CLI | 2.x | `aws --version` |
-| Python | 3.9+ | `python3 --version` |
+| Python | 3.10+ | `python --version` |
 | Node.js | 18+ | `node --version` |
 | npm | 9+ | `npm --version` |
 | AWS CDK | 2.x | `npm install -g aws-cdk` |
@@ -155,7 +155,19 @@ Your application will be available at http://localhost:3000
 The `deploy-all.sh` script automatically handles environment setup:
 
 ```bash
+# Install cdk if you haven't already
+npm install -g aws-cdk
+
+# Install required packages (use virtual environment of choice or none)
+pip install -r requirements.txt
+
+# Deploy everything (handles env setup, CDK, AgentCore)
 ./scripts/deploy-all.sh
+
+# Start frontend
+cd web
+npm install
+npm run dev
 ```
 
 **What happens:**

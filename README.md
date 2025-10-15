@@ -488,7 +488,7 @@ The agent has direct control over the user interface through specialized tools:
 
 - AWS Account with Administrator access
 - AWS CLI configured
-- Python 3.9+
+- Python 3.10+
 - Node.js 18+
 - AWS CDK 2.x
 - Tavily API key
@@ -500,8 +500,11 @@ The agent has direct control over the user interface through specialized tools:
 git clone <repository-url>
 cd ascendia-aws-ai-agent-global-hackathon
 
+# Install cdk if you haven't already
+npm install -g aws-cdk
+
 # Install required packages (use virtual environment of choice or none)
-pip install
+pip install -r requirements.txt
 
 # Deploy everything (handles env setup, CDK, AgentCore)
 ./scripts/deploy-all.sh

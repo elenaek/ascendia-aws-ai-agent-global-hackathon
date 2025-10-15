@@ -35,8 +35,10 @@ bedrock-agentcore-starter-toolkit>=0.1.21
 #   - DynamoDB (data storage)
 #   - Lambda (serverless functions)
 #   - WebSocket API (real-time communication)
-aws-cdk-lib==2.215.0
+aws-cdk-lib>=2.215.0
 constructs>=10.0.0,<11.0.0
+aws-cdk.aws-cognito-identitypool-alpha~=2.186.0a0
+aws-cdk.aws-lambda-python-alpha~=2.220.0a0
 
 # ----------------------------------------------------------------------------
 # Configuration & Utilities
