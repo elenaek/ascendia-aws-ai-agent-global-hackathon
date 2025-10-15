@@ -107,25 +107,6 @@ class InfrastructureStack(Stack):
 
         # ============ Cognito Identity Pool ============
 
-        # We'll create the Identity Pool after the tables and roles
-
-        # ============ Secrets Manager for AgentCore API Tokens ============
-
-        # Get Tavily API key from environment variable
-        tavily_api_key = os.environ.get('TAVILY_API_KEY', '')
-
-        if not tavily_api_key:
-            print("WARNING: TAVILY_API_KEY not found in environment variables")
-
-        # Create SSM Parameter for Tavily API key
-        agentcore_tavily_api_secret = ssm.StringParameter(
-            self, "AgentCoreTavilyApiKey",
-            parameter_name=f"/ascendia/agentcore/tavily-api-key-{self.account}",
-            description="Tavily API key for AgentCore agent",
-            string_value=tavily_api_key,
-            tier=ssm.ParameterTier.STANDARD
-        )
-
         # DynamoDB Tables (parallel to MongoDB)
 
         # Table 1: Companies
@@ -407,16 +388,6 @@ class InfrastructureStack(Stack):
             ]
         ))
 
-        # ============ Grant AgentCore Execution Role Access to Secret ============
-
-        # Create IAM role for AgentCore (if not using existing role)
-        # Note: AgentCore auto-creates a role, but we need to grant it permissions
-        # The role ARN is typically: arn:aws:iam::ACCOUNT:role/AmazonBedrockAgentCoreSDKRuntime-REGION-HASH
-
-        # Since we can't directly modify the auto-created role in CDK, we'll output
-        # the secret ARN and manually add permissions or use a custom resource
-
-        # Alternative: Create a policy that can be attached to the AgentCore execution role
         agentcore_secrets_policy = iam.ManagedPolicy(
             self, "AgentCoreSecretsAccessPolicy",
             description="Allows AgentCore agent to access AWS resources (AgentCore Memory/Identity, Secrets Manager, DynamoDB, WebSocket API)",
@@ -514,13 +485,6 @@ class InfrastructureStack(Stack):
             value=identity_pool_instance.identity_pool_id,
             description="Cognito Identity Pool ID",
             export_name=f"{self.stack_name}-IdentityPoolId"
-        )
-
-        CfnOutput(
-            self, "AgentCoreTavilySecretArn",
-            value=agentcore_tavily_api_secret.parameter_name,
-            description="ARN of the Secrets Manager secret for AgentCore API tokens",
-            export_name=f"{self.stack_name}-AgentCoreTavilySecretArn"
         )
 
         CfnOutput(
