@@ -23,6 +23,10 @@ COGNITO_IDENTITY_POOL_ID=os.getenv("COGNITO_IDENTITY_POOL_ID")
 AWS_REGION=os.getenv("AWS_REGION")
 AWS_ACCOUNT_ID = os.getenv("AWS_ACCOUNT_ID")
 
+# Agent Configuration Constants
+DEFAULT_MAX_TOKENS = 10000
+DEFAULT_MAX_RECENT_TURNS = 10
+
 tavily_logger = logging.getLogger("strands_agents.tools.tavily")
 tavily_logger.setLevel(logging.WARNING)
 
@@ -30,12 +34,10 @@ app = BedrockAgentCoreApp()
 
 # Initialize Bedrock model with error handling
 try:
-    model = BedrockModel(model_id="us.amazon.nova-pro-v1:0", max_tokens=10000)
-    # model = BedrockModel(model_id="openai.gpt-oss-120b-1:0")
-    # model = BedrockModel(model_id="us.amazon.nova-premier-v1:0")
-except Exception as e:
+    model = BedrockModel(model_id="us.amazon.nova-pro-v1:0", max_tokens=DEFAULT_MAX_TOKENS)
+except Exception as error:
     error_message = (
-        f"Failed to initialize Bedrock model: {str(e)}\n\n"
+        f"Failed to initialize Bedrock model: {str(error)}\n\n"
         "This usually means:\n"
         "1. The model doesn't have access enabled in your AWS account\n"
         "2. Your AWS credentials don't have Bedrock permissions\n\n"
@@ -120,13 +122,11 @@ async def invoke(payload):
     global _current_identity_id
 
     company_info = payload.get("company_information")
-    # app.logger.info(f"Company Info: {company_info}")
     set_tavily_api_key(api_key=payload.get("tavily_api_key"))
 
     # Set identity_id for WebSocket updates (from company_info which contains _id/identity_id)
     if company_info and '_id' in company_info:
         _current_identity_id = company_info['_id']
-        # app.logger.info(f"Set identity_id for WebSocket updates: {_current_identity_id}")
 
 
     # Create or get memory session for this user
@@ -152,7 +152,7 @@ async def invoke(payload):
         )
 
         # Retrieve memory context (smart retrieval with limited turns)
-        max_recent_turns = int(os.getenv("MAX_RECENT_TURNS", "10"))
+        max_recent_turns = int(os.getenv("MAX_RECENT_TURNS", str(DEFAULT_MAX_RECENT_TURNS)))
         memory_summary = memory_session.get_memory_summary(recent_turns_k=max_recent_turns)
         memory_context_text = memory_session.format_memory_for_prompt(recent_turns_k=max_recent_turns)
 
@@ -167,8 +167,8 @@ async def invoke(payload):
                     f"Content preview: {recent_preview.get('content', '')[:100]}..."
                 )
 
-    except Exception as e:
-        app.logger.error(f"Memory initialization failed (continuing without memory): {str(e)}")
+    except Exception as error:
+        app.logger.error(f"Memory initialization failed (continuing without memory): {str(error)}")
         memory_context_text = "Memory service temporarily unavailable."
 
     competitive_research_tools = CompetitiveResearch(company_information=company_info, logger=app.logger)
@@ -272,8 +272,8 @@ async def invoke(payload):
             else:
                 app.logger.warning(f"Assistant response was empty, skipping memory storage | Session: {session_id}")
 
-        except Exception as e:
-            app.logger.error(f"Failed to store conversation in memory | Session: {session_id} | Error: {str(e)}")
+        except Exception as error:
+            app.logger.error(f"Failed to store conversation in memory | Session: {session_id} | Error: {str(error)}")
             import traceback
             app.logger.error(f"Memory storage traceback: {traceback.format_exc()}")
 

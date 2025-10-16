@@ -4,7 +4,10 @@ WebSocket helper for sending UI updates to connected clients.
 import boto3
 import json
 import os
+import logging
 from typing import Dict, Any, Optional, Literal
+
+logger = logging.getLogger(__name__)
 
 # AWS Configuration
 AWS_REGION = os.environ.get('AWS_REGION', 'us-east-1')
@@ -14,8 +17,21 @@ AWS_ACCOUNT_ID = os.environ.get('AWS_ACCOUNT_ID', '123456789012')
 dynamodb = boto3.resource('dynamodb', region_name=AWS_REGION)
 apigateway_client = boto3.client('apigatewaymanagementapi', region_name=AWS_REGION)
 
+# Helper function for consistent table naming
+def get_table_name(base_name: str) -> str:
+    """
+    Construct a DynamoDB table name using the standard naming pattern.
+
+    Args:
+        base_name: Base name for the table (e.g., 'websocket-connections')
+
+    Returns:
+        Full table name with account ID suffix
+    """
+    return f"{base_name}-{AWS_ACCOUNT_ID}"
+
 # Table names (will be set from environment or defaults)
-CONNECTIONS_TABLE_NAME = f"websocket-connections-{AWS_ACCOUNT_ID}"
+CONNECTIONS_TABLE_NAME = get_table_name("websocket-connections")
 
 # WebSocket API endpoint (will be set dynamically)
 WEBSOCKET_API_ID = os.environ.get('WEBSOCKET_API_ID', '')
@@ -63,8 +79,8 @@ def get_connection_id_for_identity(identity_id: str) -> Optional[str]:
 
         return None
 
-    except Exception as e:
-        print(f"Error querying connections table: {str(e)}")
+    except Exception as error:
+        logger.error(f"Error querying connections table: {str(error)}")
         return None
 
 
@@ -106,23 +122,21 @@ def send_websocket_message(
             Data=json.dumps(message).encode('utf-8')
         )
 
-        print(f"Message sent to connection {connection_id}: {message_type}")
+        logger.info(f"Message sent to connection {connection_id}: {message_type}")
         return True
 
     except client.exceptions.GoneException:
-        print(f"Connection {connection_id} is gone (stale)")
+        logger.warning(f"Connection {connection_id} is gone (stale)")
         # Optionally: Clean up stale connection from DynamoDB
         try:
             table = dynamodb.Table(CONNECTIONS_TABLE_NAME)
             table.delete_item(Key={'connection_id': connection_id})
         except Exception as cleanup_error:
-            print(f"Error cleaning up stale connection: {str(cleanup_error)}")
+            logger.error(f"Error cleaning up stale connection: {str(cleanup_error)}")
         return False
 
-    except Exception as e:
-        print(f"Error sending WebSocket message: {str(e)}")
-        import traceback
-        traceback.print_exc()
+    except Exception as error:
+        logger.error(f"Error sending WebSocket message: {str(error)}", exc_info=True)
         return False
 
 
@@ -146,7 +160,7 @@ def send_ui_update_to_identity(
     connection_id = get_connection_id_for_identity(identity_id)
 
     if not connection_id:
-        print(f"No active WebSocket connection found for identity: {identity_id}")
+        logger.warning(f"No active WebSocket connection found for identity: {identity_id}")
         return False
 
     # Send the message

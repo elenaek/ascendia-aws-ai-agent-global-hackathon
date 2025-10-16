@@ -9,6 +9,18 @@ from .schemas.types import NotificationType, SeverityType, ElementIdType
 
 
 class UIUpdates:
+    # Semantic color constants for consistent theming
+    COLOR_SUCCESS = "#00ff88"      # Green - success, your company, positive findings
+    COLOR_WARNING = "#ff6b6b"      # Red - warnings, competitors, threats
+    COLOR_INFO = "#ffd93d"         # Yellow - information, highlights
+    COLOR_PRIMARY = "#6b8cff"      # Blue - primary elements, neutral data
+    COLOR_ACCENT_PURPLE = "#a855f7"  # Purple - accent color
+    COLOR_ACCENT_PINK = "#ec4899"    # Pink - accent color
+    COLOR_NEUTRAL = "#cccccc"      # Gray - neutral, "others" category
+
+    # Default color palette for charts and visualizations
+    DEFAULT_COLOR_PALETTE = [COLOR_SUCCESS, COLOR_WARNING, COLOR_INFO, COLOR_PRIMARY, COLOR_ACCENT_PURPLE, COLOR_ACCENT_PINK, COLOR_NEUTRAL]
+
     def __init__(self, identity_id: str, logger: logging.Logger):
         """
         Initialize UI Updates tool collection.
@@ -380,8 +392,8 @@ class UIUpdates:
                 groups[group_name] = {
                     "label": group_name,
                     "data": [],
-                    "backgroundColor": point.get("color", "#6b8cff"),
-                    "borderColor": point.get("color", "#6b8cff"),
+                    "backgroundColor": point.get("color", self.COLOR_PRIMARY),
+                    "borderColor": point.get("color", self.COLOR_PRIMARY),
                     "pointRadius": 12 if "Your Company" in group_name else 8
                 }
             groups[group_name]["data"].append({
@@ -744,10 +756,10 @@ class UIUpdates:
         """
         # Define default color palette for fallback (edge case handling)
         default_colors = [
-            {"bg": "rgba(0, 255, 136, 0.2)", "border": "#00ff88"},    # Green
-            {"bg": "rgba(255, 107, 107, 0.2)", "border": "#ff6b6b"},  # Red
-            {"bg": "rgba(255, 217, 61, 0.2)", "border": "#ffd93d"},   # Yellow
-            {"bg": "rgba(107, 140, 255, 0.2)", "border": "#6b8cff"},  # Blue
+            {"bg": "rgba(0, 255, 136, 0.2)", "border": self.COLOR_SUCCESS},    # Green
+            {"bg": "rgba(255, 107, 107, 0.2)", "border": self.COLOR_WARNING},  # Red
+            {"bg": "rgba(255, 217, 61, 0.2)", "border": self.COLOR_INFO},      # Yellow
+            {"bg": "rgba(107, 140, 255, 0.2)", "border": self.COLOR_PRIMARY},  # Blue
         ]
 
         # Apply color fallbacks if needed (should rarely trigger - see docstring)
@@ -858,8 +870,7 @@ class UIUpdates:
             - Consider doughnut chart for modern look (see show_doughnut_graph)
         """
         if colors is None:
-            # Default color palette
-            colors = ["#00ff88", "#ff6b6b", "#ffd93d", "#6b8cff", "#a855f7", "#ec4899", "#cccccc"]
+            colors = self.DEFAULT_COLOR_PALETTE
 
         payload = {
             "title": title,
@@ -948,8 +959,7 @@ class UIUpdates:
             - Prefer over pie charts for modern, professional look
         """
         if colors is None:
-            # Default color palette
-            colors = ["#00ff88", "#ff6b6b", "#ffd93d", "#6b8cff", "#a855f7", "#ec4899", "#cccccc"]
+            colors = self.DEFAULT_COLOR_PALETTE
 
         payload = {
             "title": title,
@@ -1061,8 +1071,8 @@ class UIUpdates:
                 groups[group_name] = {
                     "label": group_name,
                     "data": [],
-                    "backgroundColor": point.get("color", "#6b8cff"),
-                    "borderColor": point.get("color", "#6b8cff")
+                    "backgroundColor": point.get("color", self.COLOR_PRIMARY),
+                    "borderColor": point.get("color", self.COLOR_PRIMARY)
                 }
             groups[group_name]["data"].append({
                 "x": point["x"],

@@ -263,6 +263,32 @@ export function ChatInterface() {
     scrollToBottom()
   }, [messages, isThinking, thinkingContent, toolUses])
 
+  // Helper function to handle streaming errors consistently
+  const handleStreamingError = (error: unknown, assistantMessageId: string, includeToolCleanup = false) => {
+    console.error('Streaming error:', error)
+
+    // Detect error type and get user-friendly messages
+    const errorInfo = detectErrorType(error)
+
+    // Show toast notification with error details
+    toast.error(errorInfo.title, {
+      description: errorInfo.suggestion,
+      duration: 6000,
+    })
+
+    // Add formatted error message to chat
+    const errorMessage = `\n\n⚠️ **${errorInfo.title}**\n\n${errorInfo.message}\n\n💡 ${errorInfo.suggestion}`
+    appendToMessage(assistantMessageId, errorMessage)
+
+    // Clean up state to re-enable chat input
+    if (includeToolCleanup) {
+      saveToolUsesToMessage(assistantMessageId)
+    }
+    setLoading(false)
+    setThinking(false)
+    setStreamingId(null)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim() || isLoading) return
@@ -331,26 +357,7 @@ export function ChatInterface() {
           updateToolUse(toolData.id, { status: 'completed', input: toolData.input as Record<string, unknown> | string })
         },
         onError: (error) => {
-          console.error('Streaming error:', error)
-
-          // Detect error type and get user-friendly messages
-          const errorInfo = detectErrorType(error)
-
-          // Show toast notification with error details
-          toast.error(errorInfo.title, {
-            description: errorInfo.suggestion,
-            duration: 6000,
-          })
-
-          // Add formatted error message to chat
-          const errorMessage = `\n\n⚠️ **${errorInfo.title}**\n\n${errorInfo.message}\n\n💡 ${errorInfo.suggestion}`
-          appendToMessage(assistantMessageId, errorMessage)
-
-          // Clean up state to re-enable chat input
-          saveToolUsesToMessage(assistantMessageId)
-          setLoading(false)
-          setThinking(false)
-          setStreamingId(null)
+          handleStreamingError(error, assistantMessageId, true)
         },
         onComplete: () => {
           // Save tool uses to the message before clearing
@@ -381,24 +388,7 @@ export function ChatInterface() {
         }
       })
     } catch (error) {
-      console.error('Error sending message:', error)
-
-      // Detect error type and get user-friendly messages
-      const errorInfo = detectErrorType(error)
-
-      // Show toast notification with error details
-      toast.error(errorInfo.title, {
-        description: errorInfo.suggestion,
-        duration: 6000,
-      })
-
-      // Add formatted error message to chat
-      const errorMessage = `\n\n⚠️ **${errorInfo.title}**\n\n${errorInfo.message}\n\n💡 ${errorInfo.suggestion}`
-      appendToMessage(assistantMessageId, errorMessage)
-
-      setLoading(false)
-      setThinking(false)
-      setStreamingId(null)
+      handleStreamingError(error, assistantMessageId, false)
     }
   }
 
