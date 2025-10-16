@@ -14,8 +14,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from memory_manager import get_or_create_memory_resource, initialize_memory
-from memory_session import create_or_get_session
+from memory.manager import get_or_create_memory_resource, initialize_memory
+from memory.session import create_or_get_session
 
 def test_memory_initialization():
     """Test that memory resource can be initialized"""

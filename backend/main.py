@@ -1,22 +1,20 @@
 from dotenv import load_dotenv
 import boto3
 import os
-from typing import Literal, Dict, Any
 from datetime import datetime
 import logging
 
 load_dotenv()
 
-from strands import Agent, tool
+from strands import Agent
 from strands.models import BedrockModel
 from strands_tools import think
-from strands_tools.tavily import tavily_search, tavily_crawl, tavily_extract
+from strands_tools.tavily import tavily_search
 
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
 from bedrock_agentcore.identity.auth import requires_api_key
 
-from websocket_helper import send_ui_update_to_identity
-from memory_session import create_or_get_session
+from memory.session import create_or_get_session
 from tools.competitive_research import CompetitiveResearch
 from tools.ui_updates import UIUpdates
 

@@ -13,7 +13,7 @@ from datetime import datetime
 from bedrock_agentcore.memory.session import MemorySessionManager
 from bedrock_agentcore.memory.constants import ConversationalMessage, MessageRole
 
-from memory_manager import get_memory_id, AWS_REGION
+from memory.manager import get_memory_id, AWS_REGION
 
 logger = logging.getLogger(__name__)
 
