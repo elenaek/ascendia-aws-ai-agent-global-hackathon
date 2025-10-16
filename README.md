@@ -426,12 +426,15 @@ The agent has direct control over the user interface through specialized tools:
 - 7+ chart types generated on-demand by the agent
 - Responsive design
 
-### 🔐 Enterprise-Grade Security
+### 🔐 Security Features
 
-- Cognito authentication (User Pool + Identity Pool)
-- Row-level security with IAM conditions
-- WebSocket connection authentication
-- HTTPS/WSS encryption
+- **Authentication**: Cognito User Pool with email verification
+- **Authorization**: Row-level security with IAM conditions
+- **Access Control**: Pre-signup Lambda trigger with email allowlist (optional)
+- **WebSocket Security**: IAM-authenticated connections
+- **Data Isolation**: Users can only access their own data
+- **Security Headers**: X-Frame-Options, CSP, and more
+- **IP Whitelisting**: IP-based access control (optional)
 
 ---
 
@@ -674,6 +677,7 @@ The agent autonomously updates the UI based on the conversation:
 ## 📚 Documentation
 
 - **[Deployment Guide](./DEPLOYMENT.md)** - Complete setup instructions
+- **[Security Policy](./SECURITY.md)** - Security features, best practices, and vulnerability reporting
 - **[Environment Variables](./DEPLOYMENT.md#environment-variables)** - Configuration reference
 - **[AWS Bedrock AgentCore](https://docs.aws.amazon.com/bedrock-agentcore/)** - Official docs
 - **[AWS AI Agent Hackathon](https://aws-agent-hackathon.devpost.com/)** - Hackathon details

@@ -69,7 +69,7 @@ def handler(event, context):
         else:
             # Email not in allowlist - reject sign-up
             print(f"Email allowlist check failed for: {user_email}")
-            print(f"Allowed emails: {allowed_emails}")
+            print(f"Allowed email count: {len(allowed_emails)}")
 
             raise Exception(
                 f"Sign-up not allowed. Your email ({user_email}) is not authorized to create an account. "

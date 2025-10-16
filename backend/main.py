@@ -147,8 +147,6 @@ async def invoke(payload):
             sanitized_identity = _current_identity_id.replace(":", "-")
             session_id = f"{sanitized_identity}_{today}"
 
-        # app.logger.info(f"Memory session initialized | Source: {session_source} | Session ID: {session_id} | Actor: {_current_identity_id}")
-
         # Create/get memory session
         memory_session = create_or_get_session(
             actor_id=_current_identity_id,
@@ -161,11 +159,6 @@ async def invoke(payload):
         memory_context_text = memory_session.format_memory_for_prompt(recent_turns_k=max_recent_turns)
 
         recent_turns_count = len(memory_summary.get("recent_context", []))
-        # app.logger.info(
-        #     f"Memory retrieved | Session: {session_id} | "
-        #     f"Recent turns: {recent_turns_count}/{max_recent_turns} | "
-        #     f"Context size: {len(memory_context_text)} chars"
-        # )
 
         if recent_turns_count > 0:
             # Log a preview of recent memory
@@ -267,13 +260,6 @@ async def invoke(payload):
         # Each event contains a chunk of the response
         yield event
 
-    # app.logger.info(agent_system_prompt.format(
-    #     company_information=company_info,
-    #     memory_context=memory_context_text
-    # ))
-
-    # app.logger.info(f"Conversation history: {memory_context_text}")
-
     # Store the conversation turn in memory
     if memory_session:
         try:
@@ -285,11 +271,6 @@ async def invoke(payload):
                     user_message=user_message,
                     assistant_message=full_assistant_response
                 )
-                # app.logger.info(
-                #     f"Conversation turn stored successfully | Session: {session_id} | "
-                #     f"User message: {len(user_message)} chars | Assistant response: {len(full_assistant_response)} chars | "
-                #     f"User preview: '{user_message[:50]}...'"
-                # )
             else:
                 app.logger.warning(f"Assistant response was empty, skipping memory storage | Session: {session_id}")
 

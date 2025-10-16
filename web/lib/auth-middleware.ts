@@ -22,7 +22,7 @@ export async function getAuthFromRequest(request: NextRequest) {
 
     return { idToken }
   } catch (error) {
-    console.error('Error validating auth token:', error)
+    console.error('Error validating auth token')
     return null
   }
 }
