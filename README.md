@@ -11,7 +11,7 @@
 [![Python](https://img.shields.io/badge/Python-3.9+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![CDK](https://img.shields.io/badge/AWS-CDK-orange?style=for-the-badge&logo=amazon-aws&logoColor=white)](https://aws.amazon.com/cdk/)
 
-[Features](#-key-features) • [Architecture/Diagrams](#%EF%B8%8F-architecture) • [Quick Start](#-quick-start) • [Demo](#-demo) • [Showcase GIFs](#-showcase-gifs)
+[Features](#-key-features) • [Architecture/Diagrams](#%EF%B8%8F-architecture) • [Quick Start](#-quick-start) • [Demo](#-demo) • [Showcase GIFs](#-showcase-gifs) • [YouTube Demo](https://www.youtube.com/watch?v=mShqpqxHxJI)
 
 </div>
 
