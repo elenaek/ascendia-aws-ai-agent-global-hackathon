@@ -118,6 +118,8 @@ For experienced users who have all prerequisites installed:
 
 ```bash
 # 1. Clone repository
+# HTTP: https://github.com/elenaek/ascendia-aws-ai-agent-global-hackathon.git
+# SSH: git@github.com:elenaek/ascendia-aws-ai-agent-global-hackathon.git
 git clone <repository-url>
 cd ascendia-aws-ai-agent-global-hackathon
 
@@ -416,8 +418,8 @@ Access at: http://localhost:3000
 |----------|----------|-------------|---------|---------------|
 | `AWS_REGION` | Yes | AWS region | `us-east-1` | Interactive setup or manual |
 | `AWS_ACCOUNT_ID` | Yes | AWS account ID | `123456789012` | Auto-detected by setup script |
-| `AWS_ACCESS_KEY_ID` | Yes* | AWS access key | `AKIAIOSFODNN7EXAMPLE` | Interactive setup or manual |
-| `AWS_SECRET_ACCESS_KEY` | Yes* | AWS secret key | `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY` | Interactive setup or manual |
+| `AWS_ACCESS_KEY_ID` | Yes* | AWS access key | `AKIA...EXAMPLE` | Interactive setup or manual |
+| `AWS_SECRET_ACCESS_KEY` | Yes* | AWS secret key | `EXAMPLESECRETKEY` | Interactive setup or manual |
 | `TAVILY_API_KEY` | Yes | Tavily search API key | `tvly-XXXXXXXXXX` | Interactive setup or manual |
 | `MEMORY_NAME` | No | AgentCore memory name | `business_analyst_memory` | Default value in template |
 | `MAX_RECENT_TURNS` | No | Conversation turns to keep | `10` | Default value in template |
@@ -936,20 +938,7 @@ If automated teardown fails, manually delete:
    ```
 3. **Monitor Costs**: Set up AWS Budgets with alerts
 
----
-
-## Next Steps
-
-After successful deployment:
-
-1. **Customize the Agent**: Edit `backend/main.py` to add custom tools and logic
-2. **Add Authentication**: Implement proper user authentication in frontend
-3. **Configure Monitoring**: Set up CloudWatch dashboards and alarms
-4. **Implement CI/CD**: Automate deployment using GitHub Actions or AWS CodePipeline
-5. **Scale Infrastructure**: Adjust DynamoDB provisioned capacity or Lambda concurrency
-6. **Add Tests**: Write unit and integration tests for agent logic
 
 ---
 
 **Tested With**: AgentCore Preview, CDK 2.x, Python 3.11, Node.js 18+
-**Key Changes**: Fully automated deployment with environment configuration, skip flags, and comprehensive error handling

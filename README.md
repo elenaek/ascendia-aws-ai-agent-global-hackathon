@@ -500,6 +500,8 @@ The agent has direct control over the user interface through specialized tools:
 
 ```bash
 # Clone repository
+# HTTP: https://github.com/elenaek/ascendia-aws-ai-agent-global-hackathon.git
+# SSH: git@github.com:elenaek/ascendia-aws-ai-agent-global-hackathon.git
 git clone <repository-url>
 cd ascendia-aws-ai-agent-global-hackathon
 
